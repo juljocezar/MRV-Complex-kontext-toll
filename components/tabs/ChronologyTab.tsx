@@ -1,12 +1,27 @@
 import React, { useState } from 'react';
 import type { TimelineEvent, Document } from '../../types';
 
+/**
+ * @interface ChronologyTabProps
+ * @description Represents the props for the ChronologyTab component.
+ * @description Stellt die Props für die ChronologyTab-Komponente dar.
+ * @property {TimelineEvent[]} timelineEvents - The list of events in the case chronology. / Die Liste der Ereignisse in der Fallchronologie.
+ * @property {React.Dispatch<React.SetStateAction<TimelineEvent[]>>} setTimelineEvents - Function to update the list of timeline events. / Funktion zum Aktualisieren der Liste der Chronologie-Ereignisse.
+ * @property {Document[]} documents - The list of all documents, used to link events to sources. / Die Liste aller Dokumente, die verwendet wird, um Ereignisse mit Quellen zu verknüpfen.
+ */
 interface ChronologyTabProps {
     timelineEvents: TimelineEvent[];
     setTimelineEvents: React.Dispatch<React.SetStateAction<TimelineEvent[]>>;
     documents: Document[];
 }
 
+/**
+ * @component ChronologyTab
+ * @description A tab component for displaying and managing the chronological timeline of a case.
+ * @description Eine Tab-Komponente zur Anzeige und Verwaltung der chronologischen Zeitleiste eines Falles.
+ * @param {ChronologyTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered chronology tab. / Der gerenderte Chronologie-Tab.
+ */
 const ChronologyTab: React.FC<ChronologyTabProps> = ({ timelineEvents, setTimelineEvents, documents }) => {
     // Fix: Updated state shape for a new event to match the 'TimelineEvent' type, using 'documentIds' instead of 'sourceDocId' and removing 'type'.
     const [newEvent, setNewEvent] = useState({ date: '', title: '', description: '', documentIds: [] as string[] });

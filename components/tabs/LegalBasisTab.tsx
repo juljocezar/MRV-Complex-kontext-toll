@@ -1,7 +1,26 @@
 import React from 'react';
 import { legalResources, otherResources } from '../../legalResources';
 
-const AccordionItem: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+/**
+ * @interface AccordionItemProps
+ * @description Represents the props for the AccordionItem component.
+ * @description Stellt die Props für die AccordionItem-Komponente dar.
+ * @property {string} title - The title displayed in the accordion header. / Der im Akkordeon-Header angezeigte Titel.
+ * @property {React.ReactNode} children - The content to be displayed within the accordion body. / Der im Akkordeon-Körper anzuzeigende Inhalt.
+ */
+interface AccordionItemProps {
+    title: string;
+    children: React.ReactNode;
+}
+
+/**
+ * @component AccordionItem
+ * @description A reusable accordion item component using the HTML <details> element.
+ * @description Eine wiederverwendbare Akkordeon-Element-Komponente, die das HTML-<details>-Element verwendet.
+ * @param {AccordionItemProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered accordion item. / Das gerenderte Akkordeon-Element.
+ */
+const AccordionItem: React.FC<AccordionItemProps> = ({ title, children }) => (
     <details className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
         <summary className="cursor-pointer p-4 font-semibold text-white text-lg hover:bg-gray-700/50">
             {title}
@@ -12,6 +31,12 @@ const AccordionItem: React.FC<{ title: string; children: React.ReactNode }> = ({
     </details>
 );
 
+/**
+ * @component LegalBasisTab
+ * @description A tab that provides a curated collection of important legal information and procedural guides.
+ * @description Ein Tab, der eine kuratierte Sammlung von wichtigen rechtlichen Informationen und prozeduralen Anleitungen bereitstellt.
+ * @returns {React.ReactElement} The rendered legal basis tab. / Der gerenderte Rechtsgrundlagen-Tab.
+ */
 const LegalBasisTab: React.FC = () => {
     const { unSpecialProcedures } = legalResources;
     const { ohchrDatabases, otherKeyResources } = otherResources;

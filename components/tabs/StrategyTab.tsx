@@ -1,6 +1,16 @@
 import React from 'react';
 import type { Risks } from '../../types';
 
+/**
+ * @interface StrategyTabProps
+ * @description Represents the props for the StrategyTab component.
+ * @description Stellt die Props für die StrategyTab-Komponente dar.
+ * @property {Risks} risks - An object representing the selected risks for the case. / Ein Objekt, das die ausgewählten Risiken für den Fall darstellt.
+ * @property {React.Dispatch<React.SetStateAction<Risks>>} setRisks - Function to update the selected risks. / Funktion zum Aktualisieren der ausgewählten Risiken.
+ * @property {string} mitigationStrategies - The AI-generated strategies to mitigate the selected risks. / Die KI-generierten Strategien zur Minderung der ausgewählten Risiken.
+ * @property {() => void} onGenerateMitigationStrategies - Function to trigger the generation of mitigation strategies. / Funktion zum Auslösen der Generierung von Minderungsstrategien.
+ * @property {boolean} isLoading - Flag indicating if strategies are being generated. / Flag, das anzeigt, ob Strategien generiert werden.
+ */
 interface StrategyTabProps {
     risks: Risks;
     setRisks: React.Dispatch<React.SetStateAction<Risks>>;
@@ -9,6 +19,11 @@ interface StrategyTabProps {
     isLoading: boolean;
 }
 
+/**
+ * @constant riskOptions
+ * @description An array of predefined risk options for selection in the UI.
+ * @description Ein Array vordefinierter Risikooptionen zur Auswahl in der Benutzeroberfläche.
+ */
 const riskOptions = [
     { id: 'physical', label: 'Physische Sicherheit' },
     { id: 'legal', label: 'Rechtliche Risiken' },
@@ -20,6 +35,13 @@ const riskOptions = [
     { id: 'psychologicalBurden', label: 'Psychische Belastung des Mandanten' },
 ];
 
+/**
+ * @component StrategyTab
+ * @description A tab for assessing risks and generating mitigation strategies for the case.
+ * @description Ein Tab zur Bewertung von Risiken und zur Generierung von Minderungsstrategien für den Fall.
+ * @param {StrategyTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered strategy tab. / Der gerenderte Strategie-Tab.
+ */
 const StrategyTab: React.FC<StrategyTabProps> = ({ risks, setRisks, mitigationStrategies, onGenerateMitigationStrategies, isLoading }) => {
     
     const handleRiskChange = (riskId: keyof Risks) => {

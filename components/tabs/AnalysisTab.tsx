@@ -1,6 +1,18 @@
 import React from 'react';
 import { Document, DocumentAnalysisResults, DetailedAnalysisResults } from '../../types';
 
+/**
+ * @interface AnalysisTabProps
+ * @description Represents the props for the AnalysisTab component.
+ * @description Stellt die Props für die AnalysisTab-Komponente dar.
+ * @property {Document[]} documents - The list of all documents. / Die Liste aller Dokumente.
+ * @property {DocumentAnalysisResults} documentAnalysisResults - The results of the workload analysis for each document. / Die Ergebnisse der Aufwandsanalyse für jedes Dokument.
+ * @property {DetailedAnalysisResults} detailedAnalysisResults - The results of the detailed content analysis for each document. / Die Ergebnisse der detaillierten Inhaltsanalyse für jedes Dokument.
+ * @property {(docId: string) => void} onPerformDetailedAnalysis - Function to trigger a detailed analysis for a document. / Funktion zum Auslösen einer detaillierten Analyse für ein Dokument.
+ * @property {(docId: string) => void} onAnalyzeCorrespondence - Function to trigger a special analysis for correspondence. / Funktion zum Auslösen einer speziellen Analyse für Korrespondenz.
+ * @property {boolean} isLoading - Flag indicating if an analysis is in progress. / Flag, das anzeigt, ob eine Analyse läuft.
+ * @property {string} loadingSection - The specific section or document being loaded/analyzed. / Der spezifische Bereich oder das Dokument, das geladen/analysiert wird.
+ */
 interface AnalysisTabProps {
     documents: Document[];
     documentAnalysisResults: DocumentAnalysisResults;
@@ -11,6 +23,13 @@ interface AnalysisTabProps {
     loadingSection: string;
 }
 
+/**
+ * @component AnalysisTab
+ * @description A tab component that displays the results of various AI-powered document analyses.
+ * @description Eine Tab-Komponente, die die Ergebnisse verschiedener KI-gestützter Dokumentenanalysen anzeigt.
+ * @param {AnalysisTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered analysis tab. / Der gerenderte Analyse-Tab.
+ */
 const AnalysisTab: React.FC<AnalysisTabProps> = ({
     documents,
     documentAnalysisResults,

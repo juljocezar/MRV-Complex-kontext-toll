@@ -1,12 +1,27 @@
 import React from 'react';
 import type { EthicsAnalysis } from '../../types';
 
+/**
+ * @interface EthicsAnalysisTabProps
+ * @description Represents the props for the EthicsAnalysisTab component.
+ * @description Stellt die Props für die EthicsAnalysisTab-Komponente dar.
+ * @property {EthicsAnalysis | null} analysisResult - The result of the ethics analysis. / Das Ergebnis der Ethikanalyse.
+ * @property {() => void} onPerformAnalysis - Function to trigger the ethics analysis. / Funktion zum Auslösen der Ethikanalyse.
+ * @property {boolean} isLoading - Flag indicating if the analysis is in progress. / Flag, das anzeigt, ob die Analyse läuft.
+ */
 interface EthicsAnalysisTabProps {
     analysisResult: EthicsAnalysis | null;
     onPerformAnalysis: () => void;
     isLoading: boolean;
 }
 
+/**
+ * @component EthicsAnalysisTab
+ * @description A tab for performing and displaying an AI-powered ethics analysis of the case.
+ * @description Ein Tab zur Durchführung und Anzeige einer KI-gestützten Ethikanalyse des Falles.
+ * @param {EthicsAnalysisTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered ethics analysis tab. / Der gerenderte Ethikanalyse-Tab.
+ */
 const EthicsAnalysisTab: React.FC<EthicsAnalysisTabProps> = ({ analysisResult, onPerformAnalysis, isLoading }) => {
     return (
         <div className="space-y-6">

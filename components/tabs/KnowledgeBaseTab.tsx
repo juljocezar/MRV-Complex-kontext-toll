@@ -2,12 +2,27 @@ import React, { useState, useMemo } from 'react';
 import type { KnowledgeItem, Tag } from '../../types';
 import TagManagementModal from '../modals/TagManagementModal';
 
+/**
+ * @interface KnowledgeBaseTabProps
+ * @description Represents the props for the KnowledgeBaseTab component.
+ * @description Stellt die Props für die KnowledgeBaseTab-Komponente dar.
+ * @property {KnowledgeItem[]} knowledgeItems - The list of all items in the knowledge base. / Die Liste aller Einträge in der Wissensbasis.
+ * @property {Tag[]} tags - The list of all available tags. / Die Liste aller verfügbaren Tags.
+ * @property {(itemId: string, newTags: string[]) => void} onUpdateKnowledgeItemTags - Function to update the tags for a knowledge item. / Funktion zum Aktualisieren der Tags für einen Wissenseintrag.
+ */
 interface KnowledgeBaseTabProps {
     knowledgeItems: KnowledgeItem[];
     tags: Tag[];
     onUpdateKnowledgeItemTags: (itemId: string, newTags: string[]) => void;
 }
 
+/**
+ * @component KnowledgeBaseTab
+ * @description A tab for viewing and filtering the knowledge base, which contains extracted facts and information.
+ * @description Ein Tab zur Anzeige und Filterung der Wissensbasis, die extrahierte Fakten und Informationen enthält.
+ * @param {KnowledgeBaseTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered knowledge base tab. / Der gerenderte Wissensbasis-Tab.
+ */
 const KnowledgeBaseTab: React.FC<KnowledgeBaseTabProps> = ({ knowledgeItems, tags, onUpdateKnowledgeItemTags }) => {
     const [filterTags, setFilterTags] = useState<string[]>([]);
     const [tagModalState, setTagModalState] = useState<{ isOpen: boolean; item: KnowledgeItem | null }>({ isOpen: false, item: null });

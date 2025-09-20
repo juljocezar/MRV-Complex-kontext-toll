@@ -1,6 +1,16 @@
 import React from 'react';
 import type { AgentActivity, Insight } from '../../types';
 
+/**
+ * @interface AssistantSidebarProps
+ * @description Represents the props for the AssistantSidebar component.
+ * @description Stellt die Props für die AssistantSidebar-Komponente dar.
+ * @property {AgentActivity[]} agentActivityLog - The log of agent activities. / Das Protokoll der Agentenaktivitäten.
+ * @property {Insight[]} insights - A list of generated insights. / Eine Liste der generierten Einblicke.
+ * @property {() => void} onGenerateInsights - Function to trigger the generation of new insights. / Funktion zum Auslösen der Generierung neuer Einblicke.
+ * @property {boolean} isLoading - Flag indicating if a process is running. / Flag, das anzeigt, ob ein Prozess läuft.
+ * @property {string} loadingSection - The section that is currently loading. / Der Bereich, der gerade lädt.
+ */
 interface AssistantSidebarProps {
     agentActivityLog: AgentActivity[];
     insights: Insight[];
@@ -9,6 +19,13 @@ interface AssistantSidebarProps {
     loadingSection: string;
 }
 
+/**
+ * @component InsightIcon
+ * @description Renders an icon based on the insight type.
+ * @description Rendert ein Icon basierend auf dem Typ des Einblicks.
+ * @param {{ type: Insight['type'] }} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement | null} The rendered icon. / Das gerenderte Icon.
+ */
 const InsightIcon = ({ type }: { type: Insight['type'] }) => {
     switch (type) {
         case 'recommendation': return <span title="Empfehlung">💡</span>;
@@ -18,6 +35,13 @@ const InsightIcon = ({ type }: { type: Insight['type'] }) => {
     }
 };
 
+/**
+ * @component AssistantSidebar
+ * @description A sidebar component that displays strategic insights and a log of agent activities.
+ * @description Eine Seitenleisten-Komponente, die strategische Einblicke und ein Protokoll der Agentenaktivitäten anzeigt.
+ * @param {AssistantSidebarProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered assistant sidebar. / Die gerenderte Assistenten-Seitenleiste.
+ */
 const AssistantSidebar: React.FC<AssistantSidebarProps> = ({ agentActivityLog, insights, onGenerateInsights, isLoading, loadingSection }) => {
     return (
         <aside className="w-72 bg-gray-800 flex-shrink-0 border-l border-gray-700 flex flex-col">

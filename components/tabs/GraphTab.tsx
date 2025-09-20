@@ -1,10 +1,23 @@
 import React, { useMemo } from 'react';
 import type { CaseEntity } from '../../types';
 
+/**
+ * @interface GraphTabProps
+ * @description Represents the props for the GraphTab component.
+ * @description Stellt die Props für die GraphTab-Komponente dar.
+ * @property {CaseEntity[]} entities - The list of case entities, including their relationships. / Die Liste der Fallentitäten, einschließlich ihrer Beziehungen.
+ */
 interface GraphTabProps {
     entities: CaseEntity[];
 }
 
+/**
+ * @component GraphTab
+ * @description A tab that displays a visual graph of the relationships between case entities.
+ * @description Ein Tab, der einen visuellen Graphen der Beziehungen zwischen den Fallentitäten anzeigt.
+ * @param {GraphTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered graph tab. / Der gerenderte Graphen-Tab.
+ */
 const GraphTab: React.FC<GraphTabProps> = ({ entities }) => {
     const nodeSize = 80;
     const padding = 20;

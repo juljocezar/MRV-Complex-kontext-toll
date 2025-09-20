@@ -2,6 +2,20 @@ import React, { useState } from 'react';
 import { Document, Tag } from '../../types';
 import TagManagementModal from '../modals/TagManagementModal';
 
+/**
+ * @interface DocumentsTabProps
+ * @description Represents the props for the DocumentsTab component.
+ * @description Stellt die Props für die DocumentsTab-Komponente dar.
+ * @property {Document[]} documents - The list of all uploaded documents. / Die Liste aller hochgeladenen Dokumente.
+ * @property {React.Dispatch<React.SetStateAction<Document[]>>} setDocuments - Function to update the documents list. / Funktion zum Aktualisieren der Dokumentenliste.
+ * @property {(files: File[]) => void} onFileUpload - Function to handle file uploads. / Funktion zur Verarbeitung von Datei-Uploads.
+ * @property {(docId: string, docName: string, docContent: string) => void} onAnalyzeDocumentWorkload - Function to trigger workload analysis for a document. / Funktion zum Auslösen der Aufwandsanalyse für ein Dokument.
+ * @property {(docs: Document[]) => void} onOpenChat - Function to open a chat modal for one or more documents. / Funktion zum Öffnen eines Chat-Modals für ein oder mehrere Dokumente.
+ * @property {boolean} isLoading - Flag indicating if a process is running. / Flag, das anzeigt, ob ein Prozess läuft.
+ * @property {string} loadingSection - The specific section or document being loaded/analyzed. / Der spezifische Bereich oder das Dokument, das geladen/analysiert wird.
+ * @property {Tag[]} tags - The list of all available tags. / Die Liste aller verfügbaren Tags.
+ * @property {(docId: string, newTags: string[]) => void} onUpdateDocumentTags - Function to update the tags for a specific document. / Funktion zum Aktualisieren der Tags für ein bestimmtes Dokument.
+ */
 interface DocumentsTabProps {
     documents: Document[];
     setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
@@ -14,6 +28,13 @@ interface DocumentsTabProps {
     onUpdateDocumentTags: (docId: string, newTags: string[]) => void;
 }
 
+/**
+ * @component DocumentsTab
+ * @description A tab for uploading, managing, and analyzing documents.
+ * @description Ein Tab zum Hochladen, Verwalten und Analysieren von Dokumenten.
+ * @param {DocumentsTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered documents tab. / Der gerenderte Dokumenten-Tab.
+ */
 const DocumentsTab: React.FC<DocumentsTabProps> = ({
     documents,
     setDocuments,
@@ -67,6 +88,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
         }
     };
 
+    /**
+     * @component StatusIndicator
+     * @description A small component to display the classification status of a document.
+     * @description Eine kleine Komponente zur Anzeige des Klassifizierungsstatus eines Dokuments.
+     * @param {{ status: Document['classificationStatus'] }} props - The props for the component. / Die Props für die Komponente.
+     * @returns {React.ReactElement | null} The rendered status indicator. / Der gerenderte Statusindikator.
+     */
     const StatusIndicator: React.FC<{ status: Document['classificationStatus'] }> = ({ status }) => {
         switch (status) {
             case 'classified': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/20 text-green-300">Klassifiziert</span>;

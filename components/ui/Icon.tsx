@@ -1,9 +1,23 @@
 import React from 'react';
 
+/**
+ * @interface IconProps
+ * @description Represents the props for the Icon component.
+ * @description Stellt die Props für die Icon-Komponente dar.
+ * @extends React.SVGProps<SVGSVGElement>
+ * @property {string} name - The name of the icon to display. / Der Name des anzuzeigenden Icons.
+ */
 interface IconProps extends React.SVGProps<SVGSVGElement> {
   name: string;
 }
 
+/**
+ * @component Icon
+ * @description A component that renders an SVG icon based on the provided name.
+ * @description Eine Komponente, die ein SVG-Icon basierend auf dem angegebenen Namen rendert.
+ * @param {IconProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement | null} The rendered SVG icon or null if the name is not found. / Das gerenderte SVG-Icon oder null, wenn der Name nicht gefunden wird.
+ */
 const Icon: React.FC<IconProps> = ({ name, ...props }) => {
   switch (name) {
     case 'LayoutDashboard':

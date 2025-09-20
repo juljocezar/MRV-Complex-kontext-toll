@@ -1,7 +1,13 @@
-
 // Fix: Removed unused and now incorrect async DB calls.
 import { AppState } from '../types';
 
+/**
+ * @function buildCaseContext
+ * @description Builds a string representation of the current case context from the application state.
+ * @description Erstellt eine Zeichenfolgendarstellung des aktuellen Fallkontexts aus dem Anwendungszustand.
+ * @param {AppState} appState - The current state of the application. / Der aktuelle Zustand der Anwendung.
+ * @returns {string} A string containing the formatted case context. / Eine Zeichenfolge, die den formatierten Fallkontext enthält.
+ */
 // Fix: Rewrote function to be synchronous and accept appState, making it more efficient and fixing call-site errors.
 export const buildCaseContext = (appState: AppState): string => {
     const { caseDescription, documents, caseEntities } = appState;

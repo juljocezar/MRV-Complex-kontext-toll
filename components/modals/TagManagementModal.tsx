@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import type { Tag } from '../../types';
 
+/**
+ * @interface TagManagementModalProps
+ * @description Represents the props for the TagManagementModal component.
+ * @description Stellt die Props für die TagManagementModal-Komponente dar.
+ * @property {boolean} isOpen - Whether the modal is currently open. / Ob das Modal gerade geöffnet ist.
+ * @property {() => void} onClose - Function to close the modal. / Funktion zum Schließen des Modals.
+ * @property {Tag[]} availableTags - A list of all available tags in the system. / Eine Liste aller im System verfügbaren Tags.
+ * @property {string[]} assignedTags - A list of tags currently assigned to the item. / Eine Liste der dem Element aktuell zugewiesenen Tags.
+ * @property {(newTags: string[]) => void} onSave - Function to save the new list of assigned tags. / Funktion zum Speichern der neuen Liste zugewiesener Tags.
+ * @property {string} itemName - The name of the item being tagged, for display purposes. / Der Name des zu taggenden Elements, zu Anzeigezwecken.
+ */
 interface TagManagementModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -10,6 +21,13 @@ interface TagManagementModalProps {
     itemName: string;
 }
 
+/**
+ * @component TagManagementModal
+ * @description A modal component for assigning and unassigning tags to an item.
+ * @description Eine Modal-Komponente zum Zuweisen und Entfernen von Tags zu einem Element.
+ * @param {TagManagementModalProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement | null} The rendered tag management modal or null if not open. / Das gerenderte Tag-Verwaltungs-Modal oder null, wenn es nicht geöffnet ist.
+ */
 const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose, availableTags, assignedTags, onSave, itemName }) => {
     const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
 

@@ -1,8 +1,25 @@
-
 import React, { useMemo } from 'react';
 // Fix: Corrected type name from GeneratedDocument to GeneratedDoc to match type definitions.
 import { Document, GeneratedDocument, DocumentAnalysisResults, CaseSummary, ActiveTab } from '../../types';
 
+/**
+ * @interface DashboardTabProps
+ * @description Represents the props for the DashboardTab component.
+ * @description Stellt die Props für die DashboardTab-Komponente dar.
+ * @property {Document[]} documents - List of all uploaded documents. / Liste aller hochgeladenen Dokumente.
+ * @property {GeneratedDocument[]} generatedDocuments - List of all AI-generated documents. / Liste aller KI-generierten Dokumente.
+ * @property {DocumentAnalysisResults} documentAnalysisResults - Results of the workload analysis. / Ergebnisse der Aufwandsanalyse.
+ * @property {string} caseDescription - The user-provided description of the case. / Die vom Benutzer bereitgestellte Fallbeschreibung.
+ * @property {(desc: string) => void} setCaseDescription - Function to update the case description. / Funktion zur Aktualisierung der Fallbeschreibung.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Function to switch to a different tab. / Funktion zum Wechseln zu einem anderen Tab.
+ * @property {() => void} onResetCase - Function to reset the entire case. / Funktion zum Zurücksetzen des gesamten Falles.
+ * @property {() => void} onExportCase - Function to export the case data. / Funktion zum Exportieren der Falldaten.
+ * @property {(file: File) => void} onImportCase - Function to import case data from a file. / Funktion zum Importieren von Falldaten aus einer Datei.
+ * @property {CaseSummary | null} caseSummary - The AI-generated summary of the case. / Die KI-generierte Zusammenfassung des Falles.
+ * @property {() => void} onPerformOverallAnalysis - Function to trigger the overall case analysis. / Funktion zum Auslösen der gesamten Fallanalyse.
+ * @property {boolean} isLoading - Flag indicating if a process is running. / Flag, das anzeigt, ob ein Prozess läuft.
+ * @property {string} loadingSection - The section that is currently loading. / Der Bereich, der gerade lädt.
+ */
 interface DashboardTabProps {
     documents: Document[];
     generatedDocuments: GeneratedDocument[];
@@ -19,6 +36,13 @@ interface DashboardTabProps {
     loadingSection: string;
 }
 
+/**
+ * @component DashboardTab
+ * @description The main dashboard tab, providing an overview of the case, key metrics, and case management functions.
+ * @description Der Haupt-Dashboard-Tab, der einen Überblick über den Fall, wichtige Kennzahlen und Fallmanagement-Funktionen bietet.
+ * @param {DashboardTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered dashboard tab. / Der gerenderte Dashboard-Tab.
+ */
 const DashboardTab: React.FC<DashboardTabProps> = ({
     documents, generatedDocuments, documentAnalysisResults, caseDescription, setCaseDescription, setActiveTab,
     onResetCase, onExportCase, onImportCase, caseSummary, onPerformOverallAnalysis, isLoading, loadingSection

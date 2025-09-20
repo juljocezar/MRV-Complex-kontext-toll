@@ -1,9 +1,24 @@
-
-
 import React, { useState } from 'react';
 // Fix: Corrected type name from GeneratedDocument to GeneratedDoc to match type definitions.
 import type { GeneratedDocument, ChecklistItem, ActiveTab, Document } from '../../types';
 
+/**
+ * @interface DispatchTabProps
+ * @description Represents the props for the DispatchTab component.
+ * @description Stellt die Props für die DispatchTab-Komponente dar.
+ * @property {GeneratedDocument | null} dispatchDocument - The primary document to be dispatched. / Das primäre zu versendende Dokument.
+ * @property {ChecklistItem[]} checklist - The checklist items for dispatch preparation. / Die Checklisten-Elemente für die Versandvorbereitung.
+ * @property {React.Dispatch<React.SetStateAction<ChecklistItem[]>>} setChecklist - Function to update the checklist. / Funktion zum Aktualisieren der Checkliste.
+ * @property {(subject: string, attachments: (Document | GeneratedDocument)[]) => Promise<string>} onDraftBody - Function to draft an email body. / Funktion zum Entwerfen eines E-Mail-Textes.
+ * @property {() => void} onConfirmDispatch - Function to confirm and log the dispatch. / Funktion zum Bestätigen und Protokollieren des Versands.
+ * @property {boolean} isLoading - Flag indicating if a process is running. / Flag, das anzeigt, ob ein Prozess läuft.
+ * @property {string} loadingSection - The section that is currently loading. / Der Bereich, der gerade lädt.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Function to switch to a different tab. / Funktion zum Wechseln zu einem anderen Tab.
+ * @property {Document[]} documents - List of all uploaded documents. / Liste aller hochgeladenen Dokumente.
+ * @property {GeneratedDocument[]} generatedDocuments - List of all AI-generated documents. / Liste aller KI-generierten Dokumente.
+ * @property {string} coverLetter - The content of the email cover letter. / Der Inhalt des E-Mail-Anschreibens.
+ * @property {(value: string) => void} setCoverLetter - Function to update the cover letter. / Funktion zum Aktualisieren des Anschreibens.
+ */
 interface DispatchTabProps {
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
@@ -21,6 +36,13 @@ interface DispatchTabProps {
     setCoverLetter: (value: string) => void;
 }
 
+/**
+ * @component DispatchTab
+ * @description A tab for preparing and logging the dispatch of documents.
+ * @description Ein Tab zur Vorbereitung und Protokollierung des Versands von Dokumenten.
+ * @param {DispatchTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered dispatch tab. / Der gerenderte Versand-Tab.
+ */
 const DispatchTab: React.FC<DispatchTabProps> = ({
     dispatchDocument, checklist, setChecklist, onDraftBody, onConfirmDispatch, 
     isLoading, loadingSection, setActiveTab, documents, generatedDocuments,

@@ -1,6 +1,15 @@
 import React from 'react';
 import type { Contradiction, Document } from '../../types';
 
+/**
+ * @interface ContradictionsTabProps
+ * @description Represents the props for the ContradictionsTab component.
+ * @description Stellt die Props für die ContradictionsTab-Komponente dar.
+ * @property {Contradiction[]} contradictions - A list of detected contradictions. / Eine Liste der erkannten Widersprüche.
+ * @property {Document[]} documents - The list of all documents, used to find document names by ID. / Die Liste aller Dokumente, die verwendet wird, um Dokumentennamen anhand der ID zu finden.
+ * @property {() => void} onFindContradictions - Function to trigger the contradiction analysis. / Funktion zum Auslösen der Widerspruchsanalyse.
+ * @property {boolean} isLoading - Flag indicating if the analysis is in progress. / Flag, das anzeigt, ob die Analyse läuft.
+ */
 interface ContradictionsTabProps {
     contradictions: Contradiction[];
     documents: Document[];
@@ -8,6 +17,13 @@ interface ContradictionsTabProps {
     isLoading: boolean;
 }
 
+/**
+ * @component ContradictionsTab
+ * @description A tab component for analyzing and displaying potential contradictions between documents.
+ * @description Eine Tab-Komponente zur Analyse und Anzeige potenzieller Widersprüche zwischen Dokumenten.
+ * @param {ContradictionsTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered contradictions tab. / Der gerenderte Widerspruchs-Tab.
+ */
 const ContradictionsTab: React.FC<ContradictionsTabProps> = ({ contradictions, documents, onFindContradictions, isLoading }) => {
     
     const getDocName = (docId: string) => documents.find(d => d.id === docId)?.name || 'Unbekanntes Dokument';

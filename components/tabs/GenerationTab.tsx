@@ -1,9 +1,20 @@
-
 import React, { useState } from 'react';
 // Fix: Corrected type name from GeneratedDocument to GeneratedDoc to match type definitions.
 import { Document, GeneratedDocument, ActiveTab } from '../../types';
 import { DOCUMENT_TEMPLATES } from '../../constants';
 
+/**
+ * @interface GenerationTabProps
+ * @description Represents the props for the GenerationTab component.
+ * @description Stellt die Props für die GenerationTab-Komponente dar.
+ * @property {(prompt: string, title: string, sourceDocIds: string[]) => Promise<string>} onGenerateDocument - Function to generate a new document. / Funktion zum Generieren eines neuen Dokuments.
+ * @property {boolean} isLoading - Flag indicating if a document is being generated. / Flag, das anzeigt, ob ein Dokument generiert wird.
+ * @property {GeneratedDocument[]} generatedDocuments - List of all AI-generated documents. / Liste aller KI-generierten Dokumente.
+ * @property {React.Dispatch<React.SetStateAction<GeneratedDocument[]>>} setGeneratedDocuments - Function to update the list of generated documents. / Funktion zum Aktualisieren der Liste der generierten Dokumente.
+ * @property {Document[]} documents - List of all uploaded documents, for source selection. / Liste aller hochgeladenen Dokumente, zur Quellenauswahl.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Function to switch to a different tab. / Funktion zum Wechseln zu einem anderen Tab.
+ * @property {(doc: GeneratedDocument) => void} onDispatchDocument - Function to prepare a document for dispatch. / Funktion zur Vorbereitung eines Dokuments für den Versand.
+ */
 interface GenerationTabProps {
     onGenerateDocument: (prompt: string, title: string, sourceDocIds: string[]) => Promise<string>;
     isLoading: boolean;
@@ -14,6 +25,13 @@ interface GenerationTabProps {
     onDispatchDocument: (doc: GeneratedDocument) => void;
 }
 
+/**
+ * @component GenerationTab
+ * @description A tab for generating new documents using AI, based on templates and user prompts.
+ * @description Ein Tab zum Generieren neuer Dokumente mit KI, basierend auf Vorlagen und Benutzereingaben.
+ * @param {GenerationTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered generation tab. / Der gerenderte Generierungs-Tab.
+ */
 const GenerationTab: React.FC<GenerationTabProps> = ({
     onGenerateDocument, isLoading, generatedDocuments, setGeneratedDocuments,
     documents, setActiveTab, onDispatchDocument

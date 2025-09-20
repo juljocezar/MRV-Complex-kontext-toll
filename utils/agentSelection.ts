@@ -1,13 +1,13 @@
-
 // Fix: Import AgentCapability from '../types' as it's not exported from '../constants'.
 import { AgentProfile, MRV_AGENTS } from '../constants';
 import { AgentCapability } from '../types';
 
 /**
- * Wählt den am besten geeigneten Agenten für eine bestimmte Aufgabe deterministisch aus.
- * Dies ersetzt das KI-basierte Orchestrator-Modell, um Latenz und Kosten zu reduzieren.
- * @param capability Die auszuführende Fähigkeit (z.B. 'workload_calculation').
- * @returns Der ausgewählte Agent.
+ * @function selectAgentForTask
+ * @description Selects the most suitable agent for a specific task deterministically. This replaces the AI-based orchestrator model to reduce latency and costs.
+ * @description Wählt den am besten geeigneten Agenten für eine bestimmte Aufgabe deterministisch aus. Dies ersetzt das KI-basierte Orchestrator-Modell, um Latenz und Kosten zu reduzieren.
+ * @param {AgentCapability} capability - The capability to be executed (e.g., 'workload_calculation'). / Die auszuführende Fähigkeit (z.B. 'workload_calculation').
+ * @returns {AgentProfile} The selected agent. / Der ausgewählte Agent.
  */
 export const selectAgentForTask = (capability: AgentCapability): AgentProfile => {
     switch (capability) {

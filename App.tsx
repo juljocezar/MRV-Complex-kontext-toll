@@ -42,6 +42,11 @@ import { buildCaseContext } from './utils/contextUtils';
 import { selectAgentForTask } from './utils/agentSelection';
 import { MRV_AGENTS } from './constants';
 
+/**
+ * @constant initialState
+ * @description The initial state of the entire application. Used on first load and when resetting the case.
+ * @description Der Anfangszustand der gesamten Anwendung. Wird beim ersten Laden und beim Zurücksetzen des Falls verwendet.
+ */
 const initialState: AppState = {
     documents: [],
     documentAnalysisResults: {},
@@ -80,6 +85,12 @@ const initialState: AppState = {
     auditLog: [],
 };
 
+/**
+ * @component App
+ * @description The main component of the application. It manages the entire application state and logic.
+ * @description Die Hauptkomponente der Anwendung. Sie verwaltet den gesamten Anwendungszustand und die Logik.
+ * @returns {React.ReactElement} The rendered application. / Die gerenderte Anwendung.
+ */
 const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
     const [documents, setDocuments] = useState<Document[]>(initialState.documents);
@@ -132,10 +143,25 @@ const App: React.FC = () => {
         insights, pinnedInsights, documentLinks, suggestedLinks, tags
     ]);
 
+    /**
+     * @function logUserAction
+     * @description Logs an action performed by the user to the audit log.
+     * @description Protokolliert eine vom Benutzer durchgeführte Aktion im Audit-Log.
+     * @param {string} action - A brief description of the action. / Eine kurze Beschreibung der Aktion.
+     * @param {string} details - Additional details about the action. / Zusätzliche Details zur Aktion.
+     */
     const logUserAction = useCallback((action: string, details: string) => {
         setAuditLog(prev => [...prev, { id: crypto.randomUUID(), timestamp: new Date().toISOString(), action, details }]);
     }, []);
 
+    /**
+     * @function logAgentAction
+     * @description Logs an action performed by an AI agent.
+     * @description Protokolliert eine von einem KI-Agenten durchgeführte Aktion.
+     * @param {string} agentName - The name of the agent. / Der Name des Agenten.
+     * @param {string} action - A description of the action. / Eine Beschreibung der Aktion.
+     * @param {'erfolg' | 'fehler'} result - The result of the action. / Das Ergebnis der Aktion.
+     */
     const logAgentAction = useCallback((agentName: string, action: string, result: 'erfolg' | 'fehler') => {
         setAgentActivityLog(prev => [...prev, { id: crypto.randomUUID(), timestamp: new Date().toISOString(), agentName, action, result }]);
     }, []);
@@ -213,7 +239,7 @@ const App: React.FC = () => {
     }, []);
 
     const handleUpdateKnowledgeItemTags = useCallback((itemId: string, newTags: string[]) => {
-        setKnowledgeItems(prev => prev.map(item => item.id === itemId ? { ...item, tags: newTags.sort() } : item));
+        setKnowledgeItems(prev => prev.map(item => item.id === itemId ? { ...item, tags: newTags.sort() } : doc));
     }, []);
 
     const handleAutoClassify = useCallback(async (docId: string) => {

@@ -1,4 +1,10 @@
-
+/**
+ * @function extractFileContent
+ * @description Extracts the content of a file as either text or a base64 string, depending on the file's MIME type.
+ * @description Extrahiert den Inhalt einer Datei entweder als Text oder als Base64-String, abhängig vom MIME-Typ der Datei.
+ * @param {File} file - The file to read. / Die zu lesende Datei.
+ * @returns {Promise<{ text: string | null; base64: string | null; mimeType: string; }>} A promise that resolves with an object containing the file content. / Ein Promise, das mit einem Objekt aufgelöst wird, das den Dateiinhalt enthält.
+ */
 export const extractFileContent = (file: File): Promise<{ text: string | null; base64: string | null; mimeType: string; }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();

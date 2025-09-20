@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import type { UNSubmission } from '../../types';
 
+/**
+ * @interface UNSubmissionsTabProps
+ * @description Represents the props for the UNSubmissionsTab component.
+ * @description Stellt die Props für die UNSubmissionsTab-Komponente dar.
+ * @property {UNSubmission[]} submissions - The list of all UN submissions. / Die Liste aller UN-Einreichungen.
+ * @property {React.Dispatch<React.SetStateAction<UNSubmission[]>>} setSubmissions - Function to update the list of submissions. / Funktion zum Aktualisieren der Liste der Einreichungen.
+ * @property {(sectionTitle: string, currentContent: { [key: string]: string }) => Promise<string>} onGenerateSection - Function to generate content for a specific section. / Funktion zum Generieren von Inhalt für einen bestimmten Abschnitt.
+ * @property {() => Promise<void>} onFinalize - Function to finalize a submission. / Funktion zum Finalisieren einer Einreichung.
+ * @property {boolean} isLoading - Flag indicating if a process is running. / Flag, das anzeigt, ob ein Prozess läuft.
+ * @property {string} loadingSection - The specific section being loaded. / Der spezifische Abschnitt, der geladen wird.
+ */
 interface UNSubmissionsTabProps {
     submissions: UNSubmission[];
     setSubmissions: React.Dispatch<React.SetStateAction<UNSubmission[]>>;
@@ -10,6 +21,11 @@ interface UNSubmissionsTabProps {
     loadingSection: string;
 }
 
+/**
+ * @constant submissionSections
+ * @description An array defining the standard sections of a UN submission.
+ * @description Ein Array, das die Standardabschnitte einer UN-Einreichung definiert.
+ */
 const submissionSections = [
     'I. INFORMATIONEN ZUM OPFER/ZU DEN OPFERN',
     'II. INFORMATIONEN ZUM VORFALL',
@@ -19,6 +35,13 @@ const submissionSections = [
     'VI. GEWÜNSCHTE MASSNAHMEN'
 ];
 
+/**
+ * @component UNSubmissionsTab
+ * @description A tab for creating, managing, and generating content for submissions to UN bodies.
+ * @description Ein Tab zum Erstellen, Verwalten und Generieren von Inhalten für Einreichungen bei UN-Gremien.
+ * @param {UNSubmissionsTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered UN submissions tab. / Der gerenderte UN-Einreichungen-Tab.
+ */
 const UNSubmissionsTab: React.FC<UNSubmissionsTabProps> = ({ submissions, setSubmissions, onGenerateSection, onFinalize, isLoading, loadingSection }) => {
     const [currentSubmission, setCurrentSubmission] = useState<UNSubmission | null>(null);
 

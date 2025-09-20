@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { KPI } from '../../types';
 
+/**
+ * @interface KpisTabProps
+ * @description Represents the props for the KpisTab component.
+ * @description Stellt die Props für die KpisTab-Komponente dar.
+ * @property {KPI[]} kpis - The list of Key Performance Indicators. / Die Liste der Key Performance Indicators.
+ * @property {React.Dispatch<React.SetStateAction<KPI[]>>} setKpis - Function to update the list of KPIs. / Funktion zum Aktualisieren der KPI-Liste.
+ * @property {() => void} onSuggestKpis - Function to trigger AI-powered KPI suggestions. / Funktion zum Auslösen von KI-gestützten KPI-Vorschlägen.
+ * @property {boolean} isLoading - Flag indicating if KPI suggestions are being loaded. / Flag, das anzeigt, ob KPI-Vorschläge geladen werden.
+ */
 interface KpisTabProps {
     kpis: KPI[];
     setKpis: React.Dispatch<React.SetStateAction<KPI[]>>;
@@ -8,6 +17,13 @@ interface KpisTabProps {
     isLoading: boolean;
 }
 
+/**
+ * @component KpisTab
+ * @description A tab for managing and tracking Key Performance Indicators (KPIs) for the case.
+ * @description Ein Tab zur Verwaltung und Verfolgung von Key Performance Indicators (KPIs) für den Fall.
+ * @param {KpisTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered KPIs tab. / Der gerenderte KPIs-Tab.
+ */
 const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoading }) => {
     const [newKpi, setNewKpi] = useState({ name: '', target: '' });
     

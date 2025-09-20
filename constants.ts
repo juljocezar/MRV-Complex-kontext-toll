@@ -1,5 +1,16 @@
 import type { AgentCapability } from './types';
 
+/**
+ * @interface AgentProfile
+ * @decription Represents the profile of an AI agent.
+ * @description Stellt das Profil eines KI-Agenten dar.
+ * @property {string} name - The name of the agent. / Der Name des Agenten.
+ * @property {string} role - The role of the agent. / Die Rolle des Agenten.
+ * @property {string} description - A description of the agent's purpose. / Eine Beschreibung des Zwecks des Agenten.
+ * @property {AgentCapability[]} capabilities - A list of capabilities the agent has. / Eine Liste der Fähigkeiten des Agenten.
+ * @property {string} icon - An emoji representing the agent. / Ein Emoji, das den Agenten repräsentiert.
+ * @property {string} systemPrompt - The system prompt that defines the agent's behavior. / Der System-Prompt, der das Verhalten des Agenten definiert.
+ */
 export interface AgentProfile {
     name: string;
     role: string;
@@ -9,6 +20,11 @@ export interface AgentProfile {
     systemPrompt: string;
 }
 
+/**
+ * @constant MRV_AGENTS
+ * @description A dictionary of all available AI agents.
+ * @description Ein Wörterbuch aller verfügbaren KI-Agenten.
+ */
 export const MRV_AGENTS: { [key: string]: AgentProfile } = {
     workloadAnalyst: {
         name: 'Workload Analyst',
@@ -72,7 +88,7 @@ export const MRV_AGENTS: { [key: string]: AgentProfile } = {
         description: 'Erstellt Inhalte für die externe Kommunikation (Medien, Öffentlichkeit, Spender).',
         capabilities: ['public_communication'],
         icon: ' megaphone',
-        systemPrompt: 'Ich bin ein Experte für strategische Kommunikation im Menschenrechtsbereich. Ich formuliere komplexe Sachverhalte zielgruppengerecht für Medien, Öffentlichkeit und Spender.'
+        systemPrompt: 'Ich bin ein Experter für strategische Kommunikation im Menschenrechtsbereich. Ich formuliere komplexe Sachverhalte zielgruppengerecht für Medien, Öffentlichkeit und Spender.'
     },
     strategyConsultant: {
         name: 'Strategy Consultant',
@@ -92,6 +108,11 @@ export const MRV_AGENTS: { [key: string]: AgentProfile } = {
     }
 };
 
+/**
+ * @constant DOCUMENT_TEMPLATES
+ * @description A dictionary of document templates, categorized by their use case.
+ * @description Ein Wörterbuch von Dokumentvorlagen, kategorisiert nach ihrem Anwendungsfall.
+ */
 export const DOCUMENT_TEMPLATES = {
     'HURIDOCS-Formate': [
         {

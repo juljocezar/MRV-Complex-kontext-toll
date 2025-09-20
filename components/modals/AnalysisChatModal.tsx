@@ -1,6 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Document, AnalysisChatMessage } from '../../types';
 
+/**
+ * @interface AnalysisChatModalProps
+ * @description Represents the props for the AnalysisChatModal component.
+ * @description Stellt die Props für die AnalysisChatModal-Komponente dar.
+ * @property {Document[]} documents - The documents to be discussed in the chat. / Die im Chat zu besprechenden Dokumente.
+ * @property {AnalysisChatMessage[]} chatHistory - The history of the chat conversation. / Der Verlauf des Chat-Gesprächs.
+ * @property {(message: string) => void} onSendMessage - Function to send a new message. / Funktion zum Senden einer neuen Nachricht.
+ * @property {() => void} onClose - Function to close the modal. / Funktion zum Schließen des Modals.
+ * @property {boolean} isLoading - Flag indicating if the AI is currently responding. / Flag, das anzeigt, ob die KI gerade antwortet.
+ * @property {(title: string, summary: string, sourceDocId: string) => void} onAddKnowledge - Function to create a new knowledge item from selected text. / Funktion zum Erstellen eines neuen Wissenseintrags aus ausgewähltem Text.
+ */
 interface AnalysisChatModalProps {
     documents: Document[];
     chatHistory: AnalysisChatMessage[];
@@ -10,6 +21,13 @@ interface AnalysisChatModalProps {
     onAddKnowledge: (title: string, summary: string, sourceDocId: string) => void;
 }
 
+/**
+ * @component AnalysisChatModal
+ * @description A modal component that provides a chat interface for analyzing one or more documents.
+ * @description Eine Modal-Komponente, die eine Chat-Oberfläche zur Analyse eines oder mehrerer Dokumente bereitstellt.
+ * @param {AnalysisChatModalProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered chat modal. / Das gerenderte Chat-Modal.
+ */
 const AnalysisChatModal: React.FC<AnalysisChatModalProps> = ({ documents, chatHistory, onSendMessage, onClose, isLoading, onAddKnowledge }) => {
     const [message, setMessage] = useState('');
     const [selectedText, setSelectedText] = useState('');

@@ -1,3 +1,8 @@
+/**
+ * @constant legalResources
+ * @description Provides detailed information and links related to UN Special Procedures for submitting human rights cases.
+ * @description Enthält detaillierte Informationen und Links zu den UN-Sonderverfahren für die Einreichung von Menschenrechtsfällen.
+ */
 export const legalResources = {
     unSpecialProcedures: {
         title: 'UN Sonderverfahren (Special Procedures)',
@@ -23,6 +28,11 @@ export const legalResources = {
     // Weitere Ressourcen können hier hinzugefügt werden
 };
 
+/**
+ * @constant otherResources
+ * @description A collection of links to various human rights databases and resources from the OHCHR and other organizations.
+ * @description Eine Sammlung von Links zu verschiedenen Menschenrechtsdatenbanken und Ressourcen des OHCHR und anderer Organisationen.
+ */
 export const otherResources = {
     ohchrDatabases: {
         title: 'OHCHR-Datenbanken',

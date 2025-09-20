@@ -1,6 +1,20 @@
 import React, { useState } from 'react';
 import type { CaseEntity, SuggestedEntity, Document, Entity } from '../../types';
 
+/**
+ * @interface EntitiesTabProps
+ * @description Represents the props for the EntitiesTab component.
+ * @description Stellt die Props für die EntitiesTab-Komponente dar.
+ * @property {CaseEntity[]} entities - The list of confirmed entities in the case. / Die Liste der bestätigten Entitäten im Fall.
+ * @property {React.Dispatch<React.SetStateAction<CaseEntity[]>>} setEntities - Function to update the list of entities. / Funktion zum Aktualisieren der Entitätenliste.
+ * @property {Document[]} documents - The list of all documents. / Die Liste aller Dokumente.
+ * @property {SuggestedEntity[]} suggestedEntities - A list of entities suggested by the AI. / Eine Liste von von der KI vorgeschlagenen Entitäten.
+ * @property {(id: string) => void} onAcceptSuggestedEntity - Function to accept a suggested entity. / Funktion zum Akzeptieren einer vorgeschlagenen Entität.
+ * @property {(id: string) => void} onDismissSuggestedEntity - Function to dismiss a suggested entity. / Funktion zum Ablehnen einer vorgeschlagenen Entität.
+ * @property {() => void} onAnalyzeRelationships - Function to trigger the analysis of relationships between entities. / Funktion zum Auslösen der Analyse von Beziehungen zwischen Entitäten.
+ * @property {boolean} isLoading - Flag indicating if a process is running. / Flag, das anzeigt, ob ein Prozess läuft.
+ * @property {string} loadingSection - The specific section that is currently loading. / Der spezifische Bereich, der gerade lädt.
+ */
 interface EntitiesTabProps {
     entities: CaseEntity[];
     setEntities: React.Dispatch<React.SetStateAction<CaseEntity[]>>;
@@ -13,6 +27,13 @@ interface EntitiesTabProps {
     loadingSection: string;
 }
 
+/**
+ * @component EntitiesTab
+ * @description A tab for managing case entities (people, organizations, etc.), viewing AI suggestions, and analyzing relationships.
+ * @description Ein Tab zur Verwaltung von Fallentitäten (Personen, Organisationen usw.), zur Anzeige von KI-Vorschlägen und zur Analyse von Beziehungen.
+ * @param {EntitiesTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered entities tab. / Der gerenderte Entitäten-Tab.
+ */
 const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, setEntities, documents, suggestedEntities, onAcceptSuggestedEntity, onDismissSuggestedEntity, onAnalyzeRelationships, isLoading, loadingSection }) => {
     const [newEntity, setNewEntity] = useState({ name: '', type: 'Person', description: '' });
 

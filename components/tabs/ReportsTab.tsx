@@ -1,15 +1,27 @@
-
-
 import React, { useState } from 'react';
 // Fix: Imported AppState type to resolve missing module member error.
 import { AppState } from '../../types';
 import { buildCaseContext } from '../../utils/contextUtils';
 
+/**
+ * @interface ReportsTabProps
+ * @description Represents the props for the ReportsTab component.
+ * @description Stellt die Props für die ReportsTab-Komponente dar.
+ * @property {(prompt: string, schema: object | null) => Promise<string>} onGenerateReport - Function to generate a report based on a prompt. / Funktion zum Generieren eines Berichts basierend auf einem Prompt.
+ * @property {AppState} appState - The entire state of the application, used for context. / Der gesamte Zustand der Anwendung, der für den Kontext verwendet wird.
+ */
 interface ReportsTabProps {
     onGenerateReport: (prompt: string, schema: object | null) => Promise<string>;
     appState: AppState;
 }
 
+/**
+ * @component ReportsTab
+ * @description A tab for generating various types of reports based on the overall case context.
+ * @description Ein Tab zum Generieren verschiedener Arten von Berichten basierend auf dem gesamten Fallkontext.
+ * @param {ReportsTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered reports tab. / Der gerenderte Berichts-Tab.
+ */
 const ReportsTab: React.FC<ReportsTabProps> = ({ onGenerateReport, appState }) => {
     const [reportType, setReportType] = useState('summary');
     const [generatedReport, setGeneratedReport] = useState('');

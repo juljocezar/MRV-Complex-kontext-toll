@@ -1,4 +1,8 @@
-
+/**
+ * @file index.tsx
+ * @description The entry point for the React application. This file is responsible for rendering the main App component into the DOM.
+ * @description Der Einstiegspunkt für die React-Anwendung. Diese Datei ist dafür verantwortlich, die Haupt-App-Komponente in das DOM zu rendern.
+ */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

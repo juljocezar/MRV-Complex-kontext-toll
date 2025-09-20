@@ -2,10 +2,23 @@ import React from 'react';
 import { MRV_AGENTS } from '../../constants';
 import { AgentActivity } from '../../types';
 
+/**
+ * @interface AgentManagementTabProps
+ * @description Represents the props for the AgentManagementTab component.
+ * @description Stellt die Props für die AgentManagementTab-Komponente dar.
+ * @property {AgentActivity[]} agentActivityLog - The log of all agent activities. / Das Protokoll aller Agentenaktivitäten.
+ */
 interface AgentManagementTabProps {
     agentActivityLog: AgentActivity[];
 }
 
+/**
+ * @component AgentManagementTab
+ * @description A tab component for managing and viewing AI agents and their activity.
+ * @description Eine Tab-Komponente zur Verwaltung und Anzeige von KI-Agenten und deren Aktivitäten.
+ * @param {AgentManagementTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered agent management tab. / Der gerenderte Agentenverwaltungs-Tab.
+ */
 const AgentManagementTab: React.FC<AgentManagementTabProps> = ({ agentActivityLog }) => {
     return (
         <div className="space-y-6">

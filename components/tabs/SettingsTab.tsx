@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import type { AppSettings, Tag } from '../../types';
 
+/**
+ * @interface SettingsTabProps
+ * @description Represents the props for the SettingsTab component.
+ * @description Stellt die Props für die SettingsTab-Komponente dar.
+ * @property {AppSettings} settings - The current application settings. / Die aktuellen Anwendungseinstellungen.
+ * @property {React.Dispatch<React.SetStateAction<AppSettings>>} setSettings - Function to update the application settings. / Funktion zum Aktualisieren der Anwendungseinstellungen.
+ * @property {Tag[]} tags - The list of all available tags. / Die Liste aller verfügbaren Tags.
+ * @property {(name: string) => void} onCreateTag - Function to create a new global tag. / Funktion zum Erstellen eines neuen globalen Tags.
+ * @property {(tagId: string) => void} onDeleteTag - Function to delete a global tag. / Funktion zum Löschen eines globalen Tags.
+ */
 interface SettingsTabProps {
     settings: AppSettings;
     setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
@@ -9,6 +19,13 @@ interface SettingsTabProps {
     onDeleteTag: (tagId: string) => void;
 }
 
+/**
+ * @component SettingsTab
+ * @description A tab for managing application-wide settings, including AI parameters and global tags.
+ * @description Ein Tab zur Verwaltung anwendungsweiter Einstellungen, einschließlich KI-Parametern und globalen Tags.
+ * @param {SettingsTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered settings tab. / Der gerenderte Einstellungs-Tab.
+ */
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, onCreateTag, onDeleteTag }) => {
     const [newTagName, setNewTagName] = useState('');
     

@@ -1,12 +1,25 @@
-
 import React from 'react';
 import type { AuditLogEntry, AgentActivity } from '../../types';
 
+/**
+ * @interface AuditLogTabProps
+ * @description Represents the props for the AuditLogTab component.
+ * @description Stellt die Props für die AuditLogTab-Komponente dar.
+ * @property {AuditLogEntry[]} auditLog - The log of user actions. / Das Protokoll der Benutzeraktionen.
+ * @property {AgentActivity[]} agentActivityLog - The log of agent activities. / Das Protokoll der Agentenaktivitäten.
+ */
 interface AuditLogTabProps {
     auditLog: AuditLogEntry[];
     agentActivityLog: AgentActivity[];
 }
 
+/**
+ * @component AuditLogTab
+ * @description A tab component that displays a combined, immutable log of all important user and system actions.
+ * @description Eine Tab-Komponente, die ein kombiniertes, unveränderliches Protokoll aller wichtigen Benutzer- und Systemaktionen anzeigt.
+ * @param {AuditLogTabProps} props - The props for the component. / Die Props für die Komponente.
+ * @returns {React.ReactElement} The rendered audit log tab. / Der gerenderte Audit-Log-Tab.
+ */
 const AuditLogTab: React.FC<AuditLogTabProps> = ({ auditLog, agentActivityLog }) => {
     const combinedLog = [
         ...auditLog.map(log => ({ ...log, type: 'user' })),

@@ -1,6 +1,12 @@
 import React from 'react';
 import { DOCUMENT_TEMPLATES } from '../../constants';
 
+/**
+ * @component LibraryTab
+ * @description A tab that displays a library of predefined document templates (prompts).
+ * @description Ein Tab, der eine Bibliothek mit vordefinierten Dokumentvorlagen (Prompts) anzeigt.
+ * @returns {React.ReactElement} The rendered library tab. / Der gerenderte Bibliotheks-Tab.
+ */
 const LibraryTab: React.FC = () => {
     return (
         <div className="space-y-6">
