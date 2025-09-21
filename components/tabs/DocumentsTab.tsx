@@ -8,18 +8,31 @@ import AnalysisChatModal from '../modals/AnalysisChatModal';
 import { useAgentDispatcher } from '../../hooks/useAgentDispatcher';
 import { AgentActivity } from '../../types';
 
+/**
+ * Props for the DocumentsTab component.
+ */
 interface DocumentsTabProps {
+    /** The global state of the application. */
     appState: AppState;
+    /** Function to update the global application state. */
     setAppState: React.Dispatch<React.SetStateAction<AppState | null>>;
+    /** Function to add an entry to the agent activity log. */
     addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>;
 }
 
+/**
+ * A major UI component that serves as the main interface for document management.
+ * It handles document uploads, lists documents, and provides actions for each document
+ * like viewing details, managing tags, classifying, and initiating a chat analysis.
+ * @param {DocumentsTabProps} props - The props for the component.
+ */
 const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addAgentActivity }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [chatHistory, setChatHistory] = useState<any[]>([]);
+    const [classifyingDocId, setClassifyingDocId] = useState<string | null>(null);
 
     const { dispatchAgentTask, isLoading: isDispatcherLoading, error: dispatcherError, result: dispatcherResult } = useAgentDispatcher(appState, addAgentActivity);
 
@@ -47,8 +60,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
         }
     };
 
-    const [classifyingDocId, setClassifyingDocId] = useState<string | null>(null);
-
     const handleClassifyDocument = useCallback(async (doc: Document) => {
         if (!doc.content) {
             alert("Document has no content to classify.");
@@ -59,7 +70,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
         await dispatchAgentTask(prompt, 'document_classification');
     }, [dispatchAgentTask]);
 
-    // Effect to update state when dispatcher finishes
+    // Effect to update document state when the dispatcher finishes a classification task.
     React.useEffect(() => {
         if (dispatcherResult && classifyingDocId) {
             setAppState(s => {
@@ -69,7 +80,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
                         return { 
                             ...d, 
                             classificationStatus: 'classified', 
-                            type: dispatcherResult
+                            type: dispatcherResult // The 'type' field is populated with the classification result.
                         };
                     }
                     return d;
@@ -84,12 +95,12 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
         if (selectedDoc) {
             const updatedDoc = { ...selectedDoc, tags: newTags };
             setAppState(s => s ? { ...s, documents: s.documents.map(d => d.id === selectedDoc.id ? updatedDoc : d) } : s);
-            setSelectedDoc(updatedDoc);
+            setSelectedDoc(updatedDoc); // Keep the modal updated with the new tags
         }
     };
 
     const handleSendMessage = async (message: string) => {
-        // Mock chat response
+        // TODO: Implement real chat logic
         setChatHistory(h => [...h, { role: 'user', text: message }, { role: 'assistant', text: "Analyzing..." }]);
         setTimeout(() => {
              setChatHistory(h => [...h.slice(0, -1), { role: 'assistant', text: "This is a mocked response based on your question." }]);
@@ -99,10 +110,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-white">Dokumentenverwaltung</h1>
+                <h1 className="text-3xl font-bold text-white">Document Management</h1>
                 <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                 <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">
-                    Dokumente hochladen
+                    Upload Documents
                 </button>
             </div>
             
@@ -113,7 +124,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
                             <th scope="col" className="px-6 py-3">Name</th>
                             <th scope="col" className="px-6 py-3">Status</th>
                             <th scope="col" className="px-6 py-3">Tags</th>
-                            <th scope="col" className="px-6 py-3">Aktionen</th>
+                            <th scope="col" className="px-6 py-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -130,7 +141,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
                                         disabled={isDispatcherLoading && classifyingDocId === doc.id}
                                         className="text-purple-400 hover:underline disabled:text-gray-500 disabled:cursor-not-allowed"
                                     >
-                                        {isDispatcherLoading && classifyingDocId === doc.id ? 'Klassifiziere...' : 'Klassifizieren'}
+                                        {isDispatcherLoading && classifyingDocId === doc.id ? 'Classifying...' : 'Classify'}
                                     </button>
                                     <button onClick={() => { setSelectedDoc(doc); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
                                 </td>
@@ -160,8 +171,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
                     chatHistory={chatHistory}
                     onSendMessage={handleSendMessage}
                     onClose={() => setIsChatModalOpen(false)}
-                    isLoading={false}
-                    onAddKnowledge={() => {}}
+                    isLoading={false} // This should be wired to a state if chat becomes async
+                    onAddKnowledge={() => {}} // This needs to be implemented
                 />
             )}
         </div>

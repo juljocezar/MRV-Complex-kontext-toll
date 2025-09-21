@@ -2,11 +2,15 @@ import React from 'react';
 import { legalResources, otherResources } from '../../legalResources';
 import Accordion from '../ui/Accordion';
 
+/**
+ * A static informational tab that displays a library of legal resources.
+ * The content is organized into accordions and imported from a constants file.
+ */
 const LegalBasisTab: React.FC = () => {
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-white">Rechtsgrundlagen & Ressourcen</h1>
-            <p className="text-gray-400">Eine Bibliothek relevanter internationaler Menschenrechtsinstrumente, Beschwerdemechanismen und Recherche-Datenbanken.</p>
+            <h1 className="text-3xl font-bold text-white">Legal Basis & Resources</h1>
+            <p className="text-gray-400">A library of relevant international human rights instruments, complaint mechanisms, and research databases.</p>
             
             <div className="space-y-4">
                 <Accordion title={legalResources.complaintMechanisms.title} defaultOpen>

@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
-// Fix: Corrected import path for types.
-import { KPI } from '../../types';
-
+/**
+ * Props for the KpisTab component.
+ */
 interface KpisTabProps {
+    /** An array of Key Performance Indicators. */
     kpis: KPI[];
+    /** Function to update the list of KPIs. */
     setKpis: React.Dispatch<React.SetStateAction<KPI[]>>;
+    /** Callback function to trigger AI-powered KPI suggestions. */
     onSuggestKpis: () => void;
+    /** A boolean indicating if a suggestion process is currently running. */
     isLoading: boolean;
 }
 
+/**
+ * A UI component for managing and tracking Key Performance Indicators (KPIs).
+ * It displays KPIs with progress bars, allows manual updates and additions,
+ * and can trigger AI to suggest relevant KPIs.
+ * @param {KpisTabProps} props - The props for the component.
+ */
 const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoading }) => {
     const [newKpi, setNewKpi] = useState({ name: '', target: '' });
     
@@ -33,7 +43,7 @@ const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoadi
                     disabled={isLoading}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500"
                 >
-                    {isLoading ? 'Lade...' : 'KPIs vorschlagen'}
+                    {isLoading ? 'Loading...' : 'Suggest KPIs'}
                 </button>
             </div>
             
@@ -41,7 +51,7 @@ const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoadi
                 {kpis.map(kpi => (
                     <div key={kpi.id} className="bg-gray-800 p-6 rounded-lg shadow">
                         <h3 className="font-semibold text-lg text-white">{kpi.name}</h3>
-                        <p className="text-sm text-gray-400 mb-4">Ziel: {kpi.target}</p>
+                        <p className="text-sm text-gray-400 mb-4">Target: {kpi.target}</p>
                         
                         <div className="w-full bg-gray-700 rounded-full h-2.5">
                             <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${kpi.progress}%` }}></div>
@@ -60,7 +70,7 @@ const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoadi
 
                 {/* Add new KPI form */}
                 <div className="bg-gray-800/50 border-2 border-dashed border-gray-700 p-6 rounded-lg flex flex-col justify-center">
-                    <h3 className="font-semibold text-lg text-white text-center mb-4">Neuen KPI hinzufügen</h3>
+                    <h3 className="font-semibold text-lg text-white text-center mb-4">Add New KPI</h3>
                     <form onSubmit={handleAddKpi} className="space-y-3">
                         <input
                             type="text"
@@ -71,19 +81,19 @@ const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoadi
                         />
                          <input
                             type="text"
-                            placeholder="Zielbeschreibung"
+                            placeholder="Target Description"
                             value={newKpi.target}
                             onChange={(e) => setNewKpi(prev => ({ ...prev, target: e.target.value }))}
                             className="w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
                         />
-                        <button type="submit" className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md">Hinzufügen</button>
+                        <button type="submit" className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md">Add</button>
                     </form>
                 </div>
             </div>
             
             {kpis.length === 0 && (
                 <div className="text-center py-12 bg-gray-800 rounded-lg">
-                    <p className="text-gray-500">Keine KPIs definiert.</p>
+                    <p className="text-gray-500">No KPIs defined.</p>
                 </div>
             )}
         </div>

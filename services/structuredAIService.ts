@@ -1,8 +1,14 @@
-// Fix: This file was empty, causing 'is not a module' errors.
-// Implemented the service based on services/geminiService.ts to provide the expected functionality.
+/**
+ * @file This service provides a throttled interface to the Google Gemini API,
+ * with a focus on handling structured (JSON schema-based) responses.
+ * @note This service appears to be a reimplementation of `geminiService.ts`.
+ * In a future refactor, these two services could be consolidated.
+ */
 import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
 import { AISettings } from '../types';
 
+// This implementation does not use Vite's `import.meta.env` and may not work correctly
+// in a Vite project without further configuration (e.g., using a plugin like vite-plugin-environment).
 const API_KEY = process.env.API_KEY;
 
 if (!API_KEY) {
@@ -11,7 +17,6 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-// A more robust queue that handles tasks and their corresponding promises
 const callQueue: {
     task: () => Promise<any>;
     resolve: (value: any) => void;
@@ -19,8 +24,12 @@ const callQueue: {
 }[] = [];
 
 let isProcessing = false;
-const THROTTLE_DELAY = 2000; // Increased delay to 2 seconds to be safer with the free tier limits
+const THROTTLE_DELAY = 2000;
 
+/**
+ * Processes the API call queue sequentially to manage rate limiting.
+ * @async
+ */
 async function processQueue() {
     if (isProcessing || callQueue.length === 0) {
         return;
@@ -33,18 +42,25 @@ async function processQueue() {
         const result = await task();
         resolve(result);
     } catch (error) {
-        console.error("Gemini API Task failed:", error);
+        console.error("Gemini API Task failed in StructuredAIService:", error);
         reject(error);
     }
     
-    // Wait for the throttle delay before processing the next item
     setTimeout(() => {
         isProcessing = false;
         processQueue();
     }, THROTTLE_DELAY);
 }
 
-
+/**
+ * A generic, throttled function to call the Gemini API.
+ * It queues the request and handles JSON response sanitization.
+ * @template T
+ * @param {string | (string | Part)[]} contents - The content for the AI model.
+ * @param {Schema | null} jsonSchema - The schema for a structured JSON response.
+ * @param {AISettings} settings - Configuration for the AI model.
+ * @returns {Promise<T>} A promise resolving with the AI's response, parsed as type T.
+ */
 const callGeminiAPIThrottled = <T>(
     contents: string | (string | Part)[],
     jsonSchema: Schema | null,
@@ -65,21 +81,18 @@ const callGeminiAPIThrottled = <T>(
                 }
             });
             
-            const text = response.text;
+            const text = response.text();
             if (!text) {
-                // Return an empty object/string for JSON/text to prevent downstream crashes
                 if (jsonSchema) return JSON.parse('{}') as T;
                 return "" as T;
             }
 
             if (jsonSchema) {
                 try {
-                    // Sanitize response before parsing
                     const sanitizedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
                     return JSON.parse(sanitizedText) as T;
                 } catch (e) {
-                    console.error('Failed to parse JSON response from AI:', text);
-                    // Return a valid empty object on parse failure
+                    console.error('Failed to parse JSON response from AI in StructuredAIService:', text);
                     return {} as T;
                 }
             }
@@ -94,8 +107,18 @@ const callGeminiAPIThrottled = <T>(
     });
 };
 
-
+/**
+ * Provides a throttled interface to the Google Gemini API, primarily for structured data.
+ * @note This service is very similar to `GeminiService` and could likely be merged.
+ */
 export class StructuredAIService {
+  /**
+   * Makes a standard call to the AI, expecting a string response.
+   * @param {string | (string | Part)[]} contents - The content for the AI model.
+   * @param {Schema | null} jsonSchema - An optional JSON schema.
+   * @param {AISettings} settings - Configuration for the AI model.
+   * @returns {Promise<string>} A promise resolving with the AI's text response.
+   */
   static async callAI(
     contents: string | (string | Part)[],
     jsonSchema: Schema | null,
@@ -104,6 +127,14 @@ export class StructuredAIService {
     return callGeminiAPIThrottled<string>(contents, jsonSchema, settings);
   }
 
+  /**
+   * Makes a call to the AI with a JSON schema, expecting a typed object response.
+   * @template T
+   * @param {string | (string | Part)[]} contents - The content for the AI model.
+   * @param {object} jsonSchema - The JSON schema for the response.
+   * @param {AISettings} settings - Configuration for the AI model.
+   * @returns {Promise<T>} A promise resolving with the AI's response, parsed as type T.
+   */
   static async callAIWithSchema<T>(
     contents: string | (string | Part)[],
     jsonSchema: object,

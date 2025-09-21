@@ -4,8 +4,11 @@ import type { AgentProfile, AgentCapability } from '../types';
 
 /**
  * Selects the best agent for a given task based on its capabilities.
- * @param task The type of task to be performed.
- * @returns The most suitable AgentProfile.
+ * This function iterates through the available agents and returns the first one
+ * that lists the required capability. If no specific agent is found, it returns
+ * a default generalist agent.
+ * @param {AgentCapability} task - The capability required for the task.
+ * @returns {AgentProfile} The profile of the most suitable agent.
  */
 export const selectAgentForTask = (task: AgentCapability): AgentProfile => {
     for (const agentKey in MRV_AGENTS) {

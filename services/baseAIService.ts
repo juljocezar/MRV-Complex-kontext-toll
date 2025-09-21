@@ -14,6 +14,11 @@ const callQueue: (() => Promise<void>)[] = [];
 let isProcessing = false;
 const THROTTLE_DELAY = 1500; // 1.5 seconds delay between calls
 
+/**
+ * Processes the API call queue one by one with a delay.
+ * This prevents hitting rate limits of the external API.
+ * @async
+ */
 async function processQueue() {
     if (isProcessing || callQueue.length === 0) {
         return;
@@ -29,7 +34,19 @@ async function processQueue() {
     }, THROTTLE_DELAY);
 }
 
+/**
+ * Base class for interacting with the AI model.
+ * Provides a throttled method to call the Gemini API.
+ */
 export class BaseAIService {
+    /**
+     * Makes a call to the Google Gemini API with throttling.
+     * The call is added to a queue and executed sequentially to avoid rate-limiting.
+     * @param {string | (string | Part)[]} contents - The content to be sent to the model.
+     * @param {Schema | null} jsonSchema - The JSON schema for structured responses. If null, a standard text response is expected.
+     * @param {AISettings} settings - The AI model settings (e.g., temperature, topP).
+     * @returns {Promise<string>} A promise that resolves with the text response from the AI.
+     */
     static callAI(
         contents: string | (string | Part)[],
         jsonSchema: Schema | null,
@@ -68,8 +85,15 @@ export class BaseAIService {
     }
 }
 
+/**
+ * Defines the options for an AI call.
+ * @deprecated This interface is not actively used. Use AISettings from '../types' instead.
+ */
 export interface AICallOptions {
+    /** The creativity of the response. */
     temperature?: number;
+    /** The maximum number of tokens in the response. */
     maxTokens?: number;
+    /** The nucleus sampling probability. */
     topP?: number;
 }

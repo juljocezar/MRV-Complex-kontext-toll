@@ -1,23 +1,29 @@
 import { AppState, CaseSummary, Risks } from '../types';
 
+/**
+ * Assembles a comprehensive text-based context string from the application's state.
+ * This context is used to provide the AI with a snapshot of the entire case for analysis.
+ * It includes the case description, key documents, entities, knowledge items, recent events,
+ * active risks, and the latest AI summary.
+ * @param {AppState} appState - The global state of the application.
+ * @returns {string} A single string containing the formatted case context.
+ */
 export const buildCaseContext = (appState: AppState): string => {
-    // FIX: `caseDescription` is nested inside `caseContext`. Adjusted destructuring.
-    const { caseContext, documents, caseEntities, knowledgeItems, timelineEvents, risks, kpis, caseSummary } = appState;
-    const { caseDescription } = caseContext;
+    const { caseDetails, documents, caseEntities, knowledgeItems, timelineEvents, risks, kpis, caseSummary } = appState;
+    const { description: caseDescription } = caseDetails;
 
-    let context = `**Fallbeschreibung:**\n${caseDescription || 'Keine Beschreibung verfügbar.'}\n\n`;
+    let context = `**Case Description:**\n${caseDescription || 'No description available.'}\n\n`;
 
     if (documents.length > 0) {
-        context += `**Zentrale Dokumente (${documents.length}):**\n`;
+        context += `**Key Documents (${documents.length}):**\n`;
         documents.slice(0, 5).forEach(doc => {
-            // FIX: Property 'type' does not exist on type 'Document'. Changed to 'mimeType'.
-            context += `- ${doc.name} (Typ: ${doc.workCategory || doc.mimeType}, Status: ${doc.classificationStatus})\n`;
+            context += `- ${doc.name} (Type: ${doc.workCategory || doc.mimeType}, Status: ${doc.classificationStatus})\n`;
         });
         context += '\n';
     }
     
     if (caseEntities.length > 0) {
-        context += `**Bekannte Entitäten (${caseEntities.length}):**\n`;
+        context += `**Known Entities (${caseEntities.length}):**\n`;
         caseEntities.slice(0, 10).forEach(entity => {
             context += `- ${entity.name} (${entity.type}): ${entity.description}\n`;
         });
@@ -25,7 +31,7 @@ export const buildCaseContext = (appState: AppState): string => {
     }
 
     if (knowledgeItems.length > 0) {
-        context += `**Top 5 Wissenseinträge:**\n`;
+        context += `**Top 5 Knowledge Items:**\n`;
         knowledgeItems.slice(0, 5).forEach(item => {
             context += `- ${item.title}: ${item.summary}\n`;
         });
@@ -33,7 +39,7 @@ export const buildCaseContext = (appState: AppState): string => {
     }
     
     if (timelineEvents.length > 0) {
-        context += `**Letzte 5 Chronologie-Ereignisse:**\n`;
+        context += `**Last 5 Chronology Events:**\n`;
         timelineEvents.slice(-5).reverse().forEach(event => {
             context += `- ${event.date}: ${event.title}\n`;
         });
@@ -46,11 +52,11 @@ export const buildCaseContext = (appState: AppState): string => {
         .join(', ');
     
     if (activeRisks) {
-        context += `**Aktive Risiken:** ${activeRisks}\n\n`;
+        context += `**Active Risks:** ${activeRisks}\n\n`;
     }
 
     if (caseSummary) {
-        context += `**KI-Zusammenfassung:** ${caseSummary.summary}\n\n`;
+        context += `**AI Summary:** ${caseSummary.summary}\n\n`;
     }
 
     return context;

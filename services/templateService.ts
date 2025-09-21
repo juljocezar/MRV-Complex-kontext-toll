@@ -1,18 +1,32 @@
-// This service provides predefined templates for document generation.
-
+/**
+ * Defines the structure for a document template.
+ */
 export interface DocumentTemplate {
+    /** A unique identifier for the template. */
     id: string;
+    /** The display name of the template. */
     name: string;
+    /** A brief description of the template's purpose. */
     description: string;
-    content: string; // The template content, can include placeholders like {{victim_name}}
+    /** The template content, which can include placeholders in `{{placeholder}}` format. */
+    content: string;
 }
 
+/**
+ * A service that provides a static, in-memory repository of predefined
+ * document templates for various use cases, such as legal submissions and reports.
+ */
 export class TemplateService {
+    /**
+     * @private
+     * @static
+     * @description The collection of predefined document templates.
+     */
     private static templates: DocumentTemplate[] = [
         {
             id: 'un_allegation_letter_v1',
-            name: 'UN Allegation Letter (Vorlage)',
-            description: 'Eine Standardvorlage für ein Anschuldigungsschreiben an UN-Sonderverfahren.',
+            name: 'UN Allegation Letter (Template)',
+            description: 'A standard template for an allegation letter to UN Special Procedures.',
             content: `
 # ALLEGATION LETTER TO UN SPECIAL PROCEDURES
 
@@ -58,8 +72,8 @@ export class TemplateService {
         },
         {
             id: 'case_summary_report_v1',
-            name: 'Case Summary Report (Vorlage)',
-            description: 'Eine Vorlage für einen internen zusammenfassenden Fallbericht.',
+            name: 'Case Summary Report (Template)',
+            description: 'A template for an internal summary report of a case.',
             content: `
 # CASE SUMMARY REPORT
 
@@ -94,63 +108,63 @@ export class TemplateService {
         },
         {
             id: 'formal_letter_de_v1',
-            name: 'Formeller Brief (DE)',
-            description: 'Eine Standardvorlage für formelle deutsche Korrespondenz.',
+            name: 'Formal Letter (DE)',
+            description: 'A standard template for formal German correspondence.',
             content: `
-[Ihr Vor- und Nachname]
-[Ihre Straße und Hausnummer]
-[Ihre PLZ und Ort]
-[Ihre Telefonnummer]
-[Ihre E-Mail-Adresse]
+[Your First and Last Name]
+[Your Street and House Number]
+[Your Postal Code and City]
+[Your Phone Number]
+[Your Email Address]
 
 <br>
 <br>
 
-[Name des Empfängers/der Firma]
-[ggf. Abteilung/Ansprechpartner]
-[Straße und Hausnummer des Empfängers]
-[PLZ und Ort des Empfängers]
+[Recipient's Name/Company]
+[c/o Department/Contact Person]
+[Recipient's Street and House Number]
+[Recipient's Postal Code and City]
 
 <br>
 <br>
 
-<p align="right">[Ort], den {{current_date}}</p>
+<p align="right">[City], {{current_date}}</p>
 
 <br>
 <br>
 
-**Betreff: {{subject}}**
+**Subject: {{subject}}**
 
 <br>
 <br>
 
-Sehr geehrte/r [Anrede],
+Dear [Salutation],
 
-[Hier den Brieftext einfügen. Gliedern Sie den Text in sinnvolle Absätze.]
+[Insert the body of the letter here. Structure the text into meaningful paragraphs.]
 
-[Absatz 1: Einleitung, Grund des Schreibens]
+[Paragraph 1: Introduction, reason for writing]
 
-[Absatz 2: Hauptteil, detaillierte Ausführungen, Argumentation]
+[Paragraph 2: Main body, detailed explanations, argumentation]
 
-[Absatz 3: Schluss, Zusammenfassung, Bitte um Reaktion, etc.]
+[Paragraph 3: Conclusion, summary, request for response, etc.]
 
-Mit freundlichen Grüßen
-
-<br>
-<br>
-<br>
-
-(Handschriftliche Unterschrift)
+Sincerely,
 
 <br>
+<br>
+<br>
 
-[Ihr Name in Druckbuchstaben]
+(Handwritten Signature)
+
+<br>
+
+[Your Name in Print]
 `
         },
         {
             id: 'cedaw_communication_v1',
-            name: 'CEDAW Communication (Vorlage)',
-            description: 'Vorlage für eine individuelle Beschwerde beim Ausschuss zur Beseitigung der Diskriminierung der Frau (CEDAW).',
+            name: 'CEDAW Communication (Template)',
+            description: 'Template for an individual complaint to the Committee on the Elimination of Discrimination against Women (CEDAW).',
             content: `
 # COMMUNICATION TO THE COMMITTEE ON THE ELIMINATION OF DISCRIMINATION AGAINST WOMEN (CEDAW)
 
@@ -203,8 +217,8 @@ This matter has not been, and is not being, examined under another procedure of 
         },
         {
             id: 'african_commission_shadow_report_v1',
-            name: 'Schattenbericht Afrikanische Kommission (Vorlage)',
-            description: 'Vorlage für einen Schattenbericht an die Afrikanische Kommission für Menschenrechte und die Rechte der Völker.',
+            name: 'Shadow Report African Commission (Template)',
+            description: 'Template for a shadow report to the African Commission on Human and Peoples\' Rights.',
             content: `
 # SHADOW REPORT TO THE AFRICAN COMMISSION ON HUMAN AND PEOPLES' RIGHTS
 ## In Response to the [Number] Periodic Report of the Government of [Country]
@@ -244,8 +258,8 @@ This matter has not been, and is not being, examined under another procedure of 
         },
         {
             id: 'internal_doc_analysis_v1',
-            name: 'Interne Dokumenten-Analyse (Vorlage)',
-            description: 'Standardvorlage zur internen Analyse von Dokumenten auf potenzielle Menschenrechtsverletzungen nach HURIDOC-Standards.',
+            name: 'Internal Document Analysis (Template)',
+            description: 'Standard template for the internal analysis of documents for potential human rights violations according to HURIDOCS standards.',
             content: `
 # Standard Format for the Analysis of Documents for Potential Human Rights Violations
 
@@ -276,10 +290,19 @@ This matter has not been, and is not being, examined under another procedure of 
         }
     ];
 
+    /**
+     * Retrieves all available document templates.
+     * @returns {DocumentTemplate[]} An array of all document templates.
+     */
     static getAllTemplates(): DocumentTemplate[] {
         return this.templates;
     }
 
+    /**
+     * Retrieves a single document template by its unique ID.
+     * @param {string} id - The ID of the template to retrieve.
+     * @returns {DocumentTemplate | undefined} The found template, or undefined if no template with the given ID exists.
+     */
     static getTemplateById(id: string): DocumentTemplate | undefined {
         return this.templates.find(t => t.id === id);
     }

@@ -1,4 +1,10 @@
 
+/**
+ * Asynchronously generates a SHA-256 hash of a given text string.
+ * This is useful for creating consistent, unique identifiers for content like documents.
+ * @param {string} text - The input string to hash.
+ * @returns {Promise<string>} A promise that resolves to the hexadecimal string representation of the hash.
+ */
 export const hashText = async (text: string): Promise<string> => {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);

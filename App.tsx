@@ -38,26 +38,47 @@ import { EthicsService } from './services/ethicsService';
 import { ContentCreatorService } from './services/contentCreator';
 import { buildCaseContext } from './utils/contextUtils';
 
+/**
+ * The main application component. It serves as the root of the UI,
+ * managing the entire application state, handling data persistence with IndexedDB,
+ * and orchestrating interactions between different UI components and AI services.
+ */
 const App: React.FC = () => {
+    /** The single source of truth for the application's state. */
     const [state, setState] = useState<AppState | null>(null);
 
+    /**
+     * A memoized callback to add a new activity to the agent activity log.
+     * @param {Omit<AgentActivity, 'id' | 'timestamp'>} activity - The activity to log, without id or timestamp.
+     */
     const addAgentActivity = useCallback(async (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => {
         const newActivity: AgentActivity = {
             ...activity,
             id: crypto.randomUUID(),
             timestamp: new Date().toISOString(),
         };
+        // Prepend to the activity log
         setState(s => s ? { ...s, agentActivity: [newActivity, ...s.agentActivity] } : null);
     }, []);
 
+    /**
+     * Sets the currently active main tab.
+     * @param {ActiveTab} tab - The ID of the tab to activate.
+     */
     const setActiveTab = (tab: ActiveTab) => {
         setState(prevState => prevState ? { ...prevState, activeTab: tab } : null);
     };
 
+    /**
+     * Toggles the focus mode, which hides sidebars to provide more screen space for the main content.
+     */
     const toggleFocusMode = () => {
         setState(prevState => prevState ? { ...prevState, isFocusMode: !prevState.isFocusMode } : null);
     };
 
+    // --- AI Service Handlers ---
+
+    /** Triggers a high-level analysis of the entire case to generate a summary. */
     const performOverallAnalysis = async () => {
         if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'case_analysis' } : null);
@@ -71,6 +92,7 @@ const App: React.FC = () => {
         }
     }
     
+    /** Triggers a search for contradictions across all classified documents. */
     const findContradictions = async () => {
         if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'contradictions' } : null);
@@ -84,6 +106,7 @@ const App: React.FC = () => {
         }
     };
     
+    /** Triggers the generation of high-level strategic insights based on the case context. */
     const generateInsights = async () => {
         if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'insights' } : null);
@@ -97,6 +120,7 @@ const App: React.FC = () => {
         }
     };
 
+    /** Triggers the AI to suggest relevant KPIs for the case. */
     const suggestKpis = async () => {
          if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'kpis' } : null);
@@ -110,6 +134,7 @@ const App: React.FC = () => {
         }
     }
     
+    /** Generates mitigation strategies for the currently selected risks. */
     const generateMitigationStrategies = async () => {
          if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'strategy' } : null);
@@ -123,6 +148,7 @@ const App: React.FC = () => {
         }
     };
 
+    /** Performs an ethical analysis of the entire case. */
     const performEthicsAnalysis = async () => {
          if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'ethics' } : null);
@@ -136,11 +162,13 @@ const App: React.FC = () => {
         }
     }
     
+    /** A generic function to generate a text-based report from a prompt. */
     const generateReport = async (prompt: string, schema: object | null) => {
         if (!state) return "State not available";
         return await GeminiService.callAI(prompt, schema, state.settings.ai);
     };
 
+    /** Handles the multi-faceted process of generating a new document from various inputs. */
     const generateContent = async (params: any) => {
         if (!state) return null;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'generation' } : null);
@@ -168,8 +196,13 @@ const App: React.FC = () => {
         }
     };
     
+    /** A utility function to create a setter for a specific property in the AppState. */
     const setProp = (prop: keyof AppState) => (value: any) => setState(s => s ? { ...s, [prop]: value } : null);
 
+    /**
+     * Renders the content of the currently active tab.
+     * @returns {React.ReactNode} The component for the active tab.
+     */
     const renderTab = () => {
         if (!state) return null;
         switch (state.activeTab) {
@@ -178,8 +211,8 @@ const App: React.FC = () => {
                     documents={state.documents} 
                     generatedDocuments={state.generatedDocuments}
                     documentAnalysisResults={state.documentAnalysisResults}
-                    caseDescription={state.caseContext.caseDescription}
-                    setCaseDescription={(desc) => setState(s => s ? {...s, caseContext: {...s.caseContext, caseDescription: desc}} : null)}
+                    caseDescription={state.caseDetails.description}
+                    setCaseDescription={(desc) => setState(s => s ? {...s, caseDetails: {...s.caseDetails, description: desc}} : null)}
                     setActiveTab={setActiveTab}
                     onResetCase={() => { if(window.confirm('Are you sure?')) storage.clearDB().then(() => window.location.reload()); }}
                     onExportCase={async () => {
@@ -270,7 +303,7 @@ const App: React.FC = () => {
         }
     };
     
-    // Load initial state
+    // Effect hook to load the initial state from IndexedDB when the component mounts.
     useEffect(() => {
         const load = async () => {
             await storage.initDB();
@@ -283,7 +316,7 @@ const App: React.FC = () => {
                 timelineEvents: await storage.getAllTimelineEvents(),
                 tags: await storage.getAllTags(),
                 contradictions: await storage.getAllContradictions(),
-                caseContext: await storage.getCaseContext() || { caseDescription: '' },
+                caseDetails: await storage.getCaseContext() || { description: '' },
                 tasks: await storage.getAllTasks(),
                 kpis: await storage.getAllKpis(),
                 risks: await storage.getRisks() || { physical: false, legal: false, digital: false, intimidation: false, evidenceManipulation: false, secondaryTrauma: false, burnout: false, psychologicalBurden: false },
@@ -308,7 +341,7 @@ const App: React.FC = () => {
         load();
     }, []);
     
-    // Save state whenever it changes
+    // Effect hook to save the entire application state to IndexedDB whenever it changes.
     useEffect(() => {
         if (state) {
             storage.saveAllDocuments(state.documents);
@@ -318,7 +351,7 @@ const App: React.FC = () => {
             storage.saveAllTimelineEvents(state.timelineEvents);
             storage.saveAllTags(state.tags);
             storage.saveAllContradictions(state.contradictions);
-            storage.saveCaseContext(state.caseContext);
+            storage.saveCaseContext(state.caseDetails);
             // storage.saveAllTasks(state.tasks);
             storage.saveAllKpis(state.kpis);
             storage.saveRisks(state.risks);

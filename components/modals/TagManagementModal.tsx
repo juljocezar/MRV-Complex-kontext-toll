@@ -1,17 +1,32 @@
 import React, { useState, useEffect } from 'react';
-// Fix: Corrected import path for types.
+import React, { useState, useEffect } from 'react';
 import type { Tag } from '../../types';
 
+/**
+ * Props for the TagManagementModal component.
+ */
 interface TagManagementModalProps {
+    /** Whether the modal is currently open. */
     isOpen: boolean;
+    /** Callback function to close the modal. */
     onClose: () => void;
+    /** A list of all available tags in the system. */
     availableTags: Tag[];
+    /** A list of tag names currently assigned to the item. */
     assignedTags: string[];
+    /** Callback function to save the updated list of assigned tags. */
     onSave: (newTags: string[]) => void;
+    /** The name of the item being tagged, for display in the modal title. */
     itemName: string;
+    /** Callback function to create a new tag globally. */
     onCreateTag: (name: string) => void;
 }
 
+/**
+ * A modal for managing tags for a specific item. It allows users to
+ * create new tags and assign or unassign existing tags.
+ * @param {TagManagementModalProps} props - The props for the component.
+ */
 const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose, availableTags, assignedTags, onSave, itemName, onCreateTag }) => {
     const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
     const [newTagName, setNewTagName] = useState('');
@@ -53,7 +68,7 @@ const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
             <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md flex flex-col border border-gray-700">
                 <header className="p-4 border-b border-gray-700 flex justify-between items-center">
-                    <h2 className="text-lg font-semibold text-white truncate pr-4">Tags für "{itemName}"</h2>
+                    <h2 className="text-lg font-semibold text-white truncate pr-4">Tags for "{itemName}"</h2>
                      <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
                 </header>
                 <div className="p-6 max-h-96 overflow-y-auto">
@@ -63,10 +78,10 @@ const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose
                             value={newTagName}
                             onChange={(e) => setNewTagName(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleCreateTag()}
-                            placeholder="Neuen Tag erstellen..."
+                            placeholder="Create new tag..."
                             className="flex-grow bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
                         />
-                        <button onClick={handleCreateTag} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md text-sm">Erstellen</button>
+                        <button onClick={handleCreateTag} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md text-sm">Create</button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -82,11 +97,11 @@ const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose
                             </label>
                         ))}
                     </div>
-                    {availableTags.length === 0 && <p className="text-gray-500 text-center py-4">Keine Tags verfügbar. Erstellen Sie welche in den Einstellungen.</p>}
+                    {availableTags.length === 0 && <p className="text-gray-500 text-center py-4">No tags available. Create one in Settings.</p>}
                 </div>
                 <footer className="p-4 border-t border-gray-700 flex justify-end space-x-3">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md">Abbrechen</button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">Speichern</button>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md">Cancel</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">Save</button>
                 </footer>
             </div>
         </div>

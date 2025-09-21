@@ -1,15 +1,22 @@
-// This service simulates interactions with UN Special Procedures, providing logic for drafting and managing submissions.
-
 import { AppState } from '../types';
 import { UN_SUBMISSION_TEMPLATES } from '../constants/unProcedures';
 import { buildCaseContext } from '../utils/contextUtils';
 import { StructuredAIService } from './structuredAIService';
 import { selectAgentForTask } from '../utils/agentSelection';
 
+/**
+ * Provides services for interacting with UN Special Procedures,
+ * including drafting and finalizing submissions.
+ */
 export class UNProceduresService {
 
   /**
-   * Drafts a UN submission by filling a template with case data using an AI agent.
+   * Drafts a UN submission by using an AI agent to populate a selected template
+   * with information from the current case context.
+   * @param {string} templateId - The ID of the submission template to use.
+   * @param {AppState} appState - The current state of the application.
+   * @returns {Promise<string>} A promise that resolves to the drafted submission content as a string.
+   * @throws {Error} If the specified template is not found.
    */
   static async draftSubmission(
     templateId: string,
@@ -52,7 +59,12 @@ Provide only the filled-out submission content as a structured text or markdown 
   }
 
   /**
-   * Finalizes a submission draft, checking for completeness and adherence to guidelines.
+   * Uses an AI agent to review, polish, and finalize a draft UN submission.
+   * The agent checks for clarity, factual accuracy against the case context,
+   * adherence to guidelines, and improves the formal tone.
+   * @param {string} draftContent - The raw content of the draft submission.
+   * @param {AppState} appState - The current state of the application.
+   * @returns {Promise<string>} A promise that resolves to the finalized submission content.
    */
   static async finalizeSubmission(
     draftContent: string,

@@ -2,13 +2,26 @@ import React, { useState, useEffect } from 'react';
 import type { GeneratedDocument, Document, AppState } from '../../types';
 import { TemplateService, DocumentTemplate } from '../../services/templateService';
 
+/**
+ * Props for the GenerationTab component.
+ */
 interface GenerationTabProps {
+    /** The main callback function to trigger content generation. */
     onGenerateContent: (params: { instructions: string; templateId?: string; sourceDocuments?: Document[] }) => Promise<GeneratedDocument | null>;
+    /** The global state of the application. */
     appState: AppState;
+    /** Function to update the list of generated documents in the global state. */
     setGeneratedDocuments: React.Dispatch<React.SetStateAction<GeneratedDocument[]>>;
+    /** A boolean indicating if the generation process is currently running. */
     isLoading: boolean;
 }
 
+/**
+ * A UI component for generating new documents based on user inputs.
+ * It provides controls for selecting templates, writing instructions, and choosing source documents,
+ * and displays the generated content.
+ * @param {GenerationTabProps} props - The props for the component.
+ */
 const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appState, setGeneratedDocuments, isLoading }) => {
     const [instructions, setInstructions] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -55,34 +68,34 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-white">Dokumentengenerierung</h1>
+            <h1 className="text-3xl font-bold text-white">Document Generation</h1>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* --- Left Column: Controls --- */}
                 <div className="lg:col-span-1 bg-gray-800 p-6 rounded-lg space-y-4 flex flex-col">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Vorlage (Optional)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Template (Optional)</label>
                         <select
                             value={selectedTemplateId}
                             onChange={e => handleTemplateChange(e.target.value)}
                             className="w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
                         >
-                            <option value="">Keine Vorlage</option>
+                            <option value="">No Template</option>
                             {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Anweisungen & Prompt</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Instructions & Prompt</label>
                         <textarea
                             rows={8}
                             value={instructions}
                             onChange={e => setInstructions(e.target.value)}
-                            placeholder="z.B. 'Erstelle einen zusammenfassenden Bericht basierend auf den ausgewählten Dokumenten...'"
+                            placeholder="e.g., 'Create a summary report based on the selected documents...'"
                             className="w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
                         />
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Quelldokumente (Optional)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Source Documents (Optional)</label>
                         <div className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 max-h-48 overflow-y-auto space-y-2">
                             {appState.documents.map(doc => (
                                 <label key={doc.id} className="flex items-center space-x-2 text-sm text-gray-200 cursor-pointer">
@@ -103,16 +116,16 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
                             disabled={isLoading}
                             className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-md disabled:bg-gray-500"
                         >
-                            {isLoading ? 'Generiere...' : 'Dokument erstellen'}
+                            {isLoading ? 'Generating...' : 'Create Document'}
                         </button>
                     </div>
                 </div>
 
                 {/* --- Right Column: Output --- */}
                 <div className="lg:col-span-2 bg-gray-800 p-6 rounded-lg min-h-[600px] flex flex-col">
-                     <h2 className="text-xl font-semibold text-white mb-4">Vorschau</h2>
+                     <h2 className="text-xl font-semibold text-white mb-4">Preview</h2>
                      <div className="flex-grow bg-gray-900/50 p-4 rounded-md border border-gray-700 overflow-y-auto">
-                        {isLoading && <p className="text-gray-400">Dokument wird generiert...</p>}
+                        {isLoading && <p className="text-gray-400">Generating document...</p>}
                         {latestGeneratedDoc ? (
                             <div 
                                 className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap"
@@ -120,7 +133,7 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
                             >
                             </div>
                         ) : !isLoading && (
-                            <p className="text-gray-500">Hier wird das generierte Dokument angezeigt.</p>
+                            <p className="text-gray-500">The generated document will be displayed here.</p>
                         )}
                      </div>
                 </div>

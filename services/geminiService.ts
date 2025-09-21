@@ -1,16 +1,24 @@
 import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
 import { AISettings } from '../types';
 
-const getApiKey = () => {
+/**
+ * Retrieves the Gemini API key from Vite's environment variables.
+ * @returns {string | undefined} The API key, or undefined if not set.
+ */
+const getApiKey = (): string | undefined => {
     // In Vite, import.meta.env is used for environment variables
     return import.meta.env.VITE_GEMINI_API_KEY;
 };
 
-// We will initialize the AI instance when it's needed, not statically.
-// This avoids issues with environment variables not being loaded at module import time.
 let ai: GoogleGenAI | null = null;
 
-const getAiInstance = () => {
+/**
+ * Lazily initializes and returns a singleton instance of the GoogleGenAI client.
+ * This avoids issues with environment variables not being loaded at module import time.
+ * @throws {Error} If the VITE_GEMINI_API_KEY is not set.
+ * @returns {GoogleGenAI} The initialized GoogleGenAI instance.
+ */
+const getAiInstance = (): GoogleGenAI => {
     if (!ai) {
         const apiKey = getApiKey();
         if (!apiKey) {
@@ -21,7 +29,14 @@ const getAiInstance = () => {
     return ai;
 };
 
-// A more robust queue that handles tasks and their corresponding promises
+/**
+ * @typedef {object} QueueTask
+ * @property {() => Promise<any>} task - The async function to execute.
+ * @property {(value: any) => void} resolve - The resolve function of the promise.
+ * @property {(reason?: any) => void} reject - The reject function of the promise.
+ */
+
+/** @type {QueueTask[]} */
 const callQueue: {
     task: () => Promise<any>;
     resolve: (value: any) => void;
@@ -31,6 +46,10 @@ const callQueue: {
 let isProcessing = false;
 const THROTTLE_DELAY = 2000; // Increased delay to 2 seconds to be safer with the free tier limits
 
+/**
+ * Processes the API call queue sequentially, with a delay between calls to respect rate limits.
+ * @async
+ */
 async function processQueue() {
     if (isProcessing || callQueue.length === 0) {
         return;
@@ -47,14 +66,22 @@ async function processQueue() {
         reject(error);
     }
     
-    // Wait for the throttle delay before processing the next item
     setTimeout(() => {
         isProcessing = false;
         processQueue();
     }, THROTTLE_DELAY);
 }
 
-
+/**
+ * A generic, throttled function to call the Gemini API.
+ * It adds the API call to a queue and processes it sequentially.
+ * It also handles JSON response sanitization and parsing.
+ * @template T
+ * @param {string | (string | Part)[]} contents - The content to send to the model.
+ * @param {Schema | null} jsonSchema - The JSON schema for a structured response. If null, a plain text response is expected.
+ * @param {AISettings} settings - Configuration for the AI model (temperature, etc.).
+ * @returns {Promise<T>} A promise that resolves with the AI's response, parsed as type T.
+ */
 const callGeminiAPIThrottled = <T>(
     contents: string | (string | Part)[],
     jsonSchema: Schema | null,
@@ -62,37 +89,34 @@ const callGeminiAPIThrottled = <T>(
 ): Promise<T> => {
     return new Promise((resolve, reject) => {
         const task = async () => {
-        const aiInstance = getAiInstance();
-        const model = aiInstance.getGenerativeModel({
-            model: 'gemini-1.5-flash',
-            generationConfig: {
+            const aiInstance = getAiInstance();
+            const model = aiInstance.getGenerativeModel({
+                model: 'gemini-1.5-flash',
+                generationConfig: {
                     temperature: settings.temperature,
                     topP: settings.topP,
                     ...(jsonSchema && {
                         responseMimeType: "application/json",
-                    responseSchema: jsonSchema as any,
+                        responseSchema: jsonSchema as any,
                     }),
                 }
             });
 
-        const result = await model.generateContent(contents as any);
-        const response = result.response;
+            const result = await model.generateContent(contents as any);
+            const response = result.response;
             
             const text = response.text();
             if (!text) {
-                // Return an empty object/string for JSON/text to prevent downstream crashes
                 if (jsonSchema) return JSON.parse('{}') as T;
                 return "" as T;
             }
 
             if (jsonSchema) {
                 try {
-                    // Sanitize response before parsing
                     const sanitizedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
                     return JSON.parse(sanitizedText) as T;
                 } catch (e) {
                     console.error('Failed to parse JSON response from AI:', text);
-                    // Return a valid empty object on parse failure
                     return {} as T;
                 }
             }
@@ -107,8 +131,18 @@ const callGeminiAPIThrottled = <T>(
     });
 };
 
-
+/**
+ * The primary service for interacting with the Google Gemini API.
+ * Provides throttled methods for making standard and schema-based AI calls.
+ */
 export class GeminiService {
+  /**
+   * Makes a standard call to the AI, expecting a string response.
+   * @param {string | (string | Part)[]} contents - The content to send to the model.
+   * @param {Schema | null} jsonSchema - An optional JSON schema. If provided, the response will be text-formatted JSON.
+   * @param {AISettings} settings - Configuration for the AI model.
+   * @returns {Promise<string>} A promise that resolves with the AI's text response.
+   */
   static async callAI(
     contents: string | (string | Part)[],
     jsonSchema: Schema | null,
@@ -117,6 +151,14 @@ export class GeminiService {
     return callGeminiAPIThrottled<string>(contents, jsonSchema, settings);
   }
 
+  /**
+   * Makes a call to the AI with a specific JSON schema, expecting a typed object response.
+   * @template T
+   * @param {string | (string | Part)[]} contents - The content to send to the model.
+   * @param {object} jsonSchema - The JSON schema to which the response must conform.
+   * @param {AISettings} settings - Configuration for the AI model.
+   * @returns {Promise<T>} A promise that resolves with the AI's response, parsed into the specified type T.
+   */
   static async callAIWithSchema<T>(
     contents: string | (string | Part)[],
     jsonSchema: object,

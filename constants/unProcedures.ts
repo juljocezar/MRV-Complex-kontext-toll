@@ -1,10 +1,13 @@
 // Defines templates and checklists related to UN Special Procedures submissions.
 
+/**
+ * A collection of predefined templates for UN Special Procedures submissions.
+ */
 export const UN_SUBMISSION_TEMPLATES = [
   {
     id: 'urgent_appeal',
-    name: 'Urgent Appeal (Dringlichkeitsappell)',
-    description: 'Für Fälle, in denen eine unmittelbare Gefahr für Leben, körperliche Unversechtheit oder andere schwere Menschenrechtsverletzungen besteht.',
+    name: 'Urgent Appeal',
+    description: 'For cases involving an imminent risk to life, physical integrity, or other serious human rights violations.',
     content: `
 # URGENT APPEAL TO UN SPECIAL PROCEDURES
 
@@ -39,8 +42,8 @@ export const UN_SUBMISSION_TEMPLATES = [
   },
   {
     id: 'allegation_letter',
-    name: 'Allegation Letter (Anschuldigungsschreiben)',
-    description: 'Für bereits stattgefundene Menschenrechtsverletzungen, um die Regierung zu informieren und um eine Stellungnahme zu bitten.',
+    name: 'Allegation Letter',
+    description: 'For past human rights violations, to inform the government and request a response.',
     content: `
 # ALLEGATION LETTER TO UN SPECIAL PROCEDURES
 
@@ -84,13 +87,16 @@ export const UN_SUBMISSION_TEMPLATES = [
   },
 ];
 
+/**
+ * A standard checklist to be completed before dispatching a UN submission.
+ */
 export const UN_SUBMISSION_CHECKLIST = [
-    { id: 'c1', text: 'Identität des Opfers (vollständiger Name, Geburtsdatum etc.) klar dargelegt?', checked: false },
-    { id: 'c2', text: 'Informierte Zustimmung (Consent) des Opfers/der Familie liegt vor und ist dokumentiert?', checked: false },
-    { id: 'c3', text: 'Wurde geklärt, ob der Name des Opfers veröffentlicht werden darf?', checked: false },
-    { id: 'c4', text: 'Identität der mutmaßlichen Täter (Namen, Einheit, etc.) so genau wie möglich beschrieben?', checked: false },
-    { id: 'c5', text: 'Datum, Ort und eine detaillierte, chronologische Beschreibung des Vorfalls sind enthalten?', checked: false },
-    { id: 'c6', text: 'Nationale Rechtsmittel wurden nachweislich ausgeschöpft oder ihre Ineffektivität/Nichtverfügbarkeit wurde begründet?', checked: false },
-    { id: 'c7', text: 'Die verletzten Artikel internationaler Menschenrechtsnormen (z.B. AEMR, Zivilpakt) sind benannt?', checked: false },
-    { id: 'c8', text: 'Alle relevanten Beweisdokumente sind referenziert und als Anhänge vorbereitet?', checked: false },
+    { id: 'c1', text: 'Is the identity of the victim (full name, date of birth, etc.) clearly stated?', checked: false },
+    { id: 'c2', text: 'Is informed consent from the victim/family available and documented?', checked: false },
+    { id: 'c3', text: 'Has it been clarified whether the victim\'s name may be published?', checked: false },
+    { id: 'c4', text: 'Is the identity of the alleged perpetrators (names, unit, etc.) described as accurately as possible?', checked: false },
+    { id: 'c5', text: 'Are the date, location, and a detailed, chronological description of the incident included?', checked: false },
+    { id: 'c6', text: 'Have domestic remedies been demonstrably exhausted, or has their ineffectiveness/unavailability been justified?', checked: false },
+    { id: 'c7', text: 'Are the violated articles of international human rights norms (e.g., UDHR, ICCPR) named?', checked: false },
+    { id: 'c8', text: 'Are all relevant evidentiary documents referenced and prepared as attachments?', checked: false },
 ];

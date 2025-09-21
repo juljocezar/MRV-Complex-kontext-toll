@@ -4,12 +4,23 @@ import { HRDRiskAssessment, SecureCommunicationPlan } from '../../types/hrdResou
 import { HRDSupportService } from '../../services/hrdSupportService';
 import { HRD_RESOURCES } from '../../constants/hrdResources';
 
+/**
+ * Props for the HRDSupportTab component.
+ */
 interface HRDSupportTabProps {
+    /** The global state of the application. */
     appState: AppState;
+    /** A boolean indicating if a process is currently loading. */
     isLoading: boolean;
+    /** Function to set the global loading state. */
     setIsLoading: (loading: boolean) => void;
 }
 
+/**
+ * A UI component that provides a set of tools to support Human Rights Defenders (HRDs).
+ * It includes a risk assessment tool, a secure communication plan generator, and a list of external resources.
+ * @param {HRDSupportTabProps} props - The props for the component.
+ */
 const HRDSupportTab: React.FC<HRDSupportTabProps> = ({ appState, isLoading, setIsLoading }) => {
     const [riskAssessment, setRiskAssessment] = useState<HRDRiskAssessment | null>(null);
     const [commPlan, setCommPlan] = useState<SecureCommunicationPlan | null>(null);
@@ -39,7 +50,12 @@ const HRDSupportTab: React.FC<HRDSupportTabProps> = ({ appState, isLoading, setI
         setIsLoading(false);
     };
 
-    const riskLevelColor = (level?: string) => {
+    /**
+     * Returns a Tailwind CSS color class based on the risk level.
+     * @param {string} [level] - The risk level string (e.g., 'Critical', 'High').
+     * @returns {string} The corresponding CSS class.
+     */
+    const riskLevelColor = (level?: string): string => {
         switch (level) {
             case 'Critical': return 'text-red-400';
             case 'High': return 'text-orange-400';
@@ -51,39 +67,39 @@ const HRDSupportTab: React.FC<HRDSupportTabProps> = ({ appState, isLoading, setI
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-white">HRD Support-Werkzeuge</h1>
-            <p className="text-gray-400">Tools zur Unterstützung von Menschenrechtsverteidigern (HRDs) in den Bereichen Sicherheit und Wohlbefinden.</p>
+            <h1 className="text-3xl font-bold text-white">HRD Support Tools</h1>
+            <p className="text-gray-400">Tools to support Human Rights Defenders (HRDs) in security and well-being.</p>
             
             <div className="flex space-x-2 border-b border-gray-700">
-                <button onClick={() => setActiveTool('risk')} className={`px-4 py-2 text-sm font-medium ${activeTool === 'risk' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Risiko-Analyse</button>
-                <button onClick={() => setActiveTool('comms')} className={`px-4 py-2 text-sm font-medium ${activeTool === 'comms' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Kommunikationsplan</button>
-                <button onClick={() => setActiveTool('resources')} className={`px-4 py-2 text-sm font-medium ${activeTool === 'resources' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Ressourcen</button>
+                <button onClick={() => setActiveTool('risk')} className={`px-4 py-2 text-sm font-medium ${activeTool === 'risk' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Risk Analysis</button>
+                <button onClick={() => setActiveTool('comms')} className={`px-4 py-2 text-sm font-medium ${activeTool === 'comms' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Communication Plan</button>
+                <button onClick={() => setActiveTool('resources')} className={`px-4 py-2 text-sm font-medium ${activeTool === 'resources' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Resources</button>
             </div>
 
             {activeTool === 'risk' && (
                 <div className="bg-gray-800 p-6 rounded-lg">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-white">Fallbasierte Risiko-Analyse</h2>
+                        <h2 className="text-xl font-semibold text-white">Case-Based Risk Analysis</h2>
                         <button onClick={handlePerformRiskAssessment} disabled={isLoading} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500">
-                            {isLoading ? 'Analysiere...' : 'Analyse durchführen'}
+                            {isLoading ? 'Analyzing...' : 'Perform Analysis'}
                         </button>
                     </div>
-                    {isLoading && !riskAssessment ? <p className="text-gray-400">Analyse läuft...</p> : riskAssessment ? (
+                    {isLoading && !riskAssessment ? <p className="text-gray-400">Analysis in progress...</p> : riskAssessment ? (
                         <div className="space-y-4">
-                            <p><strong>Gesamtrisikostufe: </strong><span className={`font-bold ${riskLevelColor(riskAssessment.overallRiskLevel)}`}>{riskAssessment.overallRiskLevel}</span></p>
+                            <p><strong>Overall Risk Level: </strong><span className={`font-bold ${riskLevelColor(riskAssessment.overallRiskLevel)}`}>{riskAssessment.overallRiskLevel}</span></p>
                             <div>
-                                <h3 className="font-semibold text-gray-300">Identifizierte Risiken & Maßnahmen:</h3>
+                                <h3 className="font-semibold text-gray-300">Identified Risks & Mitigations:</h3>
                                 <ul className="list-disc list-inside space-y-2 mt-2 text-gray-400">
                                     {(riskAssessment?.identifiedRisks || []).map((r, i) => <li key={i}><strong>{r.risk}:</strong> {r.mitigation}</li>)}
                                 </ul>
                             </div>
                             <div>
-                                <h3 className="font-semibold text-gray-300">Allgemeine Empfehlungen:</h3>
+                                <h3 className="font-semibold text-gray-300">General Recommendations:</h3>
                                 <p className="text-gray-400 mt-1">{riskAssessment.recommendations}</p>
                             </div>
                         </div>
                     ) : (
-                        <p className="text-gray-500">Klicken Sie auf "Analyse durchführen", um eine Risikobewertung zu starten.</p>
+                        <p className="text-gray-500">Click "Perform Analysis" to start a risk assessment.</p>
                     )}
                 </div>
             )}
@@ -91,15 +107,15 @@ const HRDSupportTab: React.FC<HRDSupportTabProps> = ({ appState, isLoading, setI
             {activeTool === 'comms' && (
                  <div className="bg-gray-800 p-6 rounded-lg">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-white">Sicherer Kommunikationsplan</h2>
+                        <h2 className="text-xl font-semibold text-white">Secure Communication Plan</h2>
                         <button onClick={handleGenerateCommPlan} disabled={isLoading} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500">
-                            {isLoading ? 'Generiere...' : 'Plan generieren'}
+                            {isLoading ? 'Generating...' : 'Generate Plan'}
                         </button>
                     </div>
-                     {isLoading && !commPlan ? <p className="text-gray-400">Plan wird generiert...</p> : commPlan ? (
+                     {isLoading && !commPlan ? <p className="text-gray-400">Generating plan...</p> : commPlan ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div>
-                                <h3 className="font-semibold text-gray-300 mb-2">Empfohlene Apps:</h3>
+                                <h3 className="font-semibold text-gray-300 mb-2">Recommended Apps:</h3>
                                 <ul className="space-y-1 text-gray-400">
                                     {(commPlan?.recommendedApps || []).map((app, i) => <li key={i}><strong>{app.for}:</strong> {app.name}</li>)}
                                 </ul>
@@ -112,14 +128,14 @@ const HRDSupportTab: React.FC<HRDSupportTabProps> = ({ appState, isLoading, setI
                             </div>
                         </div>
                     ) : (
-                        <p className="text-gray-500">Klicken Sie auf "Plan generieren", um Vorschläge für eine sichere Kommunikation zu erhalten.</p>
+                        <p className="text-gray-500">Click "Generate Plan" to get suggestions for secure communication.</p>
                     )}
                 </div>
             )}
             
             {activeTool === 'resources' && (
                 <div className="bg-gray-800 p-6 rounded-lg">
-                    <h2 className="text-xl font-semibold text-white mb-4">Externe Unterstützungs-Ressourcen</h2>
+                    <h2 className="text-xl font-semibold text-white mb-4">External Support Resources</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {HRD_RESOURCES.map(res => (
                             <div key={res.name} className="bg-gray-700/50 p-4 rounded-md">

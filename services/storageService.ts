@@ -4,10 +4,16 @@ import {
     AgentActivity, AuditLogEntry, AppSettings, EthicsAnalysis, CaseSummary, DocumentAnalysisResult
 } from '../types';
 
+/** The name of the IndexedDB database. */
 const DB_NAME = 'MRVAssistantDB';
+/** The version of the IndexedDB database schema. */
 const DB_VERSION = 1;
+/** The singleton instance of the IDBDatabase. */
 let db: IDBDatabase;
 
+/**
+ * An enumeration of all object store names used in the database.
+ */
 export const STORES = {
     documents: 'documents',
     generatedDocuments: 'generatedDocuments',
@@ -30,13 +36,22 @@ export const STORES = {
     mitigationStrategies: 'mitigationStrategies',
 };
 
-// Stores that are expected to contain only a single record.
+/**
+ * A set of store names that are expected to contain only a single record.
+ * These stores are handled specially during data import.
+ */
 const SINGLE_RECORD_STORES = new Set([
     STORES.caseContext, STORES.risks, STORES.caseSummary, 
     STORES.settings, STORES.ethicsAnalysis, STORES.mitigationStrategies
 ]);
 
 
+/**
+ * Initializes the IndexedDB database.
+ * If the database is already initialized, it returns the existing instance.
+ * Handles the creation and upgrading of object stores.
+ * @returns {Promise<IDBDatabase>} A promise that resolves with the database instance.
+ */
 export const initDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
         if (db) {
@@ -59,7 +74,6 @@ export const initDB = (): Promise<IDBDatabase> => {
             const tempDb = (event.target as IDBOpenDBRequest).result;
             Object.values(STORES).forEach(storeName => {
                 if (!tempDb.objectStoreNames.contains(storeName)) {
-                    // Default keyPath is 'id'. Special cases are handled here.
                     let keyPath = 'id';
                     if (storeName === STORES.documentAnalysisResults) keyPath = 'docId';
                     
@@ -72,12 +86,26 @@ export const initDB = (): Promise<IDBDatabase> => {
     });
 };
 
-// Generic CRUD helpers
-const getStore = (storeName: string, mode: IDBTransactionMode) => {
+// --- Generic CRUD Helpers ---
+
+/**
+ * Gets an object store from the database within a new transaction.
+ * @param {string} storeName - The name of the store to access.
+ * @param {IDBTransactionMode} mode - The transaction mode ('readonly' or 'readwrite').
+ * @returns {IDBObjectStore} The requested object store.
+ */
+const getStore = (storeName: string, mode: IDBTransactionMode): IDBObjectStore => {
     const transaction = db.transaction(storeName, mode);
     return transaction.objectStore(storeName);
 };
 
+/**
+ * Adds a single item to a specified store.
+ * @template T
+ * @param {string} storeName - The name of the store.
+ * @param {T} item - The item to add.
+ * @returns {Promise<void>} A promise that resolves when the item is added.
+ */
 const add = <T>(storeName: string, item: T): Promise<void> => {
     return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readwrite');
@@ -87,6 +115,12 @@ const add = <T>(storeName: string, item: T): Promise<void> => {
     });
 };
 
+/**
+ * Retrieves all items from a specified store.
+ * @template T
+ * @param {string} storeName - The name of the store.
+ * @returns {Promise<T[]>} A promise that resolves with an array of all items in the store.
+ */
 const getAll = <T>(storeName: string): Promise<T[]> => {
     return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readonly');
@@ -96,6 +130,13 @@ const getAll = <T>(storeName: string): Promise<T[]> => {
     });
 };
 
+/**
+ * Retrieves a single item from a store by its key.
+ * @template T
+ * @param {string} storeName - The name of the store.
+ * @param {IDBValidKey} key - The key of the item to retrieve.
+ * @returns {Promise<T | undefined>} A promise that resolves with the item, or undefined if not found.
+ */
 const getOne = <T>(storeName: string, key: IDBValidKey): Promise<T | undefined> => {
     return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readonly');
@@ -106,6 +147,13 @@ const getOne = <T>(storeName: string, key: IDBValidKey): Promise<T | undefined> 
 };
 
 
+/**
+ * Updates an existing item or adds it if it doesn't exist (upsert).
+ * @template T
+ * @param {string} storeName - The name of the store.
+ * @param {T} item - The item to update or insert.
+ * @returns {Promise<void>} A promise that resolves when the operation is complete.
+ */
 const update = <T>(storeName: string, item: T): Promise<void> => {
     return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readwrite');
@@ -115,6 +163,12 @@ const update = <T>(storeName: string, item: T): Promise<void> => {
     });
 };
 
+/**
+ * Deletes an item from a store by its ID.
+ * @param {string} storeName - The name of the store.
+ * @param {string} id - The ID of the item to delete.
+ * @returns {Promise<void>} A promise that resolves when the item is deleted.
+ */
 export const deleteItem = (storeName: string, id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readwrite');
@@ -125,6 +179,11 @@ export const deleteItem = (storeName: string, id: string): Promise<void> => {
 };
 
 
+/**
+ * Clears all items from a specified store.
+ * @param {string} storeName - The name of the store to clear.
+ * @returns {Promise<void>} A promise that resolves when the store is cleared.
+ */
 const clearStore = (storeName: string): Promise<void> => {
      return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readwrite');
@@ -134,6 +193,13 @@ const clearStore = (storeName: string): Promise<void> => {
     });
 };
 
+/**
+ * Adds multiple items to a store in a single transaction.
+ * @template T
+ * @param {string} storeName - The name of the store.
+ * @param {T[]} items - An array of items to add.
+ * @returns {Promise<void>} A promise that resolves when all items are added.
+ */
 export const addMultiple = <T>(storeName: string, items: T[]): Promise<void> => {
     return new Promise((resolve, reject) => {
         if (!items || items.length === 0) return resolve();
@@ -145,7 +211,8 @@ export const addMultiple = <T>(storeName: string, items: T[]): Promise<void> => 
     });
 }
 
-// --- Specific Implementations ---
+// --- Specific Implementations for each data type ---
+
 export const addDocument = (doc: Document) => add(STORES.documents, doc);
 export const getAllDocuments = () => getAll<Document>(STORES.documents);
 export const updateDocument = (doc: Document) => update(STORES.documents, doc);
@@ -176,7 +243,7 @@ export const addTag = (tag: Tag) => add(STORES.tags, tag);
 export const getAllTags = () => getAll<Tag>(STORES.tags);
 export const deleteTag = (tagId: string) => deleteItem(STORES.tags, tagId);
 
-// Fix: Add "save all" functions to correctly persist state collections.
+// --- "Save All" functions that clear and then add multiple items ---
 export const saveAllDocuments = async (items: Document[]) => { await clearStore(STORES.documents); await addMultiple(STORES.documents, items); };
 export const saveAllGeneratedDocuments = async (items: GeneratedDocument[]) => { await clearStore(STORES.generatedDocuments); await addMultiple(STORES.generatedDocuments, items); };
 export const saveAllEntities = async (items: CaseEntity[]) => { await clearStore(STORES.entities); await addMultiple(STORES.entities, items); };
@@ -220,6 +287,11 @@ export const getMitigationStrategies = () => getOne<{id: number, content: string
 export const saveMitigationStrategies = (content: string) => update(STORES.mitigationStrategies, { id: 1, content });
 
 // --- DB Management ---
+
+/**
+ * Clears all data from all object stores in the database.
+ * @returns {Promise<void>} A promise that resolves when the database is cleared.
+ */
 export const clearDB = async (): Promise<void> => {
     await initDB();
     const transaction = db.transaction(Object.values(STORES), 'readwrite');
@@ -233,6 +305,10 @@ export const clearDB = async (): Promise<void> => {
     await Promise.all(promises);
 };
 
+/**
+ * Exports the entire state of the database to a JSON string.
+ * @returns {Promise<string>} A promise that resolves with the JSON string representation of the state.
+ */
 export const exportStateToJSON = async (): Promise<string> => {
     const state: any = {};
     for (const storeName of Object.values(STORES)) {
@@ -242,6 +318,13 @@ export const exportStateToJSON = async (): Promise<string> => {
     return JSON.stringify(state, null, 2);
 };
 
+/**
+ * Imports application state from a JSON string, overwriting all existing data.
+ * Includes migration logic for older case file formats.
+ * @param {string} json - The JSON string representing the application state.
+ * @returns {Promise<void>} A promise that resolves when the import is complete.
+ * @throws {Error} If the import transaction fails.
+ */
 export const importStateFromJSON = async (json: string): Promise<void> => {
     await clearDB();
     const state: Partial<AppState> & { [key: string]: any } = JSON.parse(json);
@@ -269,23 +352,16 @@ export const importStateFromJSON = async (json: string): Promise<void> => {
         
         // MIGRATION LOGIC FOR OLDER CASE FILES
         if (SINGLE_RECORD_STORES.has(storeName)) {
-            // These stores only have one record.
             if (dataToImport.length > 0) {
-                // Ensure single records from old exports always have a static key `id: 1`
                 const record = { ...dataToImport[0], id: 1 };
                 allPromises.push(promisifyRequest(store.put(record)));
             }
         } else {
-            // These stores have multiple records, each needing an ID.
             dataToImport.forEach(item => {
-                // Determine the primary key for the store
                 const keyPath = store.keyPath as string;
-
-                // Check if item is an object and has the required key path
                 if (item && typeof item === 'object' && keyPath in item && item[keyPath] !== undefined) {
                     allPromises.push(promisifyRequest(store.add(item)));
                 } else if (storeName === STORES.documentAnalysisResults && item && typeof item === 'object' && 'docId' in item) {
-                    // Backwards compatibility for documentAnalysisResults which had docId as key
                     allPromises.push(promisifyRequest(store.add(item)));
                 } else {
                     console.warn(`Skipping item in store "${storeName}" during import: missing or invalid keyPath property "${keyPath}".`, item);

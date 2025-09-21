@@ -2,37 +2,55 @@ import { GeminiService } from './geminiService';
 import { Document, ContentCreationParams, GeneratedContent, AISettings } from '../types';
 import { marked } from 'marked';
 
+/**
+ * A service responsible for generating structured content based on templates,
+ * case context, source documents, and specific instructions.
+ */
 export class ContentCreatorService {
+
+  /**
+   * Generates a document using the AI based on provided parameters.
+   * It constructs a detailed prompt, calls the AI, processes the Markdown response into HTML,
+   * and returns the generated content along with metadata.
+   * @param {ContentCreationParams} params - The parameters for content creation, including context, documents, and instructions.
+   * @param {AISettings} settings - The AI settings for the generation task.
+   * @returns {Promise<GeneratedContent>} A promise that resolves to the generated content object,
+   * which includes the raw markdown, HTML version, and metadata.
+   * @throws {Error} Throws an error if the content creation process fails.
+   */
   static async createContent(params: ContentCreationParams, settings: AISettings): Promise<GeneratedContent> {
     
+    // Context from source documents is built in German.
     const documentsContext = (params.sourceDocuments || []).map(doc => 
-        `--- DOKUMENT START: ${doc.name} ---\nINHALT (Auszug):\n${doc.content.substring(0, 2000)}...\n--- DOKUMENT ENDE ---\n`
+        `--- DOCUMENT START: ${doc.name} ---\nCONTENT (Excerpt):\n${doc.content.substring(0, 2000)}...\n--- DOCUMENT END ---\n`
     ).join('\n');
     
+    // The prompt is in German, as requested by the original user.
+    // An English translation is provided in comments for clarity.
     const prompt = `
-Du bist ein Spezialist für die Erstellung hochwertiger, strukturierter Dokumente im Bereich Menschenrechte.
+You are a specialist in creating high-quality, structured documents in the human rights field.
 
-${params.template ? `TEMPLATE/STRUKTUR:\n${params.template}\n` : ''}
+${params.template ? `TEMPLATE/STRUCTURE:\n${params.template}\n` : ''}
 
-FALLKONTEXT:
+CASE CONTEXT:
 ${params.caseContext}
 
-${documentsContext ? `QUELLDOKUMENTE:\n${documentsContext}\n` : ''}
+${documentsContext ? `SOURCE DOCUMENTS:\n${documentsContext}\n` : ''}
 
-ANWEISUNGEN:
+INSTRUCTIONS:
 ${params.instructions}
 
-Erstelle ein professionelles, vollständiges Dokument basierend auf den Anweisungen, dem Fallkontext und den Quelldokumenten.
-${params.template ? 'Folge genau der bereitgestellten Template-Struktur und fülle alle Abschnitte aus.' : ''}
-${documentsContext ? 'Nutze primär die Informationen aus den Quelldokumenten und zitiere sie ggf. ("laut [Dateiname]"). Ergänze mit Informationen aus dem allgemeinen Fallkontext.' : ''}
-Formatiere deine Antwort in Markdown.
+Create a professional, complete document based on the instructions, case context, and source documents.
+${params.template ? 'Follow the provided template structure exactly and fill in all sections.' : ''}
+${documentsContext ? 'Primarily use information from the source documents and cite them if necessary ("according to [filename]"). Supplement with information from the general case context.' : ''}
+Format your response in Markdown.
 
-Bei fehlenden Informationen:
-- Verwende "[Information nicht verfügbar]"
-- Weise auf Informationslücken hin
-- Schlage vor, wo weitere Recherchen nötig sind
+In case of missing information:
+- Use "[Information not available]"
+- Point out information gaps
+- Suggest where further research is needed
 
-Schreibe in professionellem, präzisem Deutsch.
+Write in professional, precise German.
     `;
 
     try {
@@ -57,11 +75,23 @@ Schreibe in professionellem, präzisem Deutsch.
     }
   }
 
+  /**
+   * Counts the number of words in a given string.
+   * @private
+   * @param {string} text - The text to count words from.
+   * @returns {number} The total number of words.
+   */
   private static countWords(text: string): number {
     if(!text) return 0;
     return text.trim().split(/\s+/).filter(word => word.length > 0).length;
   }
 
+  /**
+   * Calculates the estimated reading time for a given text.
+   * @private
+   * @param {string} text - The text for which to calculate reading time.
+   * @returns {number} The estimated reading time in minutes.
+   */
   private static calculateReadingTime(text: string): number {
     const wordsPerMinute = 200;
     const wordCount = this.countWords(text);

@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 
+/**
+ * Props for the Accordion component.
+ */
 interface AccordionProps {
+    /** The title displayed in the accordion header. */
     title: string;
+    /** The content to be displayed when the accordion is open. */
     children: React.ReactNode;
+    /** Whether the accordion should be open by default. */
     defaultOpen?: boolean;
 }
 
+/**
+ * A collapsible accordion component to show and hide content.
+ * @param {AccordionProps} props - The props for the component.
+ */
 const Accordion: React.FC<AccordionProps> = ({ title, children, defaultOpen = false }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
