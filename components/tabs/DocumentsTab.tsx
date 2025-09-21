@@ -5,19 +5,23 @@ import { hashText } from '../../utils/cryptoUtils';
 import DocumentDetailModal from '../modals/DocumentDetailModal';
 import TagManagementModal from '../modals/TagManagementModal';
 import AnalysisChatModal from '../modals/AnalysisChatModal';
-import { DocumentAnalystService } from '../../services/documentAnalyst';
+import { useAgentDispatcher } from '../../hooks/useAgentDispatcher';
+import { AgentActivity } from '../../types';
 
 interface DocumentsTabProps {
     appState: AppState;
     setAppState: React.Dispatch<React.SetStateAction<AppState | null>>;
+    addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>;
 }
 
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) => {
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addAgentActivity }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [chatHistory, setChatHistory] = useState<any[]>([]);
+
+    const { dispatchAgentTask, isLoading: isDispatcherLoading, error: dispatcherError, result: dispatcherResult } = useAgentDispatcher(appState, addAgentActivity);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -43,37 +47,38 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
         }
     };
 
-    const handleAnalyzeDocument = useCallback(async (docId: string) => {
-        if (!appState) return;
-        const doc = appState.documents.find(d => d.id === docId);
-        if (!doc) return;
+    const [classifyingDocId, setClassifyingDocId] = useState<string | null>(null);
 
-        setAppState(s => s ? { ...s, isLoading: true, loadingSection: `doc-${docId}` } : null);
-        try {
-            const result = await DocumentAnalystService.analyzeDocument(doc, appState.settings.ai);
+    const handleClassifyDocument = useCallback(async (doc: Document) => {
+        if (!doc.content) {
+            alert("Document has no content to classify.");
+            return;
+        }
+        setClassifyingDocId(doc.id);
+        const prompt = `Please classify the following document content. The classification should be a single category from the official HURIDOCS standards. Return only the name of the category, nothing else. Document content: """${doc.content.substring(0, 4000)}"""`;
+        await dispatchAgentTask(prompt, 'document_classification');
+    }, [dispatchAgentTask]);
+
+    // Effect to update state when dispatcher finishes
+    React.useEffect(() => {
+        if (dispatcherResult && classifyingDocId) {
             setAppState(s => {
                 if (!s) return null;
-                // FIX: Explicitly type the updated document object to prevent type inference issues with AppState.
                 const newDocs = s.documents.map((d): Document => {
-                    if (d.id === docId) {
+                    if (d.id === classifyingDocId) {
                         return { 
                             ...d, 
-                            summary: result.summary, 
                             classificationStatus: 'classified', 
-                            workCategory: result.classification 
+                            type: dispatcherResult
                         };
                     }
                     return d;
                 });
-                const newResults = { ...s.documentAnalysisResults, [docId]: result };
-                return { ...s, documents: newDocs, documentAnalysisResults: newResults };
+                return { ...s, documents: newDocs };
             });
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setAppState(s => s ? { ...s, isLoading: false, loadingSection: '' } : null);
+            setClassifyingDocId(null); // Reset after processing
         }
-    }, [appState, setAppState]);
+    }, [dispatcherResult, classifyingDocId, setAppState]);
 
     const handleSaveTags = (newTags: string[]) => {
         if (selectedDoc) {
@@ -120,7 +125,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
                                 <td className="px-6 py-4 space-x-2">
                                     <button onClick={() => setSelectedDoc(doc)} className="text-blue-400 hover:underline">Details</button>
                                     <button onClick={() => { setSelectedDoc(doc); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
-                                    <button onClick={() => handleAnalyzeDocument(doc.id)} disabled={appState.isLoading && appState.loadingSection === `doc-${doc.id}`} className="text-purple-400 hover:underline disabled:text-gray-500">Analysieren</button>
+                                    <button
+                                        onClick={() => handleClassifyDocument(doc)}
+                                        disabled={isDispatcherLoading && classifyingDocId === doc.id}
+                                        className="text-purple-400 hover:underline disabled:text-gray-500 disabled:cursor-not-allowed"
+                                    >
+                                        {isDispatcherLoading && classifyingDocId === doc.id ? 'Klassifiziere...' : 'Klassifizieren'}
+                                    </button>
                                     <button onClick={() => { setSelectedDoc(doc); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
                                 </td>
                             </tr>
