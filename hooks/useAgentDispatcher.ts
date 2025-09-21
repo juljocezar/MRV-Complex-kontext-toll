@@ -1,56 +1,129 @@
 import { useState, useCallback } from 'react';
-import { AppState, AgentActivity } from '../types';
-import { selectAgentForTask } from '../utils/agentSelection';
+import { AppState, AgentActivity, AgentProfile, AISettings } from '../types';
 import { GeminiService } from '../services/geminiService';
+import { bossOrchestrator, MRV_AGENTS } from '../constants';
 
-type TaskType = 'summarization' | 'risk_assessment' | 'strategy_development' | 'report_generation';
+// Define the structure of the JSON response from the orchestrator
+interface OrchestratorResponse {
+    chosenAgentIds: string[];
+}
 
-export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>) => {
+// Schema for the orchestrator's JSON response
+const ORCHESTRATOR_SCHEMA = {
+    type: "OBJECT",
+    properties: {
+        chosenAgentIds: {
+            type: "ARRAY",
+            items: {
+                type: "STRING",
+            },
+        },
+    },
+    required: ["chosenAgentIds"],
+};
+
+export const useAgentDispatcher = (
+    appState: AppState,
+    addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>
+) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
 
-    const dispatch = useCallback(async (task: TaskType, context: string, promptOverride?: string) => {
+    // 1. Implement buildCaseContext
+    const buildCaseContext = useCallback(() => {
+        let context = `Case Description: ${appState.caseDetails.description}\n\n`;
+        context += `Documents in Case:\n`;
+        appState.documents.forEach(doc => {
+            context += `- ${doc.title} (Type: ${doc.type}, Status: ${doc.classificationStatus})\n`;
+        });
+        // This can be expanded to include entities, timeline events, etc. as per the docs
+        return context;
+    }, [appState.caseDetails.description, appState.documents]);
+
+    // 2. Implement the main dispatch function
+    const dispatchAgentTask = useCallback(async (userPrompt: string, capability: keyof AgentProfile['capabilities']) => {
         setIsLoading(true);
         setError(null);
         setResult(null);
 
-        const agent = selectAgentForTask(task);
+        const aiSettings = appState.settings.ai;
 
-        const prompt = promptOverride || `
-            ${agent.systemPrompt}
-
-            **Task:** ${task.replace(/_/g, ' ')}
-
-            **Context:**
-            ${context}
-
-            **Output:**
-            Provide a clear and concise response to the task based on the context.
-        `;
-        
         try {
-            const response = await GeminiService.callAI(prompt, null, appState.settings.ai);
-            setResult(response);
+            // --- STAGE 1: ORCHESTRATION ---
+            const agentsWithCapability = Object.entries(MRV_AGENTS)
+                .filter(([_, agent]) => agent.capabilities.includes(capability as any))
+                .map(([id, agent]) => ({ id, name: agent.name, description: agent.description, capabilities: agent.capabilities }));
+
+            if (agentsWithCapability.length === 0) {
+                throw new Error(`No agent found with capability: ${capability}`);
+            }
+
+            const orchestratorPrompt = `
+                User Prompt: "${userPrompt}"
+                Available Agents for capability "${capability}":
+                ${JSON.stringify(agentsWithCapability, null, 2)}
+            `;
+
+            const orchestratorResponse = await GeminiService.callAIWithSchema<OrchestratorResponse>(
+                [bossOrchestrator.systemPrompt, orchestratorPrompt],
+                ORCHESTRATOR_SCHEMA,
+                aiSettings
+            );
+
+            const chosenAgentId = orchestratorResponse.chosenAgentIds?.[0];
+            if (!chosenAgentId || !MRV_AGENTS[chosenAgentId]) {
+                throw new Error('Orchestrator failed to select a valid agent.');
+            }
+
+            const specialistAgent = MRV_AGENTS[chosenAgentId];
+
             await addAgentActivity({
-                agentName: agent.name,
-                action: `Executed task: ${task}`,
+                agentName: 'Boss Orchestrator',
+                action: `Delegated task to ${specialistAgent.name}`,
                 result: 'erfolg',
-                details: `Prompt length: ${prompt.length}, Response length: ${response.length}`
+                details: `User prompt: ${userPrompt.substring(0, 100)}...`,
             });
+
+            // --- STAGE 2: EXECUTION ---
+            const caseContext = buildCaseContext();
+            const specialistPrompt = `
+                ${specialistAgent.systemPrompt}
+
+                **Case Context:**
+                ${caseContext}
+
+                **User's Request:**
+                ${userPrompt}
+            `;
+
+            const specialistResponse = await GeminiService.callAI(
+                specialistPrompt,
+                null,
+                aiSettings
+            );
+
+            setResult(specialistResponse);
+            await addAgentActivity({
+                agentName: specialistAgent.name,
+                action: `Executed task: ${userPrompt.substring(0, 100)}...`,
+                result: 'erfolg',
+                details: `Response length: ${specialistResponse.length}`
+            });
+
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
             setError(errorMessage);
             await addAgentActivity({
-                agentName: agent.name,
-                action: `Failed task: ${task}`,
+                agentName: 'System',
+                action: 'Agent dispatch failed',
                 result: 'fehler',
-                details: errorMessage
+                details: errorMessage,
             });
         } finally {
             setIsLoading(false);
         }
-    }, [appState.settings.ai, addAgentActivity]);
+    }, [appState, addAgentActivity, buildCaseContext]);
 
-    return { dispatch, isLoading, error, result };
+    return { dispatchAgentTask, isLoading, error, result };
 };

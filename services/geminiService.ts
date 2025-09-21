@@ -1,13 +1,25 @@
 import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
 import { AISettings } from '../types';
 
-const API_KEY = process.env.API_KEY;
+const getApiKey = () => {
+    // In Vite, import.meta.env is used for environment variables
+    return import.meta.env.VITE_GEMINI_API_KEY;
+};
 
-if (!API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
+// We will initialize the AI instance when it's needed, not statically.
+// This avoids issues with environment variables not being loaded at module import time.
+let ai: GoogleGenAI | null = null;
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const getAiInstance = () => {
+    if (!ai) {
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            throw new Error("VITE_GEMINI_API_KEY environment variable not set. Please set it in your .env.local file.");
+        }
+        ai = new GoogleGenAI(apiKey);
+    }
+    return ai;
+};
 
 // A more robust queue that handles tasks and their corresponding promises
 const callQueue: {
@@ -50,20 +62,23 @@ const callGeminiAPIThrottled = <T>(
 ): Promise<T> => {
     return new Promise((resolve, reject) => {
         const task = async () => {
-            const response: GenerateContentResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: contents as any,
-                config: {
+        const aiInstance = getAiInstance();
+        const model = aiInstance.getGenerativeModel({
+            model: 'gemini-1.5-flash',
+            generationConfig: {
                     temperature: settings.temperature,
                     topP: settings.topP,
                     ...(jsonSchema && {
                         responseMimeType: "application/json",
-                        responseSchema: jsonSchema,
+                    responseSchema: jsonSchema as any,
                     }),
                 }
             });
+
+        const result = await model.generateContent(contents as any);
+        const response = result.response;
             
-            const text = response.text;
+            const text = response.text();
             if (!text) {
                 // Return an empty object/string for JSON/text to prevent downstream crashes
                 if (jsonSchema) return JSON.parse('{}') as T;
