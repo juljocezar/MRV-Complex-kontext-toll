@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// Fix: Corrected import path for types.
 import type { CaseEntity, SuggestedEntity, Document, Entity } from '../../types';
 
 interface EntitiesTabProps {

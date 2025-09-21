@@ -1,13 +1,10 @@
-
-
 import React, { useState } from 'react';
-// Fix: Corrected type name from GeneratedDocument to GeneratedDoc to match type definitions.
+// Fix: Corrected import path for types.
 import type { GeneratedDocument, ChecklistItem, ActiveTab, Document } from '../../types';
 
 interface DispatchTabProps {
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
-// Fix: Correctly type setChecklist to allow functional updates.
     setChecklist: React.Dispatch<React.SetStateAction<ChecklistItem[]>>;
     onDraftBody: (subject: string, attachments: (Document | GeneratedDocument)[]) => Promise<string>;
     onConfirmDispatch: () => void;
@@ -16,7 +13,6 @@ interface DispatchTabProps {
     setActiveTab: (tab: ActiveTab) => void;
     documents: Document[];
     generatedDocuments: GeneratedDocument[];
-// Fix: Add coverLetter and setCoverLetter to props to match what is passed from App.tsx.
     coverLetter: string;
     setCoverLetter: (value: string) => void;
 }
@@ -43,7 +39,6 @@ const DispatchTab: React.FC<DispatchTabProps> = ({
     };
 
     const handleDraftEmailBody = async () => {
-// Fix: Reconstruct attachments from original sources to avoid type errors.
         const attachedGenerated = generatedDocuments.filter(d => selectedAttachments.includes(d.id));
         const attachedDocs = documents.filter(d => selectedAttachments.includes(d.id));
         const attachments = [...attachedGenerated, ...attachedDocs];

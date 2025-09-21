@@ -1,26 +1,40 @@
-
-// Fix: Renamed GeneratedDoc to GeneratedDocument for consistency.
-import { Document, GeneratedDocument, Entity, KnowledgeItem, TimelineEvent, Tag, DocEntity, KnowledgeTag, Contradiction, CaseContext, Task, Risks, KPI, AppState } from '../types';
+import { 
+    Document, GeneratedDocument, CaseEntity, KnowledgeItem, TimelineEvent, Tag, 
+    Contradiction, CaseContext, Task, Risks, KPI, AppState, Insight, 
+    AgentActivity, AuditLogEntry, AppSettings, EthicsAnalysis, CaseSummary, DocumentAnalysisResult
+} from '../types';
 
 const DB_NAME = 'MRVAssistantDB';
 const DB_VERSION = 1;
 let db: IDBDatabase;
 
-const STORES = {
+export const STORES = {
     documents: 'documents',
-// Fix: Renamed generatedDocs to generatedDocuments to match type name change.
     generatedDocuments: 'generatedDocuments',
     entities: 'entities',
     knowledgeItems: 'knowledgeItems',
     timelineEvents: 'timelineEvents',
     tags: 'tags',
-    docEntities: 'docEntities',
-    knowledgeTags: 'knowledgeTags',
     contradictions: 'contradictions',
     caseContext: 'caseContext',
     tasks: 'tasks',
     kpis: 'kpis',
+    risks: 'risks',
+    caseSummary: 'caseSummary',
+    insights: 'insights',
+    agentActivity: 'agentActivity',
+    auditLog: 'auditLog',
+    settings: 'settings',
+    ethicsAnalysis: 'ethicsAnalysis',
+    documentAnalysisResults: 'documentAnalysisResults',
+    mitigationStrategies: 'mitigationStrategies',
 };
+
+// Stores that are expected to contain only a single record.
+const SINGLE_RECORD_STORES = new Set([
+    STORES.caseContext, STORES.risks, STORES.caseSummary, 
+    STORES.settings, STORES.ethicsAnalysis, STORES.mitigationStrategies
+]);
 
 
 export const initDB = (): Promise<IDBDatabase> => {
@@ -32,59 +46,28 @@ export const initDB = (): Promise<IDBDatabase> => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onerror = (event) => {
-            console.error('Database error:', request.error);
-            reject('Database error: ' + request.error);
+            console.error('Database error:', (event.target as IDBOpenDBRequest).error);
+            reject('Database error: ' + (event.target as IDBOpenDBRequest).error);
         };
 
         request.onsuccess = (event) => {
-            db = request.result;
+            db = (event.target as IDBOpenDBRequest).result;
             resolve(db);
         };
 
         request.onupgradeneeded = (event) => {
-            const tempDb = request.result;
-            if (!tempDb.objectStoreNames.contains(STORES.documents)) {
-                tempDb.createObjectStore(STORES.documents, { keyPath: 'id' });
-            }
-// Fix: Renamed generatedDocs to generatedDocuments.
-            if (!tempDb.objectStoreNames.contains(STORES.generatedDocuments)) {
-                tempDb.createObjectStore(STORES.generatedDocuments, { keyPath: 'id' });
-            }
-            if (!tempDb.objectStoreNames.contains(STORES.entities)) {
-                const entityStore = tempDb.createObjectStore(STORES.entities, { keyPath: 'id' });
-                entityStore.createIndex('name', 'name', { unique: false });
-            }
-            if (!tempDb.objectStoreNames.contains(STORES.knowledgeItems)) {
-                const knowledgeStore = tempDb.createObjectStore(STORES.knowledgeItems, { keyPath: 'id' });
-// Fix: Corrected property name from sourceDocId to sourceDocumentIds. It's an array, so indexing it is not straightforward for simple indexes. Removed for now.
-                // knowledgeStore.createIndex('sourceDocumentIds', 'sourceDocumentIds', { unique: false });
-            }
-            if (!tempDb.objectStoreNames.contains(STORES.timelineEvents)) {
-                const timelineStore = tempDb.createObjectStore(STORES.timelineEvents, { keyPath: 'id' });
-                timelineStore.createIndex('date', 'date', { unique: false });
-            }
-            if (!tempDb.objectStoreNames.contains(STORES.tags)) {
-                 const tagStore = tempDb.createObjectStore(STORES.tags, { keyPath: 'id' });
-                 tagStore.createIndex('name', 'name', { unique: true });
-            }
-             if (!tempDb.objectStoreNames.contains(STORES.docEntities)) {
-                tempDb.createObjectStore(STORES.docEntities, { autoIncrement: true });
-            }
-             if (!tempDb.objectStoreNames.contains(STORES.knowledgeTags)) {
-                tempDb.createObjectStore(STORES.knowledgeTags, { autoIncrement: true });
-            }
-            if (!tempDb.objectStoreNames.contains(STORES.contradictions)) {
-                tempDb.createObjectStore(STORES.contradictions, { keyPath: 'id' });
-            }
-            if (!tempDb.objectStoreNames.contains(STORES.caseContext)) {
-                tempDb.createObjectStore(STORES.caseContext, { keyPath: 'id' });
-            }
-            if (!tempDb.objectStoreNames.contains(STORES.tasks)) {
-                tempDb.createObjectStore(STORES.tasks, { keyPath: 'id' });
-            }
-             if (!tempDb.objectStoreNames.contains(STORES.kpis)) {
-                tempDb.createObjectStore(STORES.kpis, { keyPath: 'id' });
-            }
+            const tempDb = (event.target as IDBOpenDBRequest).result;
+            Object.values(STORES).forEach(storeName => {
+                if (!tempDb.objectStoreNames.contains(storeName)) {
+                    // Default keyPath is 'id'. Special cases are handled here.
+                    let keyPath = 'id';
+                    if (storeName === STORES.documentAnalysisResults) keyPath = 'docId';
+                    
+                    const store = tempDb.createObjectStore(storeName, { keyPath });
+                    if (storeName === STORES.tags) store.createIndex('name', 'name', { unique: true });
+                    if (storeName === STORES.timelineEvents) store.createIndex('date', 'date', { unique: false });
+                }
+            });
         };
     });
 };
@@ -100,7 +83,7 @@ const add = <T>(storeName: string, item: T): Promise<void> => {
         const store = getStore(storeName, 'readwrite');
         const request = store.add(item);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = (e) => reject((e.target as IDBRequest).error);
     });
 };
 
@@ -109,175 +92,213 @@ const getAll = <T>(storeName: string): Promise<T[]> => {
         const store = getStore(storeName, 'readonly');
         const request = store.getAll();
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onerror = (e) => reject((e.target as IDBRequest).error);
     });
 };
+
+const getOne = <T>(storeName: string, key: IDBValidKey): Promise<T | undefined> => {
+    return new Promise((resolve, reject) => {
+        const store = getStore(storeName, 'readonly');
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+};
+
 
 const update = <T>(storeName: string, item: T): Promise<void> => {
     return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readwrite');
         const request = store.put(item);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = (e) => reject((e.target as IDBRequest).error);
     });
 };
+
+export const deleteItem = (storeName: string, id: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        const store = getStore(storeName, 'readwrite');
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+};
+
 
 const clearStore = (storeName: string): Promise<void> => {
      return new Promise((resolve, reject) => {
         const store = getStore(storeName, 'readwrite');
         const request = store.clear();
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = (e) => reject((e.target as IDBRequest).error);
     });
 };
 
-// --- Documents ---
+export const addMultiple = <T>(storeName: string, items: T[]): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        if (!items || items.length === 0) return resolve();
+        const transaction = db.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        items.forEach(item => store.add(item as any));
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+    });
+}
+
+// --- Specific Implementations ---
 export const addDocument = (doc: Document) => add(STORES.documents, doc);
 export const getAllDocuments = () => getAll<Document>(STORES.documents);
 export const updateDocument = (doc: Document) => update(STORES.documents, doc);
 
-// --- GeneratedDocuments ---
-// Fix: Renamed functions and store names from GeneratedDoc to GeneratedDocument.
 export const addGeneratedDocument = (doc: GeneratedDocument) => add(STORES.generatedDocuments, doc);
 export const getAllGeneratedDocuments = () => getAll<GeneratedDocument>(STORES.generatedDocuments);
-export const updateGeneratedDocument = (doc: GeneratedDocument) => update(STORES.generatedDocuments, doc);
 
+export const getAllEntities = () => getAll<CaseEntity>(STORES.entities);
+export const addMultipleEntities = (items: CaseEntity[]) => addMultiple(STORES.entities, items);
 
-// --- Entities ---
-export const addEntity = (entity: Entity) => add(STORES.entities, entity);
-export const getAllEntities = () => getAll<Entity>(STORES.entities);
-
-// --- KnowledgeItems ---
-export const addKnowledgeItem = (item: KnowledgeItem) => add(STORES.knowledgeItems, item);
 export const getAllKnowledgeItems = () => getAll<KnowledgeItem>(STORES.knowledgeItems);
+export const addMultipleKnowledgeItems = (items: KnowledgeItem[]) => addMultiple(STORES.knowledgeItems, items);
+export const updateKnowledgeItem = (item: KnowledgeItem) => update(STORES.knowledgeItems, item);
 
-// --- TimelineEvents ---
-export const addTimelineEvent = (event: TimelineEvent) => add(STORES.timelineEvents, event);
 export const getAllTimelineEvents = () => getAll<TimelineEvent>(STORES.timelineEvents);
+export const addMultipleTimelineEvents = (items: TimelineEvent[]) => addMultiple(STORES.timelineEvents, items);
 
-// --- Contradictions ---
-export const addContradiction = (contradiction: Contradiction) => add(STORES.contradictions, contradiction);
+export const saveAllContradictions = async (items: Contradiction[]) => { await clearStore(STORES.contradictions); await addMultiple(STORES.contradictions, items); };
 export const getAllContradictions = () => getAll<Contradiction>(STORES.contradictions);
-export const clearContradictions = () => clearStore(STORES.contradictions);
 
-// --- CaseContext ---
-export const getCaseContext = (): Promise<CaseContext | undefined> => {
-    return new Promise((resolve, reject) => {
-        const store = getStore(STORES.caseContext, 'readonly');
-        const request = store.get(1);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-};
+export const getCaseContext = () => getOne<CaseContext>(STORES.caseContext, 1);
 export const saveCaseContext = (context: CaseContext) => update(STORES.caseContext, { ...context, id: 1 });
 
-// --- KPIs ---
 export const getAllKpis = () => getAll<KPI>(STORES.kpis);
-export const saveAllKpis = async (kpis: KPI[]) => {
-    await clearStore(STORES.kpis);
-    const transaction = db.transaction(STORES.kpis, 'readwrite');
-    const store = transaction.objectStore(STORES.kpis);
-    kpis.forEach(kpi => store.add(kpi));
-};
+export const addMultipleKpis = (items: KPI[]) => addMultiple(STORES.kpis, items);
 
-// --- Tags and Links ---
-export const findTagByName = (name: string): Promise<Tag | undefined> => {
-     return new Promise((resolve, reject) => {
-        const store = getStore(STORES.tags, 'readonly');
-        const index = store.index('name');
-        const request = index.get(name);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
 export const addTag = (tag: Tag) => add(STORES.tags, tag);
-export const addKnowledgeTag = (link: KnowledgeTag) => add(STORES.knowledgeTags, link);
-export const getTagsForKnowledgeItem = (knowledgeId: string): Promise<Tag[]> => {
-    // This is complex with raw IndexedDB. A library like Dexie would simplify this join.
-    // For now, we'll fetch all links, then all tags, and filter in-memory.
-    return new Promise(async (resolve, reject) => {
-        try {
-            const allLinks = await getAll<KnowledgeTag>(STORES.knowledgeTags);
-            const allTags = await getAll<Tag>(STORES.tags);
-            const relevantTagIds = allLinks.filter(link => link.knowledgeId === knowledgeId).map(link => link.tagId);
-            const relevantTags = allTags.filter(tag => relevantTagIds.includes(tag.id));
-            resolve(relevantTags);
-        } catch (error) {
-            reject(error);
-        }
-    });
-};
+export const getAllTags = () => getAll<Tag>(STORES.tags);
+export const deleteTag = (tagId: string) => deleteItem(STORES.tags, tagId);
 
+// Fix: Add "save all" functions to correctly persist state collections.
+export const saveAllDocuments = async (items: Document[]) => { await clearStore(STORES.documents); await addMultiple(STORES.documents, items); };
+export const saveAllGeneratedDocuments = async (items: GeneratedDocument[]) => { await clearStore(STORES.generatedDocuments); await addMultiple(STORES.generatedDocuments, items); };
+export const saveAllEntities = async (items: CaseEntity[]) => { await clearStore(STORES.entities); await addMultiple(STORES.entities, items); };
+export const saveAllKnowledgeItems = async (items: KnowledgeItem[]) => { await clearStore(STORES.knowledgeItems); await addMultiple(STORES.knowledgeItems, items); };
+export const saveAllTimelineEvents = async (items: TimelineEvent[]) => { await clearStore(STORES.timelineEvents); await addMultiple(STORES.timelineEvents, items); };
+export const saveAllTags = async (items: Tag[]) => { await clearStore(STORES.tags); await addMultiple(STORES.tags, items); };
+export const saveAllKpis = async (items: KPI[]) => { await clearStore(STORES.kpis); await addMultiple(STORES.kpis, items); };
+
+
+export const getRisks = () => getOne<Risks>(STORES.risks, 1);
+export const saveRisks = (risks: Risks) => update(STORES.risks, { ...risks, id: 1 });
+
+export const getCaseSummary = () => getOne<CaseSummary>(STORES.caseSummary, 1);
+export const saveCaseSummary = (summary: CaseSummary) => update(STORES.caseSummary, { ...summary, id: 1 });
+
+export const getAllTasks = () => getAll<Task>(STORES.tasks);
+export const getAllInsights = () => getAll<Insight>(STORES.insights);
+export const saveAllInsights = async (items: Insight[]) => { await clearStore(STORES.insights); await addMultiple(STORES.insights, items); };
+
+export const getAllAgentActivities = () => getAll<AgentActivity>(STORES.agentActivity);
+export const addAgentActivity = (activity: AgentActivity) => add(STORES.agentActivity, activity);
+
+export const getAllAuditLogEntries = () => getAll<AuditLogEntry>(STORES.auditLog);
+export const addAuditLogEntry = (entry: AuditLogEntry) => add(STORES.auditLog, entry);
+
+export const getSettings = () => getOne<AppSettings>(STORES.settings, 1);
+export const saveSettings = (settings: AppSettings) => update(STORES.settings, { ...settings, id: 1 });
+
+export const getEthicsAnalysis = () => getOne<EthicsAnalysis>(STORES.ethicsAnalysis, 1);
+export const saveEthicsAnalysis = (analysis: EthicsAnalysis) => update(STORES.ethicsAnalysis, { ...analysis, id: 1 });
+
+export const saveDocumentAnalysisResult = (docId: string, result: DocumentAnalysisResult) => update(STORES.documentAnalysisResults, { docId, result });
+export const updateDocumentAnalysisResult = async (docId: string, partialResult: Partial<DocumentAnalysisResult>) => {
+    const existing = await getOne<{docId: string, result: DocumentAnalysisResult}>(STORES.documentAnalysisResults, docId);
+    const newResult = { ...existing?.result, ...partialResult };
+    await update(STORES.documentAnalysisResults, { docId, result: newResult });
+}
+export const getAllDocumentAnalysisResults = () => getAll<{docId: string, result: DocumentAnalysisResult}>(STORES.documentAnalysisResults);
+
+export const getMitigationStrategies = () => getOne<{id: number, content: string}>(STORES.mitigationStrategies, 1);
+export const saveMitigationStrategies = (content: string) => update(STORES.mitigationStrategies, { id: 1, content });
 
 // --- DB Management ---
-
 export const clearDB = async (): Promise<void> => {
     await initDB();
     const transaction = db.transaction(Object.values(STORES), 'readwrite');
-    for (const storeName of Object.values(STORES)) {
-        transaction.objectStore(storeName).clear();
-    }
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
+    const promises = Object.values(STORES).map(storeName => {
+        return new Promise<void>((resolve, reject) => {
+            const request = transaction.objectStore(storeName).clear();
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
     });
+    await Promise.all(promises);
 };
 
-export const exportDB = async (): Promise<string> => {
-    await initDB();
-    const exportObject: { [key: string]: any[] } = {};
+export const exportStateToJSON = async (): Promise<string> => {
+    const state: any = {};
     for (const storeName of Object.values(STORES)) {
-        exportObject[storeName] = await getAll(storeName);
+        const storeData = await getAll(storeName);
+        state[storeName] = storeData;
     }
-    return JSON.stringify(exportObject);
+    return JSON.stringify(state, null, 2);
 };
 
-export const importDB = async (json: string): Promise<void> => {
+export const importStateFromJSON = async (json: string): Promise<void> => {
     await clearDB();
-    const importObject = JSON.parse(json);
+    const state: Partial<AppState> & { [key: string]: any } = JSON.parse(json);
+
     const transaction = db.transaction(Object.values(STORES), 'readwrite');
-    for (const storeName of Object.values(STORES)) {
-        if (importObject[storeName]) {
-            const store = transaction.objectStore(storeName);
-            importObject[storeName].forEach((item: any) => store.add(item));
-        }
-    }
-     return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
+    const allPromises: Promise<any>[] = [];
+
+    transaction.onerror = (event) => {
+        console.error("Import Transaction Error:", (event.target as IDBRequest).error);
+    };
+
+    const promisifyRequest = (request: IDBRequest) => new Promise((resolve, reject) => {
+        request.onsuccess = resolve;
+        request.onerror = () => reject(request.error);
     });
-};
 
-// --- LocalStorage State Management ---
-// Fix: Added missing state management functions (saveState, loadState, clearState) for saving/loading the app state to/from localStorage.
-const LOCAL_STORAGE_KEY = 'mrvAssistantState';
-
-export const saveState = (state: AppState) => {
-    try {
-        const serializedState = JSON.stringify(state);
-        localStorage.setItem(LOCAL_STORAGE_KEY, serializedState);
-    } catch (e) {
-        console.error("Could not save state", e);
-    }
-};
-
-export const loadState = (): AppState | undefined => {
-    try {
-        const serializedState = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (serializedState === null) {
-            return undefined;
+    for (const storeName of Object.values(STORES)) {
+        const dataToImport = state[storeName];
+        if (!dataToImport || !Array.isArray(dataToImport)) {
+             console.warn(`No data or invalid data format for store "${storeName}" in import file.`);
+             continue;
         }
-        return JSON.parse(serializedState);
-    } catch (e) {
-        console.error("Could not load state", e);
-        return undefined;
-    }
-};
 
-export const clearState = () => {
+        const store = transaction.objectStore(storeName);
+        
+        // MIGRATION LOGIC FOR OLDER CASE FILES
+        if (SINGLE_RECORD_STORES.has(storeName)) {
+            // These stores only have one record.
+            if (dataToImport.length > 0) {
+                // Ensure single records from old exports always have a static key `id: 1`
+                const record = { ...dataToImport[0], id: 1 };
+                allPromises.push(promisifyRequest(store.put(record)));
+            }
+        } else {
+            // These stores have multiple records, each needing an ID.
+            dataToImport.forEach(item => {
+                // Determine the primary key for the store
+                const keyPath = store.keyPath as string;
+
+                // Check if item is an object and has the required key path
+                if (item && typeof item === 'object' && keyPath in item && item[keyPath] !== undefined) {
+                    allPromises.push(promisifyRequest(store.add(item)));
+                } else if (storeName === STORES.documentAnalysisResults && item && typeof item === 'object' && 'docId' in item) {
+                    // Backwards compatibility for documentAnalysisResults which had docId as key
+                    allPromises.push(promisifyRequest(store.add(item)));
+                } else {
+                    console.warn(`Skipping item in store "${storeName}" during import: missing or invalid keyPath property "${keyPath}".`, item);
+                }
+            });
+        }
+    }
+
     try {
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-    } catch (e) {
-        console.error("Could not clear state", e);
+        await Promise.all(allPromises);
+    } catch(error) {
+        console.error("Error adding data during import transaction:", error);
+        transaction.abort();
+        throw error;
     }
 };

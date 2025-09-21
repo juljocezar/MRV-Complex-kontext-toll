@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+// Fix: Corrected import path for types.
 import type { Document, AnalysisChatMessage } from '../../types';
 
 interface AnalysisChatModalProps {

@@ -3,7 +3,7 @@ import type { AppSettings, Tag } from '../../types';
 
 interface SettingsTabProps {
     settings: AppSettings;
-    setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+    setSettings: (settings: AppSettings) => void;
     tags: Tag[];
     onCreateTag: (name: string) => void;
     onDeleteTag: (tagId: string) => void;
@@ -14,23 +14,26 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, 
     
     const handleAIChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setSettings(prev => ({
-            ...prev,
-            ai: { ...prev.ai, [name]: parseFloat(value) }
-        }));
+        setSettings({
+            ...settings,
+            ai: { ...settings.ai, [name]: parseFloat(value) }
+        });
     };
 
     const handleComplexityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setSettings(prev => ({
-            ...prev,
-            complexity: { ...prev.complexity, [name]: parseInt(value) }
-        }));
+        setSettings({
+            ...settings,
+            complexity: { ...settings.complexity, [name]: parseInt(value) }
+        });
     };
 
-    const handleCreateTag = () => {
-        onCreateTag(newTagName);
-        setNewTagName('');
+    const handleCreateTag = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(newTagName.trim()) {
+            onCreateTag(newTagName.trim());
+            setNewTagName('');
+        }
     };
 
     return (
@@ -78,17 +81,16 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, 
             <div className="bg-gray-800 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold text-white mb-4">Tag-Verwaltung</h2>
                 <p className="text-sm text-gray-400 mb-4">Verwalten Sie hier die global verfügbaren Tags.</p>
-                <div className="flex gap-2 mb-4">
+                <form onSubmit={handleCreateTag} className="flex gap-2 mb-4">
                     <input
                         type="text"
                         value={newTagName}
                         onChange={(e) => setNewTagName(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleCreateTag()}
                         placeholder="Neuen Tag-Namen eingeben"
                         className="flex-grow bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
                     />
-                    <button onClick={handleCreateTag} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">Erstellen</button>
-                </div>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">Erstellen</button>
+                </form>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                     {tags.map(tag => (
                         <div key={tag.id} className="flex justify-between items-center bg-gray-700 p-2 rounded">

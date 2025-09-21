@@ -1,18 +1,17 @@
+import { AppState, CaseSummary, Risks } from '../types';
 
-// Fix: Removed unused and now incorrect async DB calls.
-import { AppState } from '../types';
-
-// Fix: Rewrote function to be synchronous and accept appState, making it more efficient and fixing call-site errors.
 export const buildCaseContext = (appState: AppState): string => {
-    const { caseDescription, documents, caseEntities } = appState;
+    // FIX: `caseDescription` is nested inside `caseContext`. Adjusted destructuring.
+    const { caseContext, documents, caseEntities, knowledgeItems, timelineEvents, risks, kpis, caseSummary } = appState;
+    const { caseDescription } = caseContext;
 
-    let context = `**Fallbeschreibung:**\n${caseDescription || 'No description available.'}\n\n`;
+    let context = `**Fallbeschreibung:**\n${caseDescription || 'Keine Beschreibung verfügbar.'}\n\n`;
 
     if (documents.length > 0) {
-        context += `**Vorhandene Dokumente (${documents.length}):**\n`;
-        // Use a limited number of docs for context to avoid being too verbose
+        context += `**Zentrale Dokumente (${documents.length}):**\n`;
         documents.slice(0, 5).forEach(doc => {
-            context += `- ${doc.name} (Typ: ${doc.type}, Status: ${doc.classificationStatus})\n`;
+            // FIX: Property 'type' does not exist on type 'Document'. Changed to 'mimeType'.
+            context += `- ${doc.name} (Typ: ${doc.workCategory || doc.mimeType}, Status: ${doc.classificationStatus})\n`;
         });
         context += '\n';
     }
@@ -25,8 +24,34 @@ export const buildCaseContext = (appState: AppState): string => {
         context += '\n';
     }
 
-    // Since caseSummary is transient (not in DB per spec), we can't add it here reliably.
-    // The core context is based on persisted data.
+    if (knowledgeItems.length > 0) {
+        context += `**Top 5 Wissenseinträge:**\n`;
+        knowledgeItems.slice(0, 5).forEach(item => {
+            context += `- ${item.title}: ${item.summary}\n`;
+        });
+        context += '\n';
+    }
+    
+    if (timelineEvents.length > 0) {
+        context += `**Letzte 5 Chronologie-Ereignisse:**\n`;
+        timelineEvents.slice(-5).reverse().forEach(event => {
+            context += `- ${event.date}: ${event.title}\n`;
+        });
+        context += '\n';
+    }
+
+    const activeRisks = Object.entries(risks)
+        .filter(([, isActive]) => isActive)
+        .map(([risk]) => risk)
+        .join(', ');
+    
+    if (activeRisks) {
+        context += `**Aktive Risiken:** ${activeRisks}\n\n`;
+    }
+
+    if (caseSummary) {
+        context += `**KI-Zusammenfassung:** ${caseSummary.summary}\n\n`;
+    }
 
     return context;
 };

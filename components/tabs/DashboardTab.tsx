@@ -1,6 +1,4 @@
-
-import React, { useMemo } from 'react';
-// Fix: Corrected type name from GeneratedDocument to GeneratedDoc to match type definitions.
+import React, { useMemo, useRef } from 'react';
 import { Document, GeneratedDocument, DocumentAnalysisResults, CaseSummary, ActiveTab } from '../../types';
 
 interface DashboardTabProps {
@@ -24,25 +22,29 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
     onResetCase, onExportCase, onImportCase, caseSummary, onPerformOverallAnalysis, isLoading, loadingSection
 }) => {
 
+    const importInputRef = useRef<HTMLInputElement>(null);
+
     const handleImportClick = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) {
-                onImportCase(file);
-            }
-        };
-        input.click();
+        importInputRef.current?.click();
+    };
+    
+    const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            onImportCase(file);
+        }
     };
 
+
     const { totalWorkload, totalCost } = useMemo(() => {
+        // Fix: Provided an initial value with the correct shape to the reduce function.
         return Object.values(documentAnalysisResults).reduce((acc, analysis) => {
-            acc.totalWorkload += analysis.workloadEstimate?.total || 0;
-            acc.totalCost += analysis.costEstimate?.recommended || 0;
+            if (analysis) {
+                acc.totalWorkload += analysis.workloadEstimate?.totalHours || 0;
+                acc.totalCost += analysis.costEstimate?.recommended || 0;
+            }
             return acc;
-        }, { totalWorkload: 0, totalCost: 0 });
+        }, { totalWorkload: 0, totalCost: 0 }); 
     }, [documentAnalysisResults]);
 
     const classifiedCount = documents.filter(d => d.classificationStatus === 'classified').length;
@@ -70,6 +72,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
                 <div className="bg-gray-800 p-4 rounded-lg">
                      <h3 className="text-lg font-semibold text-gray-300">Fall-Verwaltung</h3>
                      <div className="mt-4 flex flex-wrap gap-2">
+                        <input type="file" ref={importInputRef} className="hidden" accept=".json" onChange={handleFileImport} />
                         <button onClick={onExportCase} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm">Export</button>
                         <button onClick={handleImportClick} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md text-sm">Import</button>
                         <button onClick={onResetCase} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-md text-sm">Reset</button>
@@ -93,10 +96,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
                         <h3 className="text-xl font-semibold text-white">KI-Fallzusammenfassung</h3>
                         <button
                             onClick={onPerformOverallAnalysis}
-                            disabled={isLoading && loadingSection === 'overall-analysis'}
+                            disabled={isLoading && loadingSection === 'case_analysis'}
                             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm disabled:bg-gray-500 disabled:cursor-not-allowed"
                         >
-                            {isLoading && loadingSection === 'overall-analysis' ? 'Analysiere...' : 'Analyse durchführen'}
+                            {isLoading && loadingSection === 'case_analysis' ? 'Analysiere...' : 'Analyse durchführen'}
                         </button>
                     </div>
                     {caseSummary ? (
@@ -108,20 +111,20 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
                             <div>
                                 <h4 className="font-bold text-gray-300">Identifizierte Risiken</h4>
                                 <ul className="list-disc list-inside text-gray-400 space-y-1">
-                                    {caseSummary.identifiedRisks.map((r, i) => <li key={i}><strong>{r.risk}:</strong> {r.description}</li>)}
+                                    {(caseSummary?.identifiedRisks || []).map((r, i) => <li key={i}><strong>{r.risk}:</strong> {r.description}</li>)}
                                 </ul>
                             </div>
                             <div>
                                 <h4 className="font-bold text-gray-300">Vorgeschlagene nächste Schritte</h4>
                                 <ul className="list-disc list-inside text-gray-400 space-y-1">
-                                    {caseSummary.suggestedNextSteps.map((s, i) => <li key={i}><strong>{s.step}:</strong> {s.justification}</li>)}
+                                    {(caseSummary?.suggestedNextSteps || []).map((s, i) => <li key={i}><strong>{s.step}:</strong> {s.justification}</li>)}
                                 </ul>
                             </div>
                             <p className="text-xs text-gray-500 text-right pt-2">Generiert am: {new Date(caseSummary.generatedAt).toLocaleString()}</p>
                         </div>
                     ) : (
                          <div className="text-center py-8 text-gray-500">
-                             {isLoading && loadingSection === 'overall-analysis' 
+                             {isLoading && loadingSection === 'case_analysis' 
                                 ? <p>Analyse wird durchgeführt...</p>
                                 : <p>Noch keine Zusammenfassung erstellt. Klicken Sie auf "Analyse durchführen".</p>
                              }

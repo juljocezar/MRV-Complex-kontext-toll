@@ -1,7 +1,5 @@
-
-
 import React, { useState } from 'react';
-// Fix: Imported AppState type to resolve missing module member error.
+// Fix: Corrected import path for types and utils.
 import { AppState } from '../../types';
 import { buildCaseContext } from '../../utils/contextUtils';
 
@@ -19,7 +17,6 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ onGenerateReport, appState }) =
         setIsLoading(true);
         setGeneratedReport('');
         
-// Fix: Corrected call to buildCaseContext to pass appState as an argument.
         const context = buildCaseContext(appState);
         let prompt = `Basierend auf dem folgenden Fallkontext, erstelle einen Bericht. Kontext:\n${context}\n\n`;
 

@@ -1,148 +1,97 @@
 import React, { useState } from 'react';
-import type { UNSubmission } from '../../types';
+import { UN_SUBMISSION_TEMPLATES, UN_SUBMISSION_CHECKLIST } from '../../constants/unProcedures';
+import { AppState } from '../../types';
+import { UNProceduresService } from '../../services/unProceduresService';
 
 interface UNSubmissionsTabProps {
-    submissions: UNSubmission[];
-    setSubmissions: React.Dispatch<React.SetStateAction<UNSubmission[]>>;
-    onGenerateSection: (sectionTitle: string, currentContent: { [key: string]: string }) => Promise<string>;
-    onFinalize: () => Promise<void>;
+    appState: AppState;
     isLoading: boolean;
-    loadingSection: string;
+    setIsLoading: (loading: boolean) => void;
 }
 
-const submissionSections = [
-    'I. INFORMATIONEN ZUM OPFER/ZU DEN OPFERN',
-    'II. INFORMATIONEN ZUM VORFALL',
-    'III. INFORMATIONEN ZU DEN MUTMASSLICHEN TÄTERN',
-    'IV. ERSCHÖPFUNG NATIONALER RECHTSMITTEL',
-    'V. ZUSTIMMUNG (CONSENT)',
-    'VI. GEWÜNSCHTE MASSNAHMEN'
-];
+const UNSubmissionsTab: React.FC<UNSubmissionsTabProps> = ({ appState, isLoading, setIsLoading }) => {
+    const [selectedTemplate, setSelectedTemplate] = useState(UN_SUBMISSION_TEMPLATES[0].id);
+    const [draftContent, setDraftContent] = useState('');
+    const [finalContent, setFinalContent] = useState('');
+    const [checklist, setChecklist] = useState(UN_SUBMISSION_CHECKLIST);
 
-const UNSubmissionsTab: React.FC<UNSubmissionsTabProps> = ({ submissions, setSubmissions, onGenerateSection, onFinalize, isLoading, loadingSection }) => {
-    const [currentSubmission, setCurrentSubmission] = useState<UNSubmission | null>(null);
-
-    const handleNewSubmission = () => {
-        const newSub: UNSubmission = {
-            id: crypto.randomUUID(),
-            title: `UN-Einreichung ${new Date().toLocaleDateString()}`,
-            status: 'draft',
-            content: submissionSections.reduce((acc, section) => ({ ...acc, [section]: '' }), {})
-        };
-        setCurrentSubmission(newSub);
+    const handleDraft = async () => {
+        setIsLoading(true);
+        setDraftContent('');
+        setFinalContent('');
+        const draft = await UNProceduresService.draftSubmission(selectedTemplate, appState);
+        setDraftContent(draft);
+        setIsLoading(false);
     };
 
-    const handleSaveSubmission = () => {
-        if (currentSubmission) {
-            setSubmissions(prev => {
-                const existing = prev.find(s => s.id === currentSubmission.id);
-                if (existing) {
-                    return prev.map(s => s.id === currentSubmission.id ? currentSubmission : s);
-                }
-                return [...prev, currentSubmission];
-            });
-            setCurrentSubmission(null);
-        }
-    };
-
-    const handleGenerate = async (sectionTitle: string) => {
-        if (!currentSubmission) return;
-        const generatedText = await onGenerateSection(sectionTitle, currentSubmission.content);
-        setCurrentSubmission(prev => {
-            if (!prev) return null;
-            return {
-                ...prev,
-                content: {
-                    ...prev.content,
-                    [sectionTitle]: generatedText,
-                }
-            };
-        });
+    const handleFinalize = async () => {
+        setIsLoading(true);
+        const final = await UNProceduresService.finalizeSubmission(draftContent, appState);
+        setFinalContent(final);
+        setIsLoading(false);
     };
     
-    const handleContentChange = (sectionTitle: string, text: string) => {
-        if (!currentSubmission) return;
-        setCurrentSubmission(prev => {
-            if (!prev) return null;
-            return {
-                ...prev,
-                content: {
-                    ...prev.content,
-                    [sectionTitle]: text,
-                }
-            };
-        });
+    const handleChecklistToggle = (id: string) => {
+        setChecklist(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
     };
-
-    if (currentSubmission) {
-        return (
-            <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                    <input 
-                        type="text"
-                        value={currentSubmission.title}
-                        onChange={(e) => setCurrentSubmission({...currentSubmission, title: e.target.value})}
-                        className="text-3xl font-bold text-white bg-transparent border-b-2 border-gray-700 focus:outline-none focus:border-blue-500"
-                    />
-                     <div>
-                        <button onClick={() => setCurrentSubmission(null)} className="mr-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md">Abbrechen</button>
-                        <button onClick={handleSaveSubmission} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">Speichern & Schließen</button>
-                    </div>
-                </div>
-                <div className="space-y-4">
-                    {submissionSections.map(section => (
-                        <details key={section} className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden" open>
-                            <summary className="cursor-pointer p-4 font-semibold text-white text-lg hover:bg-gray-700/50 flex justify-between items-center">
-                                {section}
-                                <button
-                                    onClick={(e) => { e.preventDefault(); handleGenerate(section); }}
-                                    disabled={isLoading && loadingSection === `un-section-${section}`}
-                                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-xs disabled:bg-gray-500"
-                                >
-                                    {isLoading && loadingSection === `un-section-${section}` ? '...' : 'Generieren'}
-                                </button>
-                            </summary>
-                            <div className="p-4 border-t border-gray-700">
-                                <textarea
-                                    value={currentSubmission.content[section] || ''}
-                                    onChange={(e) => handleContentChange(section, e.target.value)}
-                                    rows={8}
-                                    className="w-full bg-gray-700/50 p-2 rounded-md"
-                                    placeholder={`Inhalt für Sektion "${section}" eingeben oder generieren...`}
-                                />
-                            </div>
-                        </details>
-                    ))}
-                </div>
-            </div>
-        );
-    }
+    
+    const isChecklistComplete = checklist.every(item => item.checked);
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-white">UN-Eingaben</h1>
-                <button onClick={handleNewSubmission} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md">
-                    Neue Eingabe erstellen
-                </button>
-            </div>
-            <p className="text-gray-400">
-                Verwalten Sie hier Ihre Entwürfe für Eingaben an UN-Sonderberichterstatter und andere Mechanismen.
-            </p>
-
-            <div className="space-y-4">
-                {submissions.map(sub => (
-                    <div key={sub.id} className="bg-gray-800 p-4 rounded-lg flex justify-between items-center">
-                        <div>
-                            <h3 className="font-semibold text-white">{sub.title}</h3>
-                            <p className="text-sm text-gray-400">Status: {sub.status}</p>
-                        </div>
-                        <button onClick={() => setCurrentSubmission(sub)} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm">Bearbeiten</button>
+            <h1 className="text-3xl font-bold text-white">UN-Einreichungen (Special Procedures)</h1>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1 bg-gray-800 p-6 rounded-lg space-y-4 flex flex-col">
+                    <h2 className="text-xl font-semibold text-white">Steuerung</h2>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Vorlage auswählen</label>
+                        <select
+                            value={selectedTemplate}
+                            onChange={(e) => setSelectedTemplate(e.target.value)}
+                            className="w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
+                        >
+                            {UN_SUBMISSION_TEMPLATES.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
                     </div>
-                ))}
-                 {submissions.length === 0 && (
-                    <p className="text-center py-8 text-gray-500">Noch keine Eingaben erstellt.</p>
-                )}
+                    <button onClick={handleDraft} disabled={isLoading} className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md disabled:bg-gray-500">
+                        {isLoading ? 'Erstelle...' : '1. Entwurf erstellen'}
+                    </button>
+                    <button onClick={handleFinalize} disabled={isLoading || !draftContent} className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500">
+                        {isLoading ? 'Finalisiere...' : '2. Entwurf finalisieren'}
+                    </button>
+                    <div className="border-t border-gray-700 pt-4 mt-4">
+                        <h3 className="text-lg font-semibold text-white mb-2">Checkliste vor Versand</h3>
+                        <div className="space-y-2">
+                            {checklist.map(item => (
+                                <label key={item.id} className="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" checked={item.checked} onChange={() => handleChecklistToggle(item.id)} className="h-4 w-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500"/>
+                                    <span className={`text-sm ${item.checked ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{item.text}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                     <div className="flex-grow flex items-end">
+                        <button disabled={!isChecklistComplete || !finalContent} className="w-full mt-4 px-4 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed">
+                            Versand simulieren
+                        </button>
+                    </div>
+                </div>
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="bg-gray-800 p-4 rounded-lg">
+                        <h3 className="text-lg font-semibold text-white mb-2">Entwurf</h3>
+                        <div className="w-full bg-gray-700 p-3 rounded-md min-h-[200px] max-h-96 overflow-y-auto text-sm text-gray-200 whitespace-pre-wrap">
+                            {isLoading && !draftContent ? 'Generiere Entwurf...' : draftContent || 'Hier erscheint der KI-generierte Entwurf.'}
+                        </div>
+                    </div>
+                    <div className="bg-gray-800 p-4 rounded-lg">
+                        <h3 className="text-lg font-semibold text-white mb-2">Finale Version</h3>
+                        <div className="w-full bg-gray-700 p-3 rounded-md min-h-[200px] max-h-96 overflow-y-auto text-sm text-gray-200 whitespace-pre-wrap">
+                            {isLoading && draftContent ? 'Finalisiere Version...' : finalContent || 'Hier erscheint die finalisierte Version.'}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -1,180 +1,156 @@
-import React, { useState } from 'react';
-import { Document, Tag } from '../../types';
+import React, { useState, useRef, useCallback } from 'react';
+import type { AppState, Document, Tag } from '../../types';
+import { extractFileContent } from '../../utils/fileUtils';
+import { hashText } from '../../utils/cryptoUtils';
+import DocumentDetailModal from '../modals/DocumentDetailModal';
 import TagManagementModal from '../modals/TagManagementModal';
+import AnalysisChatModal from '../modals/AnalysisChatModal';
+import { DocumentAnalystService } from '../../services/documentAnalyst';
 
 interface DocumentsTabProps {
-    documents: Document[];
-    setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
-    onFileUpload: (files: File[]) => void;
-    onAnalyzeDocumentWorkload: (docId: string, docName: string, docContent: string) => void;
-    onOpenChat: (docs: Document[]) => void;
-    isLoading: boolean;
-    loadingSection: string;
-    tags: Tag[];
-    onUpdateDocumentTags: (docId: string, newTags: string[]) => void;
+    appState: AppState;
+    setAppState: React.Dispatch<React.SetStateAction<AppState | null>>;
 }
 
-const DocumentsTab: React.FC<DocumentsTabProps> = ({
-    documents,
-    setDocuments,
-    onFileUpload,
-    onAnalyzeDocumentWorkload,
-    onOpenChat,
-    isLoading,
-    loadingSection,
-    tags,
-    onUpdateDocumentTags
-}) => {
-    const [dragActive, setDragActive] = useState(false);
-    const [tagModalState, setTagModalState] = useState<{ isOpen: boolean; doc: Document | null }>({ isOpen: false, doc: null });
-    const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+    const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+    const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+    const [chatHistory, setChatHistory] = useState<any[]>([]);
 
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            const files = Array.from(event.target.files);
+            const newDocuments: Document[] = [];
+            for (const file of files) {
+                const { text, base64, mimeType } = await extractFileContent(file);
+                const content = text || base64 || '';
+                const newDoc: Document = {
+                    id: await hashText(file.name + file.size + content),
+                    name: file.name,
+                    content: content,
+                    textContent: text,
+                    base64Content: base64,
+                    mimeType: mimeType,
+                    classificationStatus: 'unclassified',
+                    tags: [],
+                    createdAt: new Date().toISOString(),
+                };
+                newDocuments.push(newDoc);
+            }
+            setAppState(s => s ? { ...s, documents: [...s.documents, ...newDocuments] } : null);
         }
     };
 
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            onFileUpload(Array.from(e.dataTransfer.files));
+    const handleAnalyzeDocument = useCallback(async (docId: string) => {
+        if (!appState) return;
+        const doc = appState.documents.find(d => d.id === docId);
+        if (!doc) return;
+
+        setAppState(s => s ? { ...s, isLoading: true, loadingSection: `doc-${docId}` } : null);
+        try {
+            const result = await DocumentAnalystService.analyzeDocument(doc, appState.settings.ai);
+            setAppState(s => {
+                if (!s) return null;
+                // FIX: Explicitly type the updated document object to prevent type inference issues with AppState.
+                const newDocs = s.documents.map((d): Document => {
+                    if (d.id === docId) {
+                        return { 
+                            ...d, 
+                            summary: result.summary, 
+                            classificationStatus: 'classified', 
+                            workCategory: result.classification 
+                        };
+                    }
+                    return d;
+                });
+                const newResults = { ...s.documentAnalysisResults, [docId]: result };
+                return { ...s, documents: newDocs, documentAnalysisResults: newResults };
+            });
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setAppState(s => s ? { ...s, isLoading: false, loadingSection: '' } : null);
         }
-    };
-    
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            onFileUpload(Array.from(e.target.files));
+    }, [appState, setAppState]);
+
+    const handleSaveTags = (newTags: string[]) => {
+        if (selectedDoc) {
+            const updatedDoc = { ...selectedDoc, tags: newTags };
+            setAppState(s => s ? { ...s, documents: s.documents.map(d => d.id === selectedDoc.id ? updatedDoc : d) } : s);
+            setSelectedDoc(updatedDoc);
         }
     };
 
-    const handleSelectDoc = (docId: string) => {
-        setSelectedDocIds(prev =>
-            prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
-        );
+    const handleSendMessage = async (message: string) => {
+        // Mock chat response
+        setChatHistory(h => [...h, { role: 'user', text: message }, { role: 'assistant', text: "Analyzing..." }]);
+        setTimeout(() => {
+             setChatHistory(h => [...h.slice(0, -1), { role: 'assistant', text: "This is a mocked response based on your question." }]);
+        }, 1000);
     };
-
-    const handleStartMultiChat = () => {
-        const selectedDocs = documents.filter(doc => selectedDocIds.includes(doc.id));
-        if (selectedDocs.length > 0) {
-            onOpenChat(selectedDocs);
-        }
-    };
-
-    const StatusIndicator: React.FC<{ status: Document['classificationStatus'] }> = ({ status }) => {
-        switch (status) {
-            case 'classified': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/20 text-green-300">Klassifiziert</span>;
-            case 'unclassified': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-500/20 text-gray-300">Neu</span>;
-            case 'failed': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-500/20 text-red-300">Fehlgeschlagen</span>;
-            case 'classifying': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-500/20 text-blue-300">Klassifiziere...</span>;
-            default: return null;
-        }
-    };
-
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-white">Dokumentenverwaltung</h1>
-
-            <div 
-                onDragEnter={handleDrag} 
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-lg p-10 text-center transition-colors ${dragActive ? 'border-blue-500 bg-gray-800' : 'border-gray-600 bg-gray-800/50'}`}
-            >
-                <input type="file" id="file-upload" multiple className="hidden" onChange={handleFileSelect} />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                    <p className="text-gray-400">Dateien hierher ziehen oder klicken zum Hochladen</p>
-                    <p className="text-xs text-gray-500 mt-1">Unterstützt PDF, DOCX, TXT, Bilder, etc. KI-Triage startet automatisch.</p>
-                </label>
-                {isLoading && loadingSection === 'file-upload' && <p className="mt-4 text-blue-400">Verarbeite Dateien...</p>}
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold text-white">Dokumentenverwaltung</h1>
+                <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">
+                    Dokumente hochladen
+                </button>
             </div>
             
-             {selectedDocIds.length > 1 && (
-                <div className="bg-gray-700 p-3 rounded-lg flex items-center justify-between">
-                    <span className="text-white font-semibold">{selectedDocIds.length} Dokumente ausgewählt</span>
-                    <button
-                        onClick={handleStartMultiChat}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-sm"
-                    >
-                        Multi-Doc Chat starten
-                    </button>
-                </div>
-            )}
-
-            <div className="bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <table className="w-full text-sm text-left text-gray-300">
+             <div className="bg-gray-800 rounded-lg shadow overflow-x-auto">
+                 <table className="w-full text-sm text-left text-gray-300">
                     <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
                         <tr>
-                            <th scope="col" className="px-4 py-3 w-4"><input type="checkbox" className="h-4 w-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500" onChange={(e) => setSelectedDocIds(e.target.checked ? documents.map(d => d.id) : [])} /></th>
-                            <th scope="col" className="px-6 py-3">Dateiname</th>
-                            <th scope="col" className="px-6 py-3">Kategorie</th>
-                            <th scope="col" className="px-6 py-3">Datum</th>
-                            <th scope="col" className="px-6 py-3">Tags</th>
+                            <th scope="col" className="px-6 py-3">Name</th>
                             <th scope="col" className="px-6 py-3">Status</th>
+                            <th scope="col" className="px-6 py-3">Tags</th>
                             <th scope="col" className="px-6 py-3">Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {documents.map(doc => (
+                        {appState.documents.map(doc => (
                             <tr key={doc.id} className="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
-                                <td className="px-4 py-4"><input type="checkbox" className="h-4 w-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500" checked={selectedDocIds.includes(doc.id)} onChange={() => handleSelectDoc(doc.id)} /></td>
                                 <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{doc.name}</td>
-                                <td className="px-6 py-4">{doc.workCategory}</td>
-                                <td className="px-6 py-4">{new Date(doc.uploadDate).toLocaleDateString()}</td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-wrap gap-1 max-w-xs">
-                                        {doc.tags.map(tag => <span key={tag} className="bg-gray-600 px-2 py-0.5 rounded-full text-xs">{tag}</span>)}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4"><StatusIndicator status={doc.classificationStatus} /></td>
-                                <td className="px-6 py-4 space-x-2 whitespace-nowrap">
-                                    <button 
-                                        onClick={() => onAnalyzeDocumentWorkload(doc.id, doc.name, doc.content)}
-                                        disabled={isLoading && loadingSection === `workload-${doc.id}`}
-                                        className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs disabled:bg-gray-500 disabled:cursor-not-allowed"
-                                        title="Aufwand schätzen"
-                                    >
-                                        {isLoading && loadingSection === `workload-${doc.id}` ? '...' : 'Aufwand'}
-                                    </button>
-                                     <button
-                                        onClick={() => onOpenChat([doc])}
-                                        className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs"
-                                    >
-                                        Chat
-                                    </button>
-                                    <button 
-                                        onClick={() => setTagModalState({ isOpen: true, doc })}
-                                        className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs"
-                                    >
-                                        Tags
-                                    </button>
+                                <td className="px-6 py-4">{doc.classificationStatus}</td>
+                                <td className="px-6 py-4">{doc.tags.join(', ')}</td>
+                                <td className="px-6 py-4 space-x-2">
+                                    <button onClick={() => setSelectedDoc(doc)} className="text-blue-400 hover:underline">Details</button>
+                                    <button onClick={() => { setSelectedDoc(doc); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
+                                    <button onClick={() => handleAnalyzeDocument(doc.id)} disabled={appState.isLoading && appState.loadingSection === `doc-${doc.id}`} className="text-purple-400 hover:underline disabled:text-gray-500">Analysieren</button>
+                                    <button onClick={() => { setSelectedDoc(doc); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-                 {documents.length === 0 && (
-                    <p className="text-center py-8 text-gray-500">Noch keine Dokumente hochgeladen.</p>
-                )}
             </div>
-            {tagModalState.isOpen && tagModalState.doc && (
+
+            {selectedDoc && <DocumentDetailModal document={selectedDoc} analysisResult={appState.documentAnalysisResults[selectedDoc.id] || null} onClose={() => setSelectedDoc(null)} />}
+            
+            {isTagModalOpen && selectedDoc && (
                 <TagManagementModal
-                    isOpen={tagModalState.isOpen}
-                    onClose={() => setTagModalState({ isOpen: false, doc: null })}
-                    availableTags={tags}
-                    assignedTags={tagModalState.doc.tags}
-                    onSave={(newTags) => {
-                        onUpdateDocumentTags(tagModalState.doc!.id, newTags);
-                    }}
-                    itemName={tagModalState.doc.name}
+                    isOpen={isTagModalOpen}
+                    onClose={() => setIsTagModalOpen(false)}
+                    availableTags={appState.tags}
+                    assignedTags={selectedDoc.tags}
+                    onSave={handleSaveTags}
+                    itemName={selectedDoc.name}
+                    onCreateTag={(name) => setAppState(s => s ? { ...s, tags: [...s.tags, {id: crypto.randomUUID(), name}]} : null)}
+                />
+            )}
+            
+             {isChatModalOpen && selectedDoc && (
+                <AnalysisChatModal
+                    documents={[selectedDoc]}
+                    chatHistory={chatHistory}
+                    onSendMessage={handleSendMessage}
+                    onClose={() => setIsChatModalOpen(false)}
+                    isLoading={false}
+                    onAddKnowledge={() => {}}
                 />
             )}
         </div>

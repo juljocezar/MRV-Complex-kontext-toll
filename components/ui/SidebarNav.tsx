@@ -7,47 +7,50 @@ interface SidebarNavProps {
     setActiveTab: (tab: ActiveTab) => void;
 }
 
+// FIX: Use 'as const' to infer literal types for item.id, making it assignable to ActiveTab.
 const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
-    { id: 'documents', label: 'Dokumente', icon: 'File' },
-    { id: 'analysis', label: 'Analyse', icon: 'BarChart2' },
-    { id: 'generation', label: 'Generator', icon: 'Zap' },
-    { id: 'dispatch', label: 'Versand', icon: 'Send' },
-    { id: 'chronology', label: 'Chronologie', icon: 'List' },
-    { id: 'entities', label: 'Stammdaten', icon: 'Users' },
-    { id: 'graph', label: 'Graph', icon: 'GitMerge' },
-    { id: 'knowledge', label: 'Wissensbasis', icon: 'BrainCircuit' },
-    { id: 'contradictions', label: 'Widersprüche', icon: 'AlertTriangle' },
-    { id: 'strategy', label: 'Strategie', icon: 'HeartHandshake' },
-    { id: 'kpis', label: 'KPIs', icon: 'Target' },
-    { id: 'legal', label: 'Rechtsgrundlagen', icon: 'Gavel' },
-    { id: 'un-submissions', label: 'UN-Eingaben', icon: 'Mail' },
-    { id: 'ethics', label: 'Ethik-Analyse', icon: 'ShieldQuestion' },
-    { id: 'library', label: 'Bibliothek', icon: 'Library' },
-    { id: 'audit', label: 'Protokoll', icon: 'History' },
-    { id: 'agents', label: 'Agenten', icon: 'Bot' },
-    { id: 'settings', label: 'Einstellungen', icon: 'Settings' },
-];
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { id: 'documents', label: 'Dokumente', icon: 'documents' },
+    { id: 'entities', label: 'Stammdaten', icon: 'entities' },
+    { id: 'chronology', label: 'Chronologie', icon: 'chronology' },
+    { id: 'knowledge', label: 'Wissensbasis', icon: 'knowledge' },
+    { id: 'graph', label: 'Beziehungs-Graph', icon: 'graph' },
+    { id: 'analysis', label: 'Analyse', icon: 'analysis' },
+    { id: 'reports', label: 'Berichte', icon: 'reports' },
+    { id: 'generation', label: 'Generierung', icon: 'generation' },
+    { id: 'library', label: 'Bibliothek', icon: 'library' },
+    { id: 'dispatch', label: 'Versand', icon: 'dispatch' },
+    { id: 'strategy', label: 'Strategie', icon: 'strategy' },
+    { id: 'kpis', label: 'KPIs', icon: 'kpis' },
+    { id: 'un-submissions', label: 'UN Einreichungen', icon: 'un' },
+    { id: 'hrd-support', label: 'HRD Support', icon: 'hrd' },
+    { id: 'legal-basis', label: 'Rechtsgrundlagen', icon: 'legal' },
+    { id: 'ethics', label: 'Ethik-Analyse', icon: 'ethics' },
+    { id: 'contradictions', label: 'Widersprüche', icon: 'contradictions' },
+    { id: 'agents', label: 'Agenten', icon: 'agents' },
+    { id: 'audit', label: 'Audit Log', icon: 'audit' },
+    { id: 'settings', label: 'Einstellungen', icon: 'settings' },
+] as const;
 
 const SidebarNav: React.FC<SidebarNavProps> = ({ activeTab, setActiveTab }) => {
     return (
-        <nav className="w-64 bg-gray-800 flex-shrink-0 flex flex-col border-r border-gray-700">
-            <div className="flex items-center justify-center h-16 border-b border-gray-700">
-                <span className="text-white text-2xl font-bold">MRV</span>
+        <nav className="w-64 bg-gray-800 p-2 flex flex-col flex-shrink-0">
+            <div className="p-2 mb-2">
+                <h2 className="text-lg font-bold text-white">MRV-Assistent</h2>
             </div>
-            <ul className="flex-grow overflow-y-auto">
+            <ul className="space-y-1 overflow-y-auto">
                 {navItems.map(item => (
                     <li key={item.id}>
-                        <button
-                            onClick={() => setActiveTab(item.id as ActiveTab)}
-                            className={`w-full flex items-center px-4 py-3 text-left text-sm font-medium transition-colors duration-200 ${
-                                activeTab === item.id
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        <button 
+                            onClick={() => setActiveTab(item.id)} 
+                            className={`w-full text-left flex items-center p-2 rounded text-sm transition-colors ${
+                                activeTab === item.id 
+                                ? 'bg-blue-600 text-white' 
+                                : 'text-gray-300 hover:bg-gray-700'
                             }`}
                         >
-                            <Icon name={item.icon} className="mr-3 h-5 w-5" />
-                            <span>{item.label}</span>
+                           <Icon name={item.icon} className="mr-3 h-5 w-5" />
+                           {item.label}
                         </button>
                     </li>
                 ))}

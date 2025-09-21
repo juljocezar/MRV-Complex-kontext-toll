@@ -1,5 +1,5 @@
-
 import React from 'react';
+// Fix: Corrected import path for types.
 import type { AuditLogEntry, AgentActivity } from '../../types';
 
 interface AuditLogTabProps {
@@ -9,10 +9,11 @@ interface AuditLogTabProps {
 
 const AuditLogTab: React.FC<AuditLogTabProps> = ({ auditLog, agentActivityLog }) => {
     const combinedLog = [
-        ...auditLog.map(log => ({ ...log, type: 'user' })),
+        ...auditLog.map(log => ({ ...log, type: 'user' as const })),
         ...agentActivityLog.map(log => ({ 
-            ...log, 
-            type: 'agent', 
+            id: log.id,
+            timestamp: log.timestamp,
+            type: 'agent' as const, 
             action: log.agentName, 
             details: `${log.action} (${log.result})` 
         }))

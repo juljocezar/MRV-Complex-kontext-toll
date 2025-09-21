@@ -41,7 +41,7 @@ const EthicsAnalysisTab: React.FC<EthicsAnalysisTabProps> = ({ analysisResult, o
                     <div className="border-t border-gray-700 pt-4">
                         <h2 className="text-xl font-semibold text-white mb-2">Datenschutzbedenken</h2>
                         <ul className="list-disc list-inside text-gray-300 space-y-1">
-                            {analysisResult.privacyConcerns.map((concern, index) => (
+                            {(analysisResult?.privacyConcerns || []).map((concern, index) => (
                                 <li key={index}>{concern}</li>
                             ))}
                         </ul>
@@ -49,7 +49,7 @@ const EthicsAnalysisTab: React.FC<EthicsAnalysisTabProps> = ({ analysisResult, o
                      <div className="border-t border-gray-700 pt-4">
                         <h2 className="text-xl font-semibold text-white mb-2">Handlungsempfehlungen</h2>
                          <ul className="list-disc list-inside text-gray-300 space-y-1">
-                            {analysisResult.recommendations.map((rec, index) => (
+                            {(analysisResult?.recommendations || []).map((rec, index) => (
                                 <li key={index}>{rec}</li>
                             ))}
                         </ul>

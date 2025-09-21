@@ -1,4 +1,79 @@
 export const legalResources = {
+    complaintMechanisms: {
+        title: "Beschwerdemechanismen bei Menschenrechtsverletzungen",
+        description: "Eine Übersicht über internationale und regionale Gremien, bei denen Beschwerden über Menschenrechtsverletzungen eingereicht werden können. Die Auswahl des geeigneten Mechanismus hängt von der Art der Verletzung, dem betroffenen Staat und den spezifischen Regeln des jeweiligen Gremiens ab.",
+        unMechanisms: {
+            title: "UN-Mechanismen",
+            options: [
+                {
+                    name: "UN-Menschenrechtsrat: Individualbeschwerden",
+                    details: "Prüft konsistente Muster schwerer und zuverlässig belegter Menschenrechtsverletzungen. Gilt für alle UN-Mitgliedstaaten. Rechtsmittel sind begrenzt."
+                },
+                {
+                    name: "UN-Vertragsorgane: Untersuchungen & Individualbeschwerden",
+                    details: "Zuständig für die Vertragsstaaten des jeweiligen Vertrags. Bieten Untersuchungsverfahren für dringende, schwere oder systematische Verletzungen sowie meist individuelle Beschwerdemechanismen."
+                },
+                {
+                    name: "UN-Sonderverfahren: Dringende Appelle & Anschuldigungsschreiben",
+                    details: "Bestehen aus dringenden Appellen bei zeitkritischen, lebensbedrohlichen Angelegenheiten. Gelten für alle UN-Mitgliedstaaten und erfordern nicht die Ausschöpfung nationaler Rechtsmittel."
+                },
+                {
+                    name: "Schutz vor Repressalien (Alle UN-Gremien)",
+                    details: "Alle UN-Menschenrechtsmechanismen verfügen über Verfahren, um gegen Vergeltungsmaßnahmen gegen Personen vorzugehen, die mit ihnen zusammenarbeiten. Betroffene sollten sich umgehend an den zuständigen Mechanismus wenden."
+                }
+            ]
+        },
+        regionalMechanisms: {
+            title: "Regionale Mechanismen",
+            options: [
+                {
+                    name: "Afrikanische Kommission für Menschenrechte und Rechte der Völker",
+                    details: "Prüft individuelle Mitteilungen gegen Vertragsstaaten der Afrikanischen Charta."
+                },
+                {
+                    name: "Gerichtshof der Wirtschaftsgemeinschaft westafrikanischer Staaten (ECOWAS)",
+                    details: "Zuständig für Verletzungen grundlegender Menschenrechte. Erschöpfung innerstaatlicher Rechtsmittel nicht erforderlich."
+                },
+                {
+                    name: "Interamerikanische Menschenrechtskommission (IACHR)",
+                    details: "Kann vorsorgliche Maßnahmen zum Schutz von gefährdeten Personen anordnen und prüft individuelle Petitionen gegen alle OAS-Mitgliedstaaten."
+                },
+                {
+                    name: "Europäischer Gerichtshof für Menschenrechte (EGMR)",
+                    details: "Internationales Gericht zur Wahrung der Europäischen Menschenrechtskonvention. Zuständig für alle Mitgliedstaaten des Europarates."
+                },
+            ]
+        }
+    },
+    reportingGuides: {
+        title: "Anleitungen zur Berichterstattung",
+        description: "Ressourcen und Checklisten für die Erstellung von Berichten an UN-Gremien.",
+        shadowReportSteps: {
+            title: "10 Schritte zum Schreiben eines Schattenberichts",
+            steps: [
+                "1. Eigene Expertise identifizieren",
+                "2. Verbündete identifizieren",
+                "3. Relevante Rechte identifizieren",
+                "4. Bisherigen Prozess überprüfen (letzte Berichte, Empfehlungen)",
+                "5. Eigene Rolle klären (welche Informationen können Sie beisteuern?)",
+                "6. Ziele für die Überprüfung setzen (was sollen Ausschussmitglieder fragen/empfehlen?)",
+                "7. Arbeitsplan erstellen und umsetzen",
+                "8. Bericht schreiben (kurz, faktenbasiert, konstruktiv)",
+                "9. Bericht abschließen und fristgerecht absenden",
+                "10. Nachverfolgung und Advocacy (Lobbyarbeit, Monitoring der Umsetzung)"
+            ]
+        },
+        factFindingChecklist: {
+            title: "Checkliste zur Faktenermittlung",
+            sources: [
+                "Traditionelle Quellen: Berichte von Außenministerien (z.B. US State Dept.), Amnesty International, Human Rights Watch.",
+                "Quellen zweiter Ebene: Juristische Fachzeitschriften, glaubwürdige Nachrichtenberichte.",
+                "Vor-Ort-Recherchen: Interviews, Umfragen, koordiniert mit Partnerorganisationen.",
+                "Entwicklungen im nationalen Recht: Aktuelle Gesetzesentwürfe, kürzlich verabschiedete Gesetze, Gerichtsurteile.",
+                "Sonstiges: Statistiken, rechtliche Fragen zur Vertragsauslegung, Verfahrensgeschichte mit UN-Gremien."
+            ]
+        }
+    },
     unSpecialProcedures: {
         title: 'UN Sonderverfahren (Special Procedures)',
         description: 'Informationen zur Einreichung von Fällen bei den UN-Sonderberichterstattern, unabhängigen Experten und Arbeitsgruppen.',
@@ -20,7 +95,6 @@ export const legalResources = {
             { name: 'Verzeichnis der Mandatsträger', url: 'https://www.ohchr.org/en/special-procedures/find-mandate-holders-and-their-mandates' },
         ]
     },
-    // Weitere Ressourcen können hier hinzugefügt werden
 };
 
 export const otherResources = {
@@ -34,49 +108,14 @@ export const otherResources = {
                 url: 'https://searchlibrary.ohchr.org/?ln=en'
             },
             {
-                title: 'Anti-discrimination Database',
-                description: 'Informationen, Richtlinien und Maßnahmen zur Bekämpfung von Rassismus und Diskriminierung.',
-                url: 'http://adsdatabase.ohchr.org/'
-            },
-            {
-                title: 'Human Rights Education and Training Database',
-                description: 'Weltweite Suche nach Institutionen, Programmen und Materialien zur Menschenrechtsbildung.',
-                url: 'http://hre.ohchr.org'
-            },
-            {
                 title: 'Jurisprudence Database',
                 description: 'Zugang zur Rechtsprechung der UN-Vertragsorgane bei Individualbeschwerden.',
                 url: 'http://juris.ohchr.org'
             },
             {
-                title: 'Status of Ratification Interactive Dashboard',
-                description: 'Interaktive Karte zum Ratifizierungsstatus internationaler Menschenrechtsverträge.',
-                url: 'http://indicators.ohchr.org'
-            },
-            {
                 title: 'Universal Human Rights Index (UHRI)',
                 description: 'Länderspezifische Menschenrechtsempfehlungen aus allen UN-Mechanismen (Vertragsorgane, Sonderverfahren, UPR).',
                 url: 'http://uhri.ohchr.org'
-            },
-            {
-                title: 'UN Charter Body Database',
-                description: 'Dokumente und Informationen zu chartabasierten Gremien wie dem Menschenrechtsrat.',
-                url: 'https://ap.ohchr.org/Documents/gmainec.aspx'
-            },
-            {
-                title: 'UN Treaty Bodies Database',
-                description: 'Dokumente und Informationen zu den wichtigsten internationalen Menschenrechtsverträgen.',
-                url: 'http://tbinternet.ohchr.org/'
-            },
-            {
-                title: 'Universal Periodic Review (UPR) Database',
-                description: 'Dokumentation zur periodischen Überprüfung der Menschenrechtslage in den UN-Mitgliedstaaten.',
-                url: 'http://www.ohchr.org/en/hr-bodies/upr/documentation'
-            },
-            {
-                title: 'Special Procedures Database',
-                description: 'Dokumente zu den Mandaten und Länderbesuchen der Sonderverfahren.',
-                url: 'http://spinternet.ohchr.org'
             },
             {
                 title: 'Special Procedures Communications Search',
@@ -89,7 +128,7 @@ export const otherResources = {
         title: 'Weitere Schlüsselressourcen',
         description: 'Wichtige externe Datenbanken und Informationsportale von Partnerorganisationen.',
         items: [
-            {
+             {
                 title: 'Right-Docs',
                 description: 'Dokumentationsressource für Menschenrechtsverteidiger.',
                 url: 'https://www.right-docs.org/'
@@ -100,24 +139,9 @@ export const otherResources = {
                 url: 'https://ihl-databases.icrc.org/en/ihl-treaties'
             },
             {
-                title: 'UN Convention against Corruption (UNODC)',
-                description: 'Informationen zur UN-Konvention gegen Korruption.',
-                url: 'https://www.unodc.org/corruption/en/uncac/learn-about-uncac.html'
-            },
-            {
                 title: 'ISHR: End Reprisals',
                 description: 'Informationen und Kampagnen gegen Repressalien gegen Menschenrechtsverteidiger.',
                 url: 'https://endreprisals.ishr.ch/'
-            },
-            {
-                title: 'UN Special Rapporteur on Human Rights Defenders',
-                description: 'Offizielle Webseite des UN-Sonderberichterstatters für Menschenrechtsverteidiger.',
-                url: 'https://srdefenders.org/'
-            },
-            {
-                title: 'Universal Declaration of Human Rights (UDHR) Translations',
-                description: 'Die Allgemeine Erklärung der Menschenrechte in über 500 Sprachen.',
-                url: 'https://www.ohchr.org/en/human-rights/universal-declaration/universal-declaration-human-rights/search-udhr-translations'
             }
         ]
     }

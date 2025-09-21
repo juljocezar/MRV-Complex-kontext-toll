@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// Fix: Corrected import path for types.
 import type { TimelineEvent, Document } from '../../types';
 
 interface ChronologyTabProps {
@@ -8,12 +9,10 @@ interface ChronologyTabProps {
 }
 
 const ChronologyTab: React.FC<ChronologyTabProps> = ({ timelineEvents, setTimelineEvents, documents }) => {
-    // Fix: Updated state shape for a new event to match the 'TimelineEvent' type, using 'documentIds' instead of 'sourceDocId' and removing 'type'.
     const [newEvent, setNewEvent] = useState({ date: '', title: '', description: '', documentIds: [] as string[] });
 
     const handleAddEvent = () => {
         if (newEvent.date && newEvent.title) {
-            // Fix: Ensured the new event object conforms to the 'TimelineEvent' type before updating state.
             setTimelineEvents(prev => [...prev, { ...newEvent, id: crypto.randomUUID() }].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
             setNewEvent({ date: '', title: '', description: '', documentIds: [] });
         }
@@ -43,7 +42,6 @@ const ChronologyTab: React.FC<ChronologyTabProps> = ({ timelineEvents, setTimeli
 
             <div className="relative border-l-2 border-gray-700 ml-4">
                 {timelineEvents.map((event) => {
-                    // Fix: Changed logic to find source documents using 'documentIds' array instead of the non-existent 'sourceDocId'.
                     const sourceDocs = documents.filter(d => event.documentIds.includes(d.id));
                     return (
                         <div key={event.id} className="mb-8 ml-8">
@@ -54,7 +52,6 @@ const ChronologyTab: React.FC<ChronologyTabProps> = ({ timelineEvents, setTimeli
                                 <time className="mb-1 text-sm font-normal leading-none text-gray-400">{new Date(event.date).toLocaleDateString()}</time>
                                 <h3 className="text-lg font-semibold text-white">{event.title}</h3>
                                 <p className="text-base font-normal text-gray-300">{event.description}</p>
-                                {/* Fix: Updated to display names of all source documents. */}
                                 {sourceDocs.length > 0 && (
                                     <p className="mt-2 text-xs text-gray-500">
                                         Quelle: {sourceDocs.map(doc => doc.name).join(', ')}

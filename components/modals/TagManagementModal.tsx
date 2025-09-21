@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// Fix: Corrected import path for types.
 import type { Tag } from '../../types';
 
 interface TagManagementModalProps {
@@ -8,10 +9,12 @@ interface TagManagementModalProps {
     assignedTags: string[];
     onSave: (newTags: string[]) => void;
     itemName: string;
+    onCreateTag: (name: string) => void;
 }
 
-const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose, availableTags, assignedTags, onSave, itemName }) => {
+const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose, availableTags, assignedTags, onSave, itemName, onCreateTag }) => {
     const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+    const [newTagName, setNewTagName] = useState('');
 
     useEffect(() => {
         if (isOpen) {
@@ -38,6 +41,14 @@ const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose
         onClose();
     };
 
+    const handleCreateTag = () => {
+        if (newTagName.trim()) {
+            onCreateTag(newTagName.trim());
+            setNewTagName('');
+        }
+    };
+
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
             <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md flex flex-col border border-gray-700">
@@ -46,6 +57,18 @@ const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose
                      <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
                 </header>
                 <div className="p-6 max-h-96 overflow-y-auto">
+                    <div className="flex gap-2 mb-4 pb-4 border-b border-gray-700">
+                        <input
+                            type="text"
+                            value={newTagName}
+                            onChange={(e) => setNewTagName(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleCreateTag()}
+                            placeholder="Neuen Tag erstellen..."
+                            className="flex-grow bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
+                        />
+                        <button onClick={handleCreateTag} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md text-sm">Erstellen</button>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {availableTags.map(tag => (
                             <label key={tag.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-700/50 cursor-pointer">

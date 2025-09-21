@@ -1,6 +1,7 @@
 import React from 'react';
+// Fix: Corrected import paths for constants and types.
 import { MRV_AGENTS } from '../../constants';
-import { AgentActivity } from '../../types';
+import type { AgentProfile, AgentActivity } from '../../types';
 
 interface AgentManagementTabProps {
     agentActivityLog: AgentActivity[];
@@ -13,7 +14,7 @@ const AgentManagementTab: React.FC<AgentManagementTabProps> = ({ agentActivityLo
             
             <h2 className="text-2xl font-semibold text-gray-300">Verfügbare Agenten</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.values(MRV_AGENTS).map(agent => (
+                {Object.values(MRV_AGENTS).map((agent: AgentProfile) => (
                     <div key={agent.name} className="bg-gray-800 p-6 rounded-lg shadow flex flex-col">
                         <div>
                             <h3 className="text-xl font-bold text-white flex items-center">
