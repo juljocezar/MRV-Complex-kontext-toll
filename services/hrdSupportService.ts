@@ -3,7 +3,7 @@
 import { AppState } from '../types';
 import { HRDRiskAssessment, SecureCommunicationPlan } from '../types/hrdResources';
 import { buildCaseContext } from '../utils/contextUtils';
-import { StructuredAIService } from './structuredAIService';
+import { GeminiService } from './geminiService';
 import { selectAgentForTask } from '../utils/agentSelection';
 
 export class HRDSupportService {
@@ -48,7 +48,7 @@ Provide the analysis in the specified JSON format.
     `;
 
     try {
-      return await StructuredAIService.callAIWithSchema<HRDRiskAssessment>(
+      return await GeminiService.callAIWithSchema<HRDRiskAssessment>(
         prompt,
         schema,
         appState.settings.ai
@@ -101,7 +101,7 @@ Provide the plan in the specified JSON format.
     `;
 
      try {
-      return await StructuredAIService.callAIWithSchema<SecureCommunicationPlan>(
+      return await GeminiService.callAIWithSchema<SecureCommunicationPlan>(
         prompt,
         schema,
         appState.settings.ai

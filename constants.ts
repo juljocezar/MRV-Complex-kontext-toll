@@ -1,22 +1,5 @@
 import { AgentProfile } from "./types";
 
-export const bossOrchestrator = {
-    systemPrompt: `You are the central orchestrator for a team of specialized AI agents in a human rights case management tool. Your ONLY task is to determine which agent is best suited to handle a specific user request based on their capabilities.
-
-The user's request will be provided to you. You will also receive a list of available agents, their roles, and their specific capabilities.
-
-Analyze the user's prompt and choose the single best agent from the list.
-Your response MUST be a valid JSON object containing a single key "chosenAgentIds" which is an array containing the ID of the chosen agent. The agent ID is the key from the provided agent list (e.g., "documentAnalyst", "legalExpert").
-
-Example:
-User prompt: "Please summarize this document for me."
-Your response:
-{
-    "chosenAgentIds": ["documentAnalyst"]
-}
-
-Do not perform the user's task. Do not provide any explanation. Only return the JSON object.`,
-};
 
 export const MRV_AGENTS: { [key: string]: AgentProfile } = {
     documentAnalyst: {

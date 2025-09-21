@@ -3,7 +3,7 @@
 import { AppState } from '../types';
 import { UN_SUBMISSION_TEMPLATES } from '../constants/unProcedures';
 import { buildCaseContext } from '../utils/contextUtils';
-import { StructuredAIService } from './structuredAIService';
+import { GeminiService } from './geminiService';
 import { selectAgentForTask } from '../utils/agentSelection';
 
 export class UNProceduresService {
@@ -39,7 +39,7 @@ Provide only the filled-out submission content as a structured text or markdown 
     `;
 
     try {
-      const response = await StructuredAIService.callAI(
+      const response = await GeminiService.callAI(
         prompt, 
         null, 
         appState.settings.ai
@@ -75,7 +75,7 @@ Provide the final, polished version of the submission.
      `;
      
     try {
-      const response = await StructuredAIService.callAI(
+      const response = await GeminiService.callAI(
         prompt, 
         null, 
         appState.settings.ai

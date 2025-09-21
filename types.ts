@@ -260,7 +260,6 @@ export type ActiveTab =
   | 'chronology'
   | 'knowledge'
   | 'graph'
-  | 'analysis'
   | 'reports'
   | 'generation'
   | 'library'

@@ -41,15 +41,6 @@ import { buildCaseContext } from './utils/contextUtils';
 const App: React.FC = () => {
     const [state, setState] = useState<AppState | null>(null);
 
-    const addAgentActivity = useCallback(async (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => {
-        const newActivity: AgentActivity = {
-            ...activity,
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-        };
-        setState(s => s ? { ...s, agentActivity: [newActivity, ...s.agentActivity] } : null);
-    }, []);
-
     const setActiveTab = (tab: ActiveTab) => {
         setState(prevState => prevState ? { ...prevState, activeTab: tab } : null);
     };
@@ -203,7 +194,7 @@ const App: React.FC = () => {
                     loadingSection={state.loadingSection}
                  />;
             case 'documents':
-                return <DocumentsTab appState={state} setAppState={setState} addAgentActivity={addAgentActivity} />;
+                return <DocumentsTab appState={state} setAppState={setState} />;
             case 'entities':
                 return <EntitiesTab 
                     entities={state.caseEntities}
@@ -222,8 +213,6 @@ const App: React.FC = () => {
                 return <KnowledgeBaseTab knowledgeItems={state.knowledgeItems} setKnowledgeItems={setProp('knowledgeItems')} documents={state.documents} />;
             case 'graph':
                 return <GraphTab appState={state} />;
-            case 'analysis':
-                return <AnalysisTab appState={state} />;
             case 'reports':
                 return <ReportsTab onGenerateReport={generateReport} appState={state} />;
             case 'generation':

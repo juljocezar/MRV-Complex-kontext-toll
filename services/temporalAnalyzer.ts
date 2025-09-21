@@ -1,5 +1,5 @@
 // Fix: Corrected import path.
-import { StructuredAIService } from './structuredAIService';
+import { GeminiService } from './geminiService';
 // Fix: Corrected import path.
 import type { TemporalAnalysisResult, AISettings } from '../types';
 
@@ -123,7 +123,7 @@ Fokus: ${temporalFocus}
     try {
 // Fix: Added missing 'topP' property to match the AISettings type.
       const settings: AISettings = { temperature: 0.5, topP: 0.95 };
-      return await StructuredAIService.callAIWithSchema<TemporalAnalysisResult>(
+      return await GeminiService.callAIWithSchema<TemporalAnalysisResult>(
           prompt,
           this.TEMPORAL_ANALYSIS_SCHEMA,
           settings
