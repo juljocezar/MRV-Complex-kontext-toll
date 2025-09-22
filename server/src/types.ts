@@ -275,7 +275,7 @@ export type ActiveTab =
   | 'agents'
   | 'audit'
   | 'settings';
-  
+
 export interface AnalysisChatMessage {
   role: 'user' | 'assistant';
   text: string;

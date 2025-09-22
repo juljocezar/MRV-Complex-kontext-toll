@@ -1,0 +1,13 @@
+{
+  "tags": [
+    {
+      "id": "1",
+      "name": "From DB: Important"
+    },
+    {
+      "id": "2",
+      "name": "From DB: Follow Up"
+    }
+  ],
+  "documents": []
+}

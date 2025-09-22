@@ -146,8 +146,47 @@ export const addMultiple = <T>(storeName: string, items: T[]): Promise<void> => 
 }
 
 // --- Specific Implementations ---
+export const uploadDocument = async (file: File): Promise<Document> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('http://localhost:3001/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to upload document');
+    }
+    return response.json();
+};
+
+export const getAllDocuments = async (): Promise<Document[]> => {
+    try {
+        const response = await fetch('http://localhost:3001/api/documents');
+        if (!response.ok) {
+            console.error('Failed to fetch documents from backend');
+            return [];
+        }
+        return response.json();
+    } catch (error) {
+        console.error('Error fetching documents:', error);
+        return [];
+    }
+};
+
+export const deleteDocument = async (docId: string): Promise<void> => {
+    const response = await fetch(`http://localhost:3001/api/documents/${docId}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Failed to delete document: ${errorBody}`);
+    }
+};
+
+// This function is now deprecated for client-side updates but kept for potential future use or local-only versions.
 export const addDocument = (doc: Document) => add(STORES.documents, doc);
-export const getAllDocuments = () => getAll<Document>(STORES.documents);
 export const updateDocument = (doc: Document) => update(STORES.documents, doc);
 
 export const addGeneratedDocument = (doc: GeneratedDocument) => add(STORES.generatedDocuments, doc);
@@ -172,12 +211,46 @@ export const saveCaseContext = (context: CaseContext) => update(STORES.caseConte
 export const getAllKpis = () => getAll<KPI>(STORES.kpis);
 export const addMultipleKpis = (items: KPI[]) => addMultiple(STORES.kpis, items);
 
-export const addTag = (tag: Tag) => add(STORES.tags, tag);
-export const getAllTags = () => getAll<Tag>(STORES.tags);
-export const deleteTag = (tagId: string) => deleteItem(STORES.tags, tagId);
+export const addTag = async (tag: { name: string }): Promise<Tag> => {
+    const response = await fetch('http://localhost:3001/api/tags', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tag),
+    });
+    if (!response.ok) {
+        throw new Error('Failed to create tag');
+    }
+    return response.json();
+};
+
+export const getAllTags = async (): Promise<Tag[]> => {
+    try {
+        const response = await fetch('http://localhost:3001/api/tags');
+        if (!response.ok) {
+            console.error('Failed to fetch tags from backend');
+            return []; // Return empty array on error
+        }
+        return response.json();
+    } catch (error) {
+        console.error('Error fetching tags:', error);
+        return []; // Return empty array on network error
+    }
+};
+
+export const deleteTag = async (tagId: string) => {
+    const response = await fetch(`http://localhost:3001/api/tags/${tagId}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Failed to delete tag: ${errorBody}`);
+    }
+};
 
 // Fix: Add "save all" functions to correctly persist state collections.
-export const saveAllDocuments = async (items: Document[]) => { await clearStore(STORES.documents); await addMultiple(STORES.documents, items); };
+export const saveAllDocuments = async (items: Document[]) => { /* Documents are now managed by the backend */ };
 export const saveAllGeneratedDocuments = async (items: GeneratedDocument[]) => { await clearStore(STORES.generatedDocuments); await addMultiple(STORES.generatedDocuments, items); };
 export const saveAllEntities = async (items: CaseEntity[]) => { await clearStore(STORES.entities); await addMultiple(STORES.entities, items); };
 export const saveAllKnowledgeItems = async (items: KnowledgeItem[]) => { await clearStore(STORES.knowledgeItems); await addMultiple(STORES.knowledgeItems, items); };

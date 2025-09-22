@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import type { AppState, Document, Tag } from '../../types';
-import { extractFileContent } from '../../utils/fileUtils';
-import { hashText } from '../../utils/cryptoUtils';
+import * as storage from '../../services/storageService';
 import DocumentDetailModal from '../modals/DocumentDetailModal';
 import TagManagementModal from '../modals/TagManagementModal';
 import AnalysisChatModal from '../modals/AnalysisChatModal';
@@ -18,28 +17,36 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
     const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [chatHistory, setChatHistory] = useState<any[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            const files = Array.from(event.target.files);
-            const newDocuments: Document[] = [];
-            for (const file of files) {
-                const { text, base64, mimeType } = await extractFileContent(file);
-                const content = text || base64 || '';
-                const newDoc: Document = {
-                    id: await hashText(file.name + file.size + content),
-                    name: file.name,
-                    content: content,
-                    textContent: text,
-                    base64Content: base64,
-                    mimeType: mimeType,
-                    classificationStatus: 'unclassified',
-                    tags: [],
-                    createdAt: new Date().toISOString(),
-                };
-                newDocuments.push(newDoc);
+            setIsUploading(true);
+            try {
+                const files = Array.from(event.target.files);
+                const uploadedDocuments: Document[] = [];
+                for (const file of files) {
+                    const newDoc = await storage.uploadDocument(file);
+                    uploadedDocuments.push(newDoc);
+                }
+                setAppState(s => s ? { ...s, documents: [...s.documents, ...uploadedDocuments] } : null);
+            } catch (error) {
+                console.error("File upload failed:", error);
+                // Here you might want to show an error message to the user
+            } finally {
+                setIsUploading(false);
             }
-            setAppState(s => s ? { ...s, documents: [...s.documents, ...newDocuments] } : null);
+        }
+    };
+
+    const handleDeleteDocument = async (docId: string) => {
+        if (window.confirm("Are you sure you want to delete this document?")) {
+            try {
+                await storage.deleteDocument(docId);
+                setAppState(s => s ? { ...s, documents: s.documents.filter(d => d.id !== docId) } : null);
+            } catch (error) {
+                console.error("Failed to delete document:", error);
+            }
         }
     };
 
@@ -95,9 +102,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-white">Dokumentenverwaltung</h1>
-                <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md">
-                    Dokumente hochladen
+                <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="hidden" disabled={isUploading} />
+                <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md disabled:bg-gray-500" disabled={isUploading}>
+                    {isUploading ? 'Wird hochgeladen...' : 'Dokumente hochladen'}
                 </button>
             </div>
             
@@ -122,6 +129,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
                                     <button onClick={() => { setSelectedDoc(doc); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
                                     <button onClick={() => handleAnalyzeDocument(doc.id)} disabled={appState.isLoading && appState.loadingSection === `doc-${doc.id}`} className="text-purple-400 hover:underline disabled:text-gray-500">Analysieren</button>
                                     <button onClick={() => { setSelectedDoc(doc); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
+                                    <button onClick={() => handleDeleteDocument(doc.id)} className="text-red-400 hover:underline">Löschen</button>
                                 </td>
                             </tr>
                         ))}

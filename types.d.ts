@@ -1,121 +1,82 @@
-// A collection of all types used in the application.
-
-// Core Data Structures
 export interface Document {
-  id: string;
-  name: string;
-  path?: string; // Path on the server filesystem
-  content: string;
-  textContent: string | null;
-  base64Content: string | null;
-  mimeType: string;
-  summary?: string;
-  classificationStatus: 'unclassified' | 'classified' | 'error';
-  workCategory?: string; // e.g., 'Opferbericht', 'Zeugenaussage'
-  tags: string[];
-  createdAt: string;
+    id: string;
+    name: string;
+    content: string;
+    textContent: string | null;
+    base64Content: string | null;
+    mimeType: string;
+    summary?: string;
+    classificationStatus: 'unclassified' | 'classified' | 'error';
+    workCategory?: string;
+    tags: string[];
+    createdAt: string;
 }
-
 export interface GeneratedDocument {
-  id: string;
-  title: string;
-  content: string;
-  htmlContent?: string;
-  createdAt: string;
-  templateUsed?: string;
-  sourceDocIds: string[];
+    id: string;
+    title: string;
+    content: string;
+    htmlContent?: string;
+    createdAt: string;
+    templateUsed?: string;
+    sourceDocIds: string[];
 }
-
 export interface CaseEntity {
-  id: string;
-  name: string;
-  type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt';
-  description: string;
-  relationships?: EntityRelationship[];
+    id: string;
+    name: string;
+    type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt';
+    description: string;
+    relationships?: EntityRelationship[];
 }
-
 export interface EntityRelationship {
     targetEntityId: string;
     targetEntityName: string;
     description: string;
 }
-
-
 export interface KnowledgeItem {
-  id: string;
-  title: string;
-  summary: string;
-  sourceDocId: string;
-  createdAt: string;
-  tags: string[];
+    id: string;
+    title: string;
+    summary: string;
+    sourceDocId: string;
+    createdAt: string;
+    tags: string[];
 }
-
 export interface TimelineEvent {
-  id: string;
-  date: string; // ISO format
-  title: string;
-  description: string;
-  documentIds: string[];
+    id: string;
+    date: string;
+    title: string;
+    description: string;
+    documentIds: string[];
 }
-
 export interface Tag {
-  id: string;
-  name:string;
+    id: string;
+    name: string;
 }
-
 export interface Contradiction {
-  id: string;
-  source1DocId: string;
-  statement1: string;
-  source2DocId: string;
-  statement2: string;
-  explanation: string;
+    id: string;
+    source1DocId: string;
+    statement1: string;
+    source2DocId: string;
+    statement2: string;
+    explanation: string;
 }
-
 export interface Task {
-  id: string;
-  title: string;
-  status: 'todo' | 'in_progress' | 'done';
-  dueDate?: string;
+    id: string;
+    title: string;
+    status: 'todo' | 'in_progress' | 'done';
+    dueDate?: string;
 }
-
 export interface KPI {
-  id: string;
-  name: string;
-  target: string;
-  progress: number; // 0-100
+    id: string;
+    name: string;
+    target: string;
+    progress: number;
 }
-
 export interface Insight {
     id: string;
     text: string;
     type: 'recommendation' | 'risk' | 'observation';
 }
-
-// Agent & Activity
-export type AgentCapability =
-  | 'document_analysis'
-  | 'entity_extraction'
-  | 'summarization'
-  | 'document_classification'
-  | 'case_analysis'
-  | 'risk_assessment'
-  | 'strategy_development'
-  | 'insight_generation'
-  | 'un_submission_assistance'
-  | 'un_submission_finalization'
-  | 'legal_analysis'
-  | 'report_generation'
-  | 'content_creation'
-  | 'temporal_analysis'
-  | 'event_sequencing'
-  | 'kpi_suggestion'
-  | 'workload_analysis'
-  | 'cost_estimation'
-  | 'ethics_analysis'
-  | 'contradiction_detection'
-  | 'template_based_extraction';
-
+export type AgentCapability = 'document_analysis' | 'entity_extraction' | 'summarization' | 'document_classification' | 'case_analysis' | 'risk_assessment' | 'strategy_development' | 'insight_generation' | 'un_submission_assistance' | 'un_submission_finalization' | 'legal_analysis' | 'report_generation' | 'content_creation' | 'temporal_analysis' | 'event_sequencing' | 'kpi_suggestion' | 'workload_analysis' | 'cost_estimation' | 'ethics_analysis' | 'contradiction_detection' | 'template_based_extraction';
 export interface AgentProfile {
     name: string;
     role: string;
@@ -124,7 +85,6 @@ export interface AgentProfile {
     systemPrompt: string;
     capabilities: AgentCapability[];
 }
-
 export interface AgentActivity {
     id: string;
     timestamp: string;
@@ -133,15 +93,12 @@ export interface AgentActivity {
     result: 'erfolg' | 'fehler';
     details?: string;
 }
-
 export interface AuditLogEntry {
     id: string;
     timestamp: string;
     action: string;
     details: string;
 }
-
-// Analysis Results
 export interface DocumentAnalysisResult {
     docId: string;
     summary?: string;
@@ -149,39 +106,45 @@ export interface DocumentAnalysisResult {
     timelineEvents?: Omit<TimelineEvent, 'id'>[];
     workloadEstimate?: WorkloadAnalysis;
     costEstimate?: CostAnalysis;
-    classification?: string; // HURIDOCS standard
+    classification?: string;
 }
-
 export interface DocumentAnalysisResults {
     [docId: string]: DocumentAnalysisResult | undefined;
 }
-
 export interface WorkloadAnalysis {
     totalHours: number;
     complexity: 'niedrig' | 'mittel' | 'hoch';
-    breakdown: { task: string; hours: number }[];
+    breakdown: {
+        task: string;
+        hours: number;
+    }[];
 }
-
 export interface CostAnalysis {
     recommended: number;
     min: number;
     max: number;
-    details: { item: string; cost: number }[];
+    details: {
+        item: string;
+        cost: number;
+    }[];
 }
-
 export interface EthicsAnalysis {
     biasAssessment: string;
     privacyConcerns: string[];
     recommendations: string[];
 }
-
 export interface CaseSummary {
     summary: string;
-    identifiedRisks: { risk: string; description: string }[];
-    suggestedNextSteps: { step: string; justification: string }[];
+    identifiedRisks: {
+        risk: string;
+        description: string;
+    }[];
+    suggestedNextSteps: {
+        step: string;
+        justification: string;
+    }[];
     generatedAt: string;
 }
-
 export interface SuggestedEntity {
     id: string;
     name: string;
@@ -190,13 +153,9 @@ export interface SuggestedEntity {
     sourceDocumentId: string;
     sourceDocumentName: string;
 }
-
-
-// State & Settings
 export interface CaseContext {
     caseDescription: string;
 }
-
 export interface Risks {
     physical: boolean;
     legal: boolean;
@@ -207,22 +166,18 @@ export interface Risks {
     burnout: boolean;
     psychologicalBurden: boolean;
 }
-
 export interface AISettings {
     temperature: number;
     topP: number;
 }
-
 export interface ComplexitySettings {
     low: number;
     medium: number;
 }
-
 export interface AppSettings {
     ai: AISettings;
     complexity: ComplexitySettings;
 }
-
 export interface AppState {
     activeTab: ActiveTab;
     documents: Document[];
@@ -246,48 +201,22 @@ export interface AppState {
     mitigationStrategies: string;
     isFocusMode: boolean;
     isLoading: boolean;
-    loadingSection: string; // e.g., 'document_analysis', 'insights'
+    loadingSection: string;
     suggestedEntities: SuggestedEntity[];
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
     coverLetter: string;
 }
-
-// UI & Component Props
-export type ActiveTab =
-  | 'dashboard'
-  | 'documents'
-  | 'entities'
-  | 'chronology'
-  | 'knowledge'
-  | 'graph'
-  | 'reports'
-  | 'generation'
-  | 'library'
-  | 'dispatch'
-  | 'strategy'
-  | 'kpis'
-  | 'un-submissions'
-  | 'hrd-support'
-  | 'legal-basis'
-  | 'ethics'
-  | 'contradictions'
-  | 'agents'
-  | 'audit'
-  | 'settings';
-  
+export type ActiveTab = 'dashboard' | 'documents' | 'entities' | 'chronology' | 'knowledge' | 'graph' | 'reports' | 'generation' | 'library' | 'dispatch' | 'strategy' | 'kpis' | 'un-submissions' | 'hrd-support' | 'legal-basis' | 'ethics' | 'contradictions' | 'agents' | 'audit' | 'settings';
 export interface AnalysisChatMessage {
-  role: 'user' | 'assistant';
-  text: string;
+    role: 'user' | 'assistant';
+    text: string;
 }
-
 export interface ChecklistItem {
     id: string;
     text: string;
     checked: boolean;
 }
-
-// Misc
 export interface ContentCreationParams {
     instructions: string;
     caseContext: string;
@@ -295,14 +224,13 @@ export interface ContentCreationParams {
     template?: string;
     templateName?: string;
 }
-
 export interface GeneratedContent {
     content: string;
     htmlContent: string;
-    metadata: { [key: string]: any };
+    metadata: {
+        [key: string]: any;
+    };
 }
-
-// Temporal Analysis Types - based on services/temporalAnalyzer.ts
 export interface TemporalAnalysisResult {
     zeitlicher_rahmen: object;
     chronologie: object[];
@@ -311,7 +239,7 @@ export interface TemporalAnalysisResult {
     kausale_ketten: object[];
     zeitliche_anomalien: object[];
 }
-
-export type Entity = any; // Placeholder for legacy Entity type, prefer CaseEntity
-export type DocEntity = any; // Placeholder
-export type KnowledgeTag = any; // Placeholder
+export type Entity = any;
+export type DocEntity = any;
+export type KnowledgeTag = any;
+//# sourceMappingURL=types.d.ts.map

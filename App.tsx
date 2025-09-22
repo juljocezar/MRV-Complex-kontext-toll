@@ -253,7 +253,23 @@ const App: React.FC = () => {
             case 'audit':
                 return <AuditLogTab auditLog={state.auditLog} agentActivityLog={state.agentActivity} />;
             case 'settings':
-                return <SettingsTab settings={state.settings} setSettings={setProp('settings')} tags={state.tags} onCreateTag={(name) => { const newTag = {id: crypto.randomUUID(), name}; setState(s => s ? {...s, tags: [...s.tags, newTag]} : s); }} onDeleteTag={(id) => setState(s => s ? {...s, tags: s.tags.filter(t => t.id !== id)}: s)} />;
+                const onCreateTag = async (name: string) => {
+                    try {
+                        const newTag = await storage.addTag({ name });
+                        setState(s => s ? { ...s, tags: [...s.tags, newTag] } : null);
+                    } catch (error) {
+                        console.error("Failed to create tag", error);
+                    }
+                };
+                const onDeleteTag = async (id: string) => {
+                    try {
+                        await storage.deleteTag(id);
+                        setState(s => s ? { ...s, tags: s.tags.filter(t => t.id !== id) } : null);
+                    } catch (error) {
+                        console.error("Failed to delete tag", error);
+                    }
+                };
+                return <SettingsTab settings={state.settings} setSettings={setProp('settings')} tags={state.tags} onCreateTag={onCreateTag} onDeleteTag={onDeleteTag} />;
             default:
                 return <PlaceholderTab />;
         }
@@ -300,12 +316,12 @@ const App: React.FC = () => {
     // Save state whenever it changes
     useEffect(() => {
         if (state) {
-            storage.saveAllDocuments(state.documents);
+            // storage.saveAllDocuments(state.documents); // Documents are now managed by the backend
             storage.saveAllGeneratedDocuments(state.generatedDocuments);
             storage.saveAllEntities(state.caseEntities);
             storage.saveAllKnowledgeItems(state.knowledgeItems);
             storage.saveAllTimelineEvents(state.timelineEvents);
-            storage.saveAllTags(state.tags);
+            // storage.saveAllTags(state.tags); // Tags are now managed by the backend
             storage.saveAllContradictions(state.contradictions);
             storage.saveCaseContext(state.caseContext);
             // storage.saveAllTasks(state.tasks);
