@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+
+// UI Components
 import SidebarNav from './components/ui/SidebarNav';
 import AssistantSidebar from './components/ui/AssistantSidebar';
+import FocusModeSwitcher from './components/ui/FocusModeSwitcher';
+
+// Tab Components
 import DashboardTab from './components/tabs/DashboardTab';
 import DocumentsTab from './components/tabs/DocumentsTab';
 import EntitiesTab from './components/tabs/EntitiesTab';
 import ChronologyTab from './components/tabs/ChronologyTab';
 import KnowledgeBaseTab from './components/tabs/KnowledgeBaseTab';
 import GraphTab from './components/tabs/GraphTab';
-import AnalysisTab from './components/tabs/AnalysisTab';
 import ReportsTab from './components/tabs/ReportsTab';
 import GenerationTab from './components/tabs/GenerationTab';
 import LibraryTab from './components/tabs/LibraryTab';
@@ -23,11 +27,9 @@ import AgentManagementTab from './components/tabs/AgentManagementTab';
 import AuditLogTab from './components/tabs/AuditLogTab';
 import SettingsTab from './components/tabs/SettingsTab';
 import PlaceholderTab from './components/tabs/PlaceholderTab';
-import FocusModeSwitcher from './components/ui/FocusModeSwitcher';
 
+// Services
 import * as storage from './services/storageService';
-
-import { AppState, ActiveTab } from './types';
 import { GeminiService } from './services/geminiService';
 import { CaseAnalyzerService } from './services/caseAnalyzerService';
 import { ContradictionDetectorService } from './services/contradictionDetectorService';
@@ -36,19 +38,48 @@ import { KpiService } from './services/kpiService';
 import { StrategyService } from './services/strategyService';
 import { EthicsService } from './services/ethicsService';
 import { ContentCreatorService } from './services/contentCreator';
+
+// Types and Utils
+import { AppState, ActiveTab } from './types';
 import { buildCaseContext } from './utils/contextUtils';
 
+/**
+ * The main App component serves as the root of the application.
+ * It is responsible for:
+ * - Managing the entire application state (`AppState`).
+ * - Initializing the application by loading data from local storage.
+ * - Persisting state changes back to local storage.
+ * - Handling top-level UI elements like navigation and sidebars.
+ * - Rendering the active tab based on the current state.
+ * - Providing handler functions for AI-driven analyses and content generation.
+ */
 const App: React.FC = () => {
+    // The core state of the entire application. It is initialized as `null` until loaded from storage.
     const [state, setState] = useState<AppState | null>(null);
 
+    /**
+     * Sets the currently active tab in the UI.
+     * @param tab The tab to activate.
+     */
     const setActiveTab = (tab: ActiveTab) => {
         setState(prevState => prevState ? { ...prevState, activeTab: tab } : null);
     };
 
+    /**
+     * Toggles the focus mode, which hides sidebars to provide more screen space.
+     */
     const toggleFocusMode = () => {
         setState(prevState => prevState ? { ...prevState, isFocusMode: !prevState.isFocusMode } : null);
     };
 
+    // --- AI Service Integration Functions ---
+    // These async functions call the respective services to perform AI-based analyses.
+    // They follow a pattern of setting a loading state, calling the service,
+    // and then updating the app state with the results.
+
+    /**
+     * Triggers a high-level analysis of the entire case.
+     */
     const performOverallAnalysis = async () => {
         if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'case_analysis' } : null);
@@ -62,6 +93,9 @@ const App: React.FC = () => {
         }
     }
     
+    /**
+     * Scans all documents for logical contradictions.
+     */
     const findContradictions = async () => {
         if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'contradictions' } : null);
@@ -75,6 +109,9 @@ const App: React.FC = () => {
         }
     };
     
+    /**
+     * Generates actionable insights based on the current case context.
+     */
     const generateInsights = async () => {
         if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'insights' } : null);
@@ -88,6 +125,9 @@ const App: React.FC = () => {
         }
     };
 
+    /**
+     * Suggests Key Performance Indicators (KPIs) relevant to the case.
+     */
     const suggestKpis = async () => {
          if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'kpis' } : null);
@@ -101,19 +141,25 @@ const App: React.FC = () => {
         }
     }
     
+    /**
+     * Generates strategies to mitigate identified risks.
+     */
     const generateMitigationStrategies = async () => {
          if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'strategy' } : null);
         try {
             const strategies = await StrategyService.generateMitigationStrategies(state);
             setState(s => s ? { ...s, mitigationStrategies: strategies } : null);
-        } catch (error) {
+        } catch (error)
             console.error("Failed to generate strategies", error);
         } finally {
             setState(s => s ? { ...s, isLoading: false, loadingSection: '' } : null);
         }
     };
 
+    /**
+     * Performs an ethical analysis of the case.
+     */
     const performEthicsAnalysis = async () => {
          if (!state) return;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'ethics' } : null);
@@ -127,11 +173,17 @@ const App: React.FC = () => {
         }
     }
     
+    /**
+     * A generic function to call the Gemini AI for report generation.
+     */
     const generateReport = async (prompt: string, schema: object | null) => {
         if (!state) return "State not available";
         return await GeminiService.callAI(prompt, schema, state.settings.ai);
     };
 
+    /**
+     * Generates new content (e.g., a document draft) based on provided parameters.
+     */
     const generateContent = async (params: any) => {
         if (!state) return null;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'generation' } : null);
@@ -159,8 +211,17 @@ const App: React.FC = () => {
         }
     };
     
+    /**
+     * A higher-order function to create a setter for a specific property in the AppState.
+     * This simplifies updating state in child components.
+     * @param prop The key of the AppState property to update.
+     */
     const setProp = (prop: keyof AppState) => (value: any) => setState(s => s ? { ...s, [prop]: value } : null);
 
+    /**
+     * Renders the currently active tab component based on `state.activeTab`.
+     * This acts as a router for the main content area.
+     */
     const renderTab = () => {
         if (!state) return null;
         switch (state.activeTab) {
@@ -259,7 +320,10 @@ const App: React.FC = () => {
         }
     };
     
-    // Load initial state
+    /**
+     * Effect hook to load the initial application state from storage when the component mounts.
+     * It initializes the database and populates the `state` with all persisted data.
+     */
     useEffect(() => {
         const load = async () => {
             await storage.initDB();
@@ -297,9 +361,15 @@ const App: React.FC = () => {
         load();
     }, []);
     
-    // Save state whenever it changes
+    /**
+     * Effect hook to persist the application state to storage whenever it changes.
+     * This ensures that any modification to the state is saved and can be reloaded
+     * in future sessions.
+     */
     useEffect(() => {
         if (state) {
+            // Note: Not all state properties need to be persisted, only those that represent
+            // the core data of the case. Ephemeral state like `isLoading` is not saved.
             storage.saveAllDocuments(state.documents);
             storage.saveAllGeneratedDocuments(state.generatedDocuments);
             storage.saveAllEntities(state.caseEntities);
@@ -308,7 +378,7 @@ const App: React.FC = () => {
             storage.saveAllTags(state.tags);
             storage.saveAllContradictions(state.contradictions);
             storage.saveCaseContext(state.caseContext);
-            // storage.saveAllTasks(state.tasks);
+            // storage.saveAllTasks(state.tasks); // Example of a potentially excluded property
             storage.saveAllKpis(state.kpis);
             storage.saveRisks(state.risks);
             if (state.caseSummary) storage.saveCaseSummary(state.caseSummary);
@@ -319,8 +389,9 @@ const App: React.FC = () => {
         }
     }, [state]);
 
+    // Display a loading indicator until the initial state is loaded from storage.
     if (!state) {
-        return <div className="bg-gray-900 text-white h-screen flex items-center justify-center">Loading...</div>;
+        return <div className="bg-gray-900 text-white h-screen flex items-center justify-center">Lade...</div>;
     }
 
     return (
