@@ -6,6 +6,11 @@ import { InsightService } from './insightService';
 import { selectAgentForTask } from '../utils/agentSelection';
 import { MRV_AGENTS } from '../constants';
 
+/**
+ * @interface OrchestrationResult
+ * @description Defines the shape of the object returned by the orchestration service after processing a document.
+ * It contains all the new and updated data to be integrated into the main application state.
+ */
 interface OrchestrationResult {
     updatedDoc: Document;
     analysisResult: DocumentAnalysisResult;
@@ -17,8 +22,30 @@ interface OrchestrationResult {
     newTimelineEvents: TimelineEvent[];
 }
 
+/**
+ * @class OrchestrationService
+ * @description A high-level service that orchestrates a sequence of other services to process a new document.
+ * This service acts as the main "engine" for the application's automated analysis pipeline.
+ */
 export class OrchestrationService {
     
+    /**
+     * @static
+     * @async
+     * @function handleNewDocument
+     * @description Orchestrates the entire analysis pipeline for a newly added document.
+     * This involves:
+     * 1. Performing a deep analysis of the document content.
+     * 2. Checking for contradictions against existing documents.
+     * 3. Generating new strategic insights based on the new information.
+     * It logs agent activity and posts notifications throughout the process.
+     * @param {Document} doc - The new document to process.
+     * @param {AppState} currentState - The current, complete state of the application for context.
+     * @param {(activity: Omit<AgentActivity, 'id' | 'timestamp'>) => string} addAgentActivity - Callback to log the start of an agent activity.
+     * @param {(id: string, updates: Partial<Omit<AgentActivity, 'id'>>) => void} updateAgentActivity - Callback to update an agent's activity log entry (e.g., to mark it as complete or failed).
+     * @param {(message: string, type?: Notification['type']) => void} addNotification - Callback to display a notification to the user.
+     * @returns {Promise<OrchestrationResult | null>} A promise that resolves to an object containing all the new data generated during the pipeline, or null if the initial analysis fails.
+     */
     static async handleNewDocument(
         doc: Document,
         currentState: AppState,

@@ -4,12 +4,26 @@ import { HRDRiskAssessment, SecureCommunicationPlan } from '../../types/hrdResou
 import { HRDSupportService } from '../../services/hrdSupportService';
 import { HRD_RESOURCES } from '../../constants/hrdResources';
 
+/**
+ * @interface HRDSupportTabProps
+ * @description Props for the HRDSupportTab component.
+ * @property {AppState} appState - The current state of the application.
+ * @property {boolean} isLoading - Flag indicating if an analysis is in progress.
+ * @property {(loading: boolean) => void} setIsLoading - Callback to set the loading state.
+ */
 interface HRDSupportTabProps {
     appState: AppState;
     isLoading: boolean;
     setIsLoading: (loading: boolean) => void;
 }
 
+/**
+ * @component HRDSupportTab
+ * @description A specialized tab offering tools to support Human Rights Defenders (HRDs).
+ * It includes AI-powered risk assessment, secure communication planning, and a curated list of external resources.
+ * @param {HRDSupportTabProps} props The props for the component.
+ * @returns {React.FC<HRDSupportTabProps>} The rendered HRD support tab.
+ */
 const HRDSupportTab: React.FC<HRDSupportTabProps> = ({ appState, isLoading, setIsLoading }) => {
     const [riskAssessment, setRiskAssessment] = useState<HRDRiskAssessment | null>(null);
     const [commPlan, setCommPlan] = useState<SecureCommunicationPlan | null>(null);

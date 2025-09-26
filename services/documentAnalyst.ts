@@ -2,7 +2,20 @@ import { GeminiService } from './geminiService';
 import type { Document, DocumentAnalysisResult, AISettings, SuggestedEntity, Tag, StructuredEvent, StructuredAct, StructuredParticipant } from '../types';
 import { WorkloadAnalyzerService } from './workloadAnalyzer';
 
+/**
+ * @class DocumentAnalystService
+ * @description A service dedicated to performing a deep and structured analysis of individual documents.
+ * It extracts metadata, summaries, classifications, and structured data like events, acts, and participants.
+ */
 export class DocumentAnalystService {
+    /**
+     * @private
+     * @static
+     * @readonly
+     * @description The JSON schema for the primary document analysis. This complex schema guides the AI
+     * to extract a rich set of structured data, including a summary, classification, tags, events, acts, and participants,
+     * adhering to HURIDOCS standards where applicable.
+     */
     private static readonly ANALYSIS_SCHEMA = {
         type: 'object',
         properties: {
@@ -60,6 +73,18 @@ export class DocumentAnalystService {
         required: ['summary', 'classification', 'suggestedTags', 'structuredEvents', 'structuredActs', 'structuredParticipants']
     };
 
+    /**
+     * @static
+     * @async
+     * @function analyzeDocument
+     * @description Performs a comprehensive analysis of a single document. It combines a main structured analysis
+     * (summary, classification, entities, etc.) with a separate workload and cost analysis.
+     * @param {Document} document - The document object to be analyzed.
+     * @param {Tag[]} existingTags - A list of existing tags to provide context for tag suggestions.
+     * @param {AISettings} settings - The AI settings to be used for the analysis.
+     * @returns {Promise<DocumentAnalysisResult>} A promise that resolves to a full, combined analysis result for the document.
+     * @throws {Error} If any part of the analysis process fails.
+     */
     static async analyzeDocument(document: Document, existingTags: Tag[], settings: AISettings): Promise<DocumentAnalysisResult> {
         const content = document.textContent || document.content;
         const existingTagNames = existingTags.map(t => t.name).join(', ');

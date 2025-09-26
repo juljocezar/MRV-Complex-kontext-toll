@@ -2,6 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 // Fix: Corrected import path for types.
 import type { Document, AnalysisChatMessage } from '../../types';
 
+/**
+ * @interface AnalysisChatModalProps
+ * @description Props for the AnalysisChatModal component.
+ * @property {Document[]} documents - An array of documents for analysis.
+ * @property {AnalysisChatMessage[]} chatHistory - The history of chat messages.
+ * @property {(message: string) => void} onSendMessage - Callback function to send a message.
+ * @property {() => void} onClose - Callback function to close the modal.
+ * @property {boolean} isLoading - Flag to indicate if the chat is in a loading state.
+ * @property {(title: string, summary: string, sourceDocId: string) => void} onAddKnowledge - Callback to add a new knowledge item.
+ */
 interface AnalysisChatModalProps {
     documents: Document[];
     chatHistory: AnalysisChatMessage[];
@@ -11,6 +21,13 @@ interface AnalysisChatModalProps {
     onAddKnowledge: (title: string, summary: string, sourceDocId: string) => void;
 }
 
+/**
+ * @component AnalysisChatModal
+ * @description A modal component that allows users to chat about one or more documents,
+ * ask questions, and create knowledge items from selected text.
+ * @param {AnalysisChatModalProps} props The props for the component.
+ * @returns {React.FC<AnalysisChatModalProps>} The rendered chat modal.
+ */
 const AnalysisChatModal: React.FC<AnalysisChatModalProps> = ({ documents, chatHistory, onSendMessage, onClose, isLoading, onAddKnowledge }) => {
     const [message, setMessage] = useState('');
     const [selectedText, setSelectedText] = useState('');

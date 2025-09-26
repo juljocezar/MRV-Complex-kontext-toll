@@ -1,5 +1,13 @@
 // This service provides predefined templates for document generation.
 
+/**
+ * @interface DocumentTemplate
+ * @description Defines the structure for a document template.
+ * @property {string} id - A unique identifier for the template.
+ * @property {string} name - The display name of the template.
+ * @property {string} description - A brief description of the template's purpose.
+ * @property {string} content - The string content of the template, which can include placeholders.
+ */
 export interface DocumentTemplate {
     id: string;
     name: string;
@@ -7,7 +15,17 @@ export interface DocumentTemplate {
     content: string; // The template content, can include placeholders like {{victim_name}}
 }
 
+/**
+ * @class TemplateService
+ * @description A static service that acts as a repository for predefined document templates.
+ * It provides methods for retrieving templates.
+ */
 export class TemplateService {
+    /**
+     * @private
+     * @static
+     * @description A hardcoded list of available document templates.
+     */
     private static templates: DocumentTemplate[] = [
         {
             id: 'un_allegation_letter_v1',
@@ -276,10 +294,23 @@ This matter has not been, and is not being, examined under another procedure of 
         }
     ];
 
+    /**
+     * @static
+     * @function getAllTemplates
+     * @description Retrieves the complete list of all available document templates.
+     * @returns {DocumentTemplate[]} An array of all document templates.
+     */
     static getAllTemplates(): DocumentTemplate[] {
         return this.templates;
     }
 
+    /**
+     * @static
+     * @function getTemplateById
+     * @description Finds and retrieves a single document template by its unique ID.
+     * @param {string} id - The ID of the template to retrieve.
+     * @returns {DocumentTemplate | undefined} The found template object, or undefined if no template with the given ID exists.
+     */
     static getTemplateById(id: string): DocumentTemplate | undefined {
         return this.templates.find(t => t.id === id);
     }

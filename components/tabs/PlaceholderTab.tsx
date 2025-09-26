@@ -1,6 +1,11 @@
 
 import React from 'react';
 
+/**
+ * @component PlaceholderTab
+ * @description A generic placeholder component for features that are still in development.
+ * @returns {React.FC} The rendered placeholder tab.
+ */
 const PlaceholderTab: React.FC = () => {
     return (
         <div className="flex items-center justify-center h-full">

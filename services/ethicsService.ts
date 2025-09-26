@@ -2,7 +2,19 @@ import { GeminiService } from './geminiService';
 import { EthicsAnalysis, AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
 
+/**
+ * @class EthicsService
+ * @description A service dedicated to performing an ethical analysis of the case.
+ * It assesses potential biases, privacy concerns, and provides actionable recommendations.
+ */
 export class EthicsService {
+    /**
+     * @private
+     * @static
+     * @readonly
+     * @description The JSON schema for the AI's response, ensuring a structured output
+     * covering bias assessment, privacy concerns, and recommendations.
+     */
     private static readonly SCHEMA = {
         type: 'object',
         properties: {
@@ -21,6 +33,15 @@ export class EthicsService {
         required: ['biasAssessment', 'privacyConcerns', 'recommendations']
     };
 
+    /**
+     * @static
+     * @async
+     * @function performAnalysis
+     * @description Performs a comprehensive ethical analysis on the entire case context.
+     * @param {AppState} appState - The current application state.
+     * @returns {Promise<EthicsAnalysis>} A promise that resolves to the structured ethics analysis.
+     * @throws {Error} If the AI call fails.
+     */
     static async performAnalysis(appState: AppState): Promise<EthicsAnalysis> {
         const context = buildCaseContext(appState);
 

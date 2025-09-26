@@ -4,11 +4,24 @@ import { marked } from 'marked';
 import type { AppState, AnalysisChatMessage } from '../../types';
 import Tooltip from '../ui/Tooltip';
 
+/**
+ * @interface AnalysisTabProps
+ * @description Props for the AnalysisTab component.
+ * @property {AppState} appState - The current state of the application.
+ * @property {(prompt: string, isGrounded: boolean) => Promise<string>} onPerformAnalysis - Callback function to perform a complex analysis.
+ */
 interface AnalysisTabProps {
     appState: AppState;
     onPerformAnalysis: (prompt: string, isGrounded: boolean) => Promise<string>;
 }
 
+/**
+ * @component AnalysisTab
+ * @description A tab that provides a chat interface for users to ask complex questions
+ * about the entire case context. It supports grounded analysis based on legal texts.
+ * @param {AnalysisTabProps} props The props for the component.
+ * @returns {React.FC<AnalysisTabProps>} The rendered analysis tab.
+ */
 const AnalysisTab: React.FC<AnalysisTabProps> = ({ appState, onPerformAnalysis }) => {
     const [chatHistory, setChatHistory] = useState<AnalysisChatMessage[]>([]);
     const [message, setMessage] = useState('');

@@ -2,11 +2,23 @@
 import React from 'react';
 import type { Notification } from '../../types';
 
+/**
+ * @interface NotificationContainerProps
+ * @description Props for the NotificationContainer component.
+ * @property {Notification[]} notifications - An array of notification objects to display.
+ * @property {(id: string) => void} onDismiss - Callback function to dismiss a notification by its ID.
+ */
 interface NotificationContainerProps {
     notifications: Notification[];
     onDismiss: (id: string) => void;
 }
 
+/**
+ * @component Icon
+ * @description Renders a specific icon based on the notification type.
+ * @param {{ type: Notification['type'] }} props The props for the component.
+ * @returns {React.ReactElement | null} An SVG element representing the notification type.
+ */
 const Icon = ({ type }: { type: Notification['type'] }) => {
     switch (type) {
         case 'success':
@@ -20,6 +32,12 @@ const Icon = ({ type }: { type: Notification['type'] }) => {
     }
 };
 
+/**
+ * @component NotificationItem
+ * @description Renders a single toast notification with an icon, message, details, and a dismiss button.
+ * @param {{ notification: Notification; onDismiss: (id: string) => void }} props The props for the component.
+ * @returns {React.FC} The rendered notification item.
+ */
 const NotificationItem: React.FC<{ notification: Notification; onDismiss: (id: string) => void }> = ({ notification, onDismiss }) => {
     return (
         <div className="max-w-sm w-full bg-gray-800 shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden animate-fade-in-right">
@@ -46,7 +64,13 @@ const NotificationItem: React.FC<{ notification: Notification; onDismiss: (id: s
     );
 };
 
-
+/**
+ * @component NotificationContainer
+ * @description A container that manages and displays a list of notifications as toast-style pop-ups.
+ * It is positioned in the corner of the screen and renders `NotificationItem` components for each notification.
+ * @param {NotificationContainerProps} props The props for the component.
+ * @returns {React.FC<NotificationContainerProps>} The rendered notification container.
+ */
 const NotificationContainer: React.FC<NotificationContainerProps> = ({ notifications, onDismiss }) => {
     return (
         <>

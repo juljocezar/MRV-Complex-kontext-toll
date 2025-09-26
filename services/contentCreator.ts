@@ -2,7 +2,22 @@ import { GeminiService } from './geminiService';
 import { Document, ContentCreationParams, GeneratedContent, AISettings } from '../types';
 import { marked } from 'marked';
 
+/**
+ * @class ContentCreatorService
+ * @description A service dedicated to generating new, structured document content using AI.
+ * It combines case context, source documents, and user instructions to produce professional documents.
+ */
 export class ContentCreatorService {
+  /**
+   * @static
+   * @async
+   * @function createContent
+   * @description Generates new document content based on a set of parameters.
+   * @param {ContentCreationParams} params - The parameters for content creation, including context, instructions, and source documents.
+   * @param {AISettings} settings - The AI settings to use for the generation.
+   * @returns {Promise<GeneratedContent>} A promise that resolves to the generated content, including raw text, HTML, and metadata.
+   * @throws {Error} If the AI call fails.
+   */
   static async createContent(params: ContentCreationParams, settings: AISettings): Promise<GeneratedContent> {
     
     const documentsContext = (params.sourceDocuments || []).map(doc => 
@@ -57,11 +72,27 @@ Schreibe in professionellem, präzisem Deutsch.
     }
   }
 
+  /**
+   * @private
+   * @static
+   * @function countWords
+   * @description Counts the number of words in a given string.
+   * @param {string} text - The text to count words in.
+   * @returns {number} The total word count.
+   */
   private static countWords(text: string): number {
     if(!text) return 0;
     return text.trim().split(/\s+/).filter(word => word.length > 0).length;
   }
 
+  /**
+   * @private
+   * @static
+   * @function calculateReadingTime
+   * @description Estimates the reading time in minutes for a given text.
+   * @param {string} text - The text to calculate the reading time for.
+   * @returns {number} The estimated reading time in minutes.
+   */
   private static calculateReadingTime(text: string): number {
     const wordsPerMinute = 200;
     const wordCount = this.countWords(text);

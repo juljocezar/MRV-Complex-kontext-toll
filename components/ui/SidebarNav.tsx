@@ -3,11 +3,22 @@ import React from 'react';
 import type { ActiveTab } from '../../types';
 import Icon from './Icon';
 
+/**
+ * @interface SidebarNavProps
+ * @description Props for the SidebarNav component.
+ * @property {ActiveTab} activeTab - The currently active tab identifier.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Callback function to set the active tab.
+ */
 interface SidebarNavProps {
     activeTab: ActiveTab;
     setActiveTab: (tab: ActiveTab) => void;
 }
 
+/**
+ * @const navGroups
+ * @description A constant array defining the structure and content of the navigation sidebar,
+ * grouped by categories.
+ */
 const navGroups = [
     {
         title: 'GRUNDLAGEN',
@@ -58,7 +69,13 @@ const navGroups = [
     }
 ] as const;
 
-
+/**
+ * @component SidebarNav
+ * @description The main navigation component for the application, displayed as a sidebar.
+ * It renders a list of clickable navigation items, grouped by category, and highlights the active tab.
+ * @param {SidebarNavProps} props The props for the component.
+ * @returns {React.FC<SidebarNavProps>} The rendered sidebar navigation component.
+ */
 const SidebarNav: React.FC<SidebarNavProps> = ({ activeTab, setActiveTab }) => {
     return (
         <nav className="w-64 bg-gray-800 p-2 flex flex-col flex-shrink-0">

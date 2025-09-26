@@ -2,11 +2,23 @@ import React from 'react';
 // Fix: Corrected import path for types.
 import type { AuditLogEntry, AgentActivity } from '../../types';
 
+/**
+ * @interface AuditLogTabProps
+ * @description Props for the AuditLogTab component.
+ * @property {AuditLogEntry[]} auditLog - An array of user audit log entries.
+ * @property {AgentActivity[]} agentActivityLog - An array of agent activity log entries.
+ */
 interface AuditLogTabProps {
     auditLog: AuditLogEntry[];
     agentActivityLog: AgentActivity[];
 }
 
+/**
+ * @component AuditLogTab
+ * @description A tab that displays a combined, chronological log of all important user and system (agent) actions.
+ * @param {AuditLogTabProps} props The props for the component.
+ * @returns {React.FC<AuditLogTabProps>} The rendered audit log tab.
+ */
 const AuditLogTab: React.FC<AuditLogTabProps> = ({ auditLog, agentActivityLog }) => {
     const combinedLog = [
         ...auditLog.map(log => ({ ...log, type: 'user' as const })),

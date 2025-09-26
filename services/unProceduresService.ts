@@ -6,10 +6,21 @@ import { buildCaseContext } from '../utils/contextUtils';
 import { GeminiService } from './geminiService';
 import { selectAgentForTask } from '../utils/agentSelection';
 
+/**
+ * @class UNProceduresService
+ * @description Provides methods to assist with drafting and finalizing submissions to UN Special Procedures.
+ */
 export class UNProceduresService {
 
   /**
-   * Drafts a UN submission by filling a template with case data using an AI agent.
+   * @static
+   * @async
+   * @function draftSubmission
+   * @description Drafts a UN submission by populating a selected template with information from the case context using an AI agent.
+   * @param {string} templateId - The ID of the submission template to use.
+   * @param {AppState} appState - The current application state, used for context and AI settings.
+   * @returns {Promise<string>} A promise that resolves to the drafted submission content as a string.
+   * @throws {Error} If the specified template is not found.
    */
   static async draftSubmission(
     templateId: string,
@@ -52,7 +63,13 @@ Provide only the filled-out submission content as a structured text or markdown 
   }
 
   /**
-   * Finalizes a submission draft, checking for completeness and adherence to guidelines.
+   * @static
+   * @async
+   * @function finalizeSubmission
+   * @description Reviews and finalizes a draft UN submission for clarity, accuracy, and adherence to guidelines.
+   * @param {string} draftContent - The content of the draft submission to be reviewed.
+   * @param {AppState} appState - The current application state, used for context and AI settings.
+   * @returns {Promise<string>} A promise that resolves to the final, polished submission content as a string.
    */
   static async finalizeSubmission(
     draftContent: string,

@@ -5,6 +5,14 @@ import { KPI } from '../../types';
 import Tooltip from '../ui/Tooltip';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+/**
+ * @interface KpisTabProps
+ * @description Props for the KpisTab component.
+ * @property {KPI[]} kpis - The list of Key Performance Indicators.
+ * @property {(kpis: KPI[]) => void} onUpdateKpis - Callback to update the list of KPIs.
+ * @property {() => void} onSuggestKpis - Callback to trigger AI-powered KPI suggestions.
+ * @property {boolean} isLoading - Flag indicating if KPI suggestions are being loaded.
+ */
 interface KpisTabProps {
     kpis: KPI[];
     onUpdateKpis: (kpis: KPI[]) => void;
@@ -12,6 +20,13 @@ interface KpisTabProps {
     isLoading: boolean;
 }
 
+/**
+ * @component KpisTab
+ * @description A tab for defining and tracking Key Performance Indicators (KPIs) for the case.
+ * Allows for manual creation, progress tracking, and AI-powered suggestions for relevant KPIs.
+ * @param {KpisTabProps} props The props for the component.
+ * @returns {React.FC<KpisTabProps>} The rendered KPIs tab.
+ */
 const KpisTab: React.FC<KpisTabProps> = ({ kpis, onUpdateKpis, onSuggestKpis, isLoading }) => {
     const [newKpi, setNewKpi] = useState({ name: '', target: '' });
     

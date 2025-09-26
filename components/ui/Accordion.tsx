@@ -1,11 +1,24 @@
 import React, { useState } from 'react';
 
+/**
+ * @interface AccordionProps
+ * @description Props for the Accordion component.
+ * @property {string} title - The title displayed in the accordion header.
+ * @property {React.ReactNode} children - The content to be displayed within the collapsible section.
+ * @property {boolean} [defaultOpen=false] - Whether the accordion should be open by default.
+ */
 interface AccordionProps {
     title: string;
     children: React.ReactNode;
     defaultOpen?: boolean;
 }
 
+/**
+ * @component Accordion
+ * @description A reusable UI component that displays a collapsible content section.
+ * @param {AccordionProps} props The props for the component.
+ * @returns {React.FC<AccordionProps>} The rendered accordion component.
+ */
 const Accordion: React.FC<AccordionProps> = ({ title, children, defaultOpen = false }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 

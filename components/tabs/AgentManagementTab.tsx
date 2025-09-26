@@ -3,10 +3,22 @@ import React from 'react';
 import { MRV_AGENTS } from '../../constants';
 import type { AgentProfile, AgentActivity } from '../../types';
 
+/**
+ * @interface AgentManagementTabProps
+ * @description Props for the AgentManagementTab component.
+ * @property {AgentActivity[]} agentActivityLog - An array of agent activity log entries.
+ */
 interface AgentManagementTabProps {
     agentActivityLog: AgentActivity[];
 }
 
+/**
+ * @component AgentManagementTab
+ * @description A tab component for managing and monitoring AI agents. It displays a list of
+ * available agents with their profiles and shows a log of their recent activities.
+ * @param {AgentManagementTabProps} props The props for the component.
+ * @returns {React.FC<AgentManagementTabProps>} The rendered agent management tab.
+ */
 const AgentManagementTab: React.FC<AgentManagementTabProps> = ({ agentActivityLog }) => {
     return (
         <div className="space-y-6">

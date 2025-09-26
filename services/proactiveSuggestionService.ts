@@ -1,12 +1,19 @@
 
 import { AppState, ProactiveSuggestion } from "../types";
 
+/**
+ * @class ProactiveSuggestionService
+ * @description A service that generates contextual, proactive suggestions for the user based on the current application state.
+ */
 export class ProactiveSuggestionService {
 
     /**
-     * Generates a list of suggested prompts based on the current application state.
-     * @param appState The current state of the application.
-     * @returns An array of suggested prompts.
+     * @static
+     * @function getSuggestions
+     * @description Analyzes the application state to generate a list of relevant, actionable suggestions for the user.
+     * The suggestions are designed to guide the user towards meaningful next steps in their case analysis.
+     * @param {AppState} appState - The current state of the application.
+     * @returns {ProactiveSuggestion[]} An array of suggestion objects. The array is sliced to return a limited number of suggestions at a time.
      */
     static getSuggestions(appState: AppState): ProactiveSuggestion[] {
         const suggestions: ProactiveSuggestion[] = [];

@@ -2,7 +2,18 @@ import { GeminiService } from './geminiService';
 import { WorkloadAnalysis, CostAnalysis, DocumentAnalysisResult, AISettings } from '../types';
 import { HOURLY_RATES_EUR } from '../constants/legalBillingRates';
 
+/**
+ * @class WorkloadAnalyzerService
+ * @description A service dedicated to analyzing document content to estimate the workload and associated costs for legal processing.
+ */
 export class WorkloadAnalyzerService {
+  /**
+   * @private
+   * @static
+   * @readonly
+   * @description The JSON schema for the AI's response when estimating workload.
+   * It ensures a structured output containing total hours, complexity, and a task breakdown.
+   */
   private static readonly WORKLOAD_SCHEMA = {
     type: 'object',
     properties: {
@@ -23,6 +34,13 @@ export class WorkloadAnalyzerService {
     required: ['totalHours', 'complexity', 'breakdown']
   };
 
+  /**
+   * @private
+   * @static
+   * @readonly
+   * @description The JSON schema for the AI's response for cost analysis. **Note: This schema is defined but not currently used in the AI calls.**
+   * It structures cost data into recommended, min, and max values with detailed line items.
+   */
   private static readonly COST_SCHEMA = {
      type: 'object',
     properties: {
@@ -44,6 +62,16 @@ export class WorkloadAnalyzerService {
     required: ['recommended', 'min', 'max', 'details']
   };
 
+  /**
+   * @static
+   * @async
+   * @function analyzeWorkload
+   * @description The main public method to analyze a document's workload. It calls the AI to estimate hours and complexity,
+   * then calculates the associated costs locally. It includes error handling to prevent crashes.
+   * @param {string} documentContent - The text content of the document to be analyzed.
+   * @param {AISettings} settings - The AI settings for the analysis.
+   * @returns {Promise<Partial<DocumentAnalysisResult>>} A promise that resolves to an object containing the workload and cost estimates. Returns an object with undefined properties on failure.
+   */
   static async analyzeWorkload(documentContent: string, settings: AISettings): Promise<Partial<DocumentAnalysisResult>> {
     try {
         const workload = await this.estimateWorkload(documentContent, settings);
@@ -64,6 +92,17 @@ export class WorkloadAnalyzerService {
     }
   }
 
+  /**
+   * @private
+   * @static
+   * @async
+   * @function estimateWorkload
+   * @description Calls the AI with a specific prompt and schema to get a structured workload estimation.
+   * @param {string} documentContent - The text content of the document.
+   * @param {AISettings} settings - The AI settings for the call.
+   * @returns {Promise<WorkloadAnalysis>} A promise that resolves to the structured workload analysis from the AI.
+   * @throws {Error} If the AI call fails.
+   */
   private static async estimateWorkload(documentContent: string, settings: AISettings): Promise<WorkloadAnalysis> {
     const prompt = `
 Du bist ein Experte für Arbeitsaufwand-Bewertung nach deutschen Standards (RVG/JVEG).
@@ -92,6 +131,15 @@ Gib das Ergebnis im geforderten JSON-Format zurück.
     }
   }
   
+  /**
+   * @private
+   * @static
+   * @function calculateCosts
+   * @description Calculates the estimated costs based on a given workload analysis.
+   * It uses predefined hourly rates and adds a surcharge for high complexity.
+   * @param {WorkloadAnalysis} workload - The workload analysis object containing hours and complexity.
+   * @returns {CostAnalysis} The calculated cost analysis object.
+   */
   private static calculateCosts(workload: WorkloadAnalysis): CostAnalysis {
     const baseCost = workload.totalHours * HOURLY_RATES_EUR.SENIOR_LAWYER;
     const minCost = baseCost * 0.8;

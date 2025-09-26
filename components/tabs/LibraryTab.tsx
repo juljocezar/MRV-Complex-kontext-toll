@@ -2,12 +2,25 @@ import React from 'react';
 import { GeneratedDocument, Document } from '../../types';
 import { DocumentTemplate, TemplateService } from '../../services/templateService';
 
+/**
+ * @interface LibraryTabProps
+ * @description Props for the LibraryTab component.
+ * @property {GeneratedDocument[]} generatedDocuments - A list of all AI-generated documents.
+ * @property {Document[]} documents - A list of all uploaded documents, used for cross-referencing sources.
+ * @property {(docId: string) => void} onViewDocument - Callback to open and view a specific document.
+ */
 interface LibraryTabProps {
     generatedDocuments: GeneratedDocument[];
     documents: Document[];
     onViewDocument: (docId: string) => void;
 }
 
+/**
+ * @component LibraryTab
+ * @description A tab that serves as a library, providing an overview of all AI-generated documents and available document templates.
+ * @param {LibraryTabProps} props The props for the component.
+ * @returns {React.FC<LibraryTabProps>} The rendered library tab.
+ */
 const LibraryTab: React.FC<LibraryTabProps> = ({ generatedDocuments, documents, onViewDocument }) => {
     const templates = TemplateService.getAllTemplates();
 

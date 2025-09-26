@@ -2,6 +2,14 @@
 import React, { useState } from 'react';
 import type { KnowledgeItem, Document } from '../../types';
 
+/**
+ * @interface KnowledgeBaseTabProps
+ * @description Props for the KnowledgeBaseTab component.
+ * @property {KnowledgeItem[]} knowledgeItems - The list of all items in the knowledge base.
+ * @property {(items: KnowledgeItem[]) => void} onUpdateKnowledgeItems - Callback to update the knowledge base items.
+ * @property {Document[]} documents - The list of all documents, used to link knowledge items to their source.
+ * @property {(docId: string) => void} onViewDocument - Callback to open and view a specific source document.
+ */
 interface KnowledgeBaseTabProps {
     knowledgeItems: KnowledgeItem[];
     onUpdateKnowledgeItems: (items: KnowledgeItem[]) => void;
@@ -9,6 +17,13 @@ interface KnowledgeBaseTabProps {
     onViewDocument: (docId: string) => void;
 }
 
+/**
+ * @component KnowledgeBaseTab
+ * @description A tab that displays a curated, searchable collection of important facts,
+ * evidence, and information extracted from documents.
+ * @param {KnowledgeBaseTabProps} props The props for the component.
+ * @returns {React.FC<KnowledgeBaseTabProps>} The rendered knowledge base tab.
+ */
 const KnowledgeBaseTab: React.FC<KnowledgeBaseTabProps> = ({ knowledgeItems, onUpdateKnowledgeItems, documents, onViewDocument }) => {
     const [searchTerm, setSearchTerm] = useState('');
 

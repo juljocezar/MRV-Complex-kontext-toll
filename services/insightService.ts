@@ -3,7 +3,18 @@ import { GeminiService } from './geminiService';
 import { Insight, AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
 
+/**
+ * @class InsightService
+ * @description A service for generating high-level strategic insights about the case.
+ * It synthesizes the overall context, including risks and contradictions, to provide actionable advice.
+ */
 export class InsightService {
+    /**
+     * @private
+     * @static
+     * @readonly
+     * @description The JSON schema for the AI's response, ensuring it returns a structured array of insight objects.
+     */
     private static readonly SCHEMA = {
         type: 'array',
         items: {
@@ -16,6 +27,16 @@ export class InsightService {
         }
     };
 
+    /**
+     * @static
+     * @async
+     * @function generateInsights
+     * @description Generates strategic insights by analyzing the case context, active risks, and contradictions.
+     * @param {AppState} appState - The current application state.
+     * @param {string} [newInfoContext] - Optional context about new information to focus the analysis.
+     * @returns {Promise<Insight[]>} A promise that resolves to an array of generated insights.
+     * @throws {Error} If the AI call fails.
+     */
     static async generateInsights(appState: AppState, newInfoContext?: string): Promise<Insight[]> {
         const context = buildCaseContext(appState);
 

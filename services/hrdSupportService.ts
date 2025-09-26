@@ -6,10 +6,21 @@ import { buildCaseContext } from '../utils/contextUtils';
 import { GeminiService } from './geminiService';
 import { selectAgentForTask } from '../utils/agentSelection';
 
+/**
+ * @class HRDSupportService
+ * @description Provides AI-driven support functions specifically for Human Rights Defenders (HRDs).
+ * This includes risk assessment and secure communication planning based on the case context.
+ */
 export class HRDSupportService {
 
   /**
-   * Performs a risk assessment for an HRD based on the case context.
+   * @static
+   * @async
+   * @function performRiskAssessment
+   * @description Performs a risk assessment for an HRD based on the case context.
+   * @param {AppState} appState - The current application state, used for context and AI settings.
+   * @returns {Promise<HRDRiskAssessment>} A promise that resolves to a structured risk assessment object.
+   * @throws {Error} If the AI call for risk assessment fails.
    */
   static async performRiskAssessment(appState: AppState): Promise<HRDRiskAssessment> {
     const caseContext = buildCaseContext(appState);
@@ -60,7 +71,13 @@ Provide the analysis in the specified JSON format.
   }
 
   /**
-   * Generates a secure communication plan.
+   * @static
+   * @async
+   * @function generateSecureCommunicationPlan
+   * @description Generates a secure communication plan tailored to the case context.
+   * @param {AppState} appState - The current application state.
+   * @returns {Promise<SecureCommunicationPlan>} A promise that resolves to a structured communication plan.
+   * @throws {Error} If the AI call for the communication plan fails.
    */
   static async generateSecureCommunicationPlan(appState: AppState): Promise<SecureCommunicationPlan> {
     const caseContext = buildCaseContext(appState);

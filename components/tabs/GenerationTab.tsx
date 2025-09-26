@@ -4,6 +4,14 @@ import type { GeneratedDocument, Document, AppState } from '../../types';
 import { TemplateService, DocumentTemplate } from '../../services/templateService';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+/**
+ * @interface GenerationTabProps
+ * @description Props for the GenerationTab component.
+ * @property {(params: { instructions: string; templateId?: string; sourceDocuments?: Document[] }) => Promise<GeneratedDocument | null>} onGenerateContent - Callback to generate new document content.
+ * @property {AppState} appState - The current state of the application.
+ * @property {(docs: GeneratedDocument[]) => void} onUpdateGeneratedDocuments - Callback to update the list of generated documents.
+ * @property {boolean} isLoading - Flag indicating if the generation process is in progress.
+ */
 interface GenerationTabProps {
     onGenerateContent: (params: { instructions: string; templateId?: string; sourceDocuments?: Document[] }) => Promise<GeneratedDocument | null>;
     appState: AppState;
@@ -11,6 +19,13 @@ interface GenerationTabProps {
     isLoading: boolean;
 }
 
+/**
+ * @component GenerationTab
+ * @description A tab for generating new documents using AI. Users can provide instructions,
+ * select templates, and use existing documents as a source to create new content.
+ * @param {GenerationTabProps} props The props for the component.
+ * @returns {React.FC<GenerationTabProps>} The rendered document generation tab.
+ */
 const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appState, onUpdateGeneratedDocuments, isLoading }) => {
     const [instructions, setInstructions] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');

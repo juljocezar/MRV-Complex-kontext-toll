@@ -5,12 +5,26 @@ import Icon from '../ui/Icon';
 import Tooltip from '../ui/Tooltip';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+/**
+ * @interface ArgumentationTabProps
+ * @description Props for the ArgumentationTab component.
+ * @property {ArgumentationAnalysis | null} analysis - The result of the argumentation analysis, or null if not yet run.
+ * @property {() => void} onGenerate - Callback function to trigger the generation of the analysis.
+ * @property {boolean} isLoading - Flag indicating if the analysis is currently in progress.
+ */
 interface ArgumentationTabProps {
     analysis: ArgumentationAnalysis | null;
     onGenerate: () => void;
     isLoading: boolean;
 }
 
+/**
+ * @component ArgumentationTab
+ * @description A tab that provides AI-powered assistance for developing legal arguments.
+ * It generates potential supporting arguments and anticipates counter-arguments based on the case context.
+ * @param {ArgumentationTabProps} props The props for the component.
+ * @returns {React.FC<ArgumentationTabProps>} The rendered argumentation tab.
+ */
 const ArgumentationTab: React.FC<ArgumentationTabProps> = ({ analysis, onGenerate, isLoading }) => {
     return (
         <div className="space-y-6">

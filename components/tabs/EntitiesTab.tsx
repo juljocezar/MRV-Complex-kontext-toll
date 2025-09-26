@@ -5,6 +5,19 @@ import type { CaseEntity, SuggestedEntity, Document, Entity } from '../../types'
 import Tooltip from '../ui/Tooltip';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+/**
+ * @interface EntitiesTabProps
+ * @description Props for the EntitiesTab component.
+ * @property {CaseEntity[]} entities - The list of confirmed case entities.
+ * @property {(entities: CaseEntity[]) => void} onUpdateEntities - Callback to update the list of case entities.
+ * @property {Document[]} documents - The list of all documents, used for context.
+ * @property {SuggestedEntity[]} suggestedEntities - A list of entities suggested by the AI for review.
+ * @property {(id: string) => void} onAcceptSuggestedEntity - Callback to accept a suggested entity and add it to the main list.
+ * @property {(id: string) => void} onDismissSuggestedEntity - Callback to dismiss a suggested entity.
+ * @property {() => void} onAnalyzeRelationships - Callback to trigger an AI analysis of relationships between entities.
+ * @property {boolean} isLoading - Flag indicating if an operation is in progress.
+ * @property {string} loadingSection - Identifier for the specific section that is loading.
+ */
 interface EntitiesTabProps {
     entities: CaseEntity[];
     onUpdateEntities: (entities: CaseEntity[]) => void;
@@ -17,6 +30,13 @@ interface EntitiesTabProps {
     loadingSection: string;
 }
 
+/**
+ * @component EntitiesTab
+ * @description A tab for managing case entities (people, organizations, locations). It allows for
+ * manual creation, displays confirmed entities and their relationships, and presents AI-suggested entities for user approval.
+ * @param {EntitiesTabProps} props The props for the component.
+ * @returns {React.FC<EntitiesTabProps>} The rendered entities tab.
+ */
 const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, onUpdateEntities, documents, suggestedEntities, onAcceptSuggestedEntity, onDismissSuggestedEntity, onAnalyzeRelationships, isLoading, loadingSection }) => {
     const [newEntity, setNewEntity] = useState({ name: '', type: 'Person', description: '' });
 

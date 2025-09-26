@@ -1,7 +1,17 @@
 import { GeminiService } from './geminiService';
 import { Contradiction, AppState } from '../types';
 
+/**
+ * @class ContradictionDetectorService
+ * @description A service specialized in identifying factual contradictions between different documents in a case.
+ */
 export class ContradictionDetectorService {
+    /**
+     * @private
+     * @static
+     * @readonly
+     * @description The JSON schema for the AI's response, ensuring it returns a list of structured contradiction objects.
+     */
     private static readonly SCHEMA = {
         type: 'array',
         items: {
@@ -17,6 +27,15 @@ export class ContradictionDetectorService {
         }
     };
 
+    /**
+     * @static
+     * @async
+     * @function findContradictions
+     * @description Analyzes documents in the app state to find pairs of contradictory statements.
+     * @param {AppState} appState - The current application state containing all documents.
+     * @param {string} [newDocContext] - Optional context of a new document to compare against existing ones.
+     * @returns {Promise<Contradiction[]>} A promise that resolves to an array of found contradictions. Returns an empty array if none are found or on error.
+     */
     static async findContradictions(appState: AppState, newDocContext?: string): Promise<Contradiction[]> {
         const documentsText = appState.documents
             .filter(doc => doc.classificationStatus === 'classified' && (doc.summary || doc.textContent || doc.content))

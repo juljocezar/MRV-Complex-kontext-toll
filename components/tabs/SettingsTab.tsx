@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import type { AppSettings, Tag } from '../../types';
 
+/**
+ * @interface SettingsTabProps
+ * @description Props for the SettingsTab component.
+ * @property {AppSettings} settings - The current application settings object.
+ * @property {(settings: AppSettings) => void} setSettings - Callback to update the application settings.
+ * @property {Tag[]} tags - The list of all globally available tags.
+ * @property {(name: string) => void} onCreateTag - Callback to create a new global tag.
+ * @property {(tagId: string) => void} onDeleteTag - Callback to delete a global tag.
+ */
 interface SettingsTabProps {
     settings: AppSettings;
     setSettings: (settings: AppSettings) => void;
@@ -9,6 +18,13 @@ interface SettingsTabProps {
     onDeleteTag: (tagId: string) => void;
 }
 
+/**
+ * @component SettingsTab
+ * @description A tab for configuring application-wide settings, including AI model parameters,
+ * global tag management, and thresholds for complexity calculations.
+ * @param {SettingsTabProps} props The props for the component.
+ * @returns {React.FC<SettingsTabProps>} The rendered settings tab.
+ */
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, onCreateTag, onDeleteTag }) => {
     const [newTagName, setNewTagName] = useState('');
     

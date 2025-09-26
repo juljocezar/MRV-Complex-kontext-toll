@@ -2,7 +2,19 @@ import { GeminiService } from './geminiService';
 import { AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
 
+/**
+ * @class StrategyService
+ * @description A service focused on generating strategic advice, specifically risk mitigation strategies.
+ */
 export class StrategyService {
+    /**
+     * @static
+     * @async
+     * @function generateMitigationStrategies
+     * @description Generates a set of mitigation strategies in HTML format based on the active risks in the application state.
+     * @param {AppState} appState - The current state of the application, used to get context and identify selected risks.
+     * @returns {Promise<string>} A promise that resolves to an HTML string containing the suggested strategies, or an error message.
+     */
     static async generateMitigationStrategies(appState: AppState): Promise<string> {
         const caseContext = buildCaseContext(appState);
         const activeRisks = Object.entries(appState.risks)

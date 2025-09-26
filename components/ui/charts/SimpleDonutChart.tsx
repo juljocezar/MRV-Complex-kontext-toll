@@ -1,6 +1,12 @@
 
 import React from 'react';
 
+/**
+ * @interface DonutChartProps
+ * @description Props for the SimpleDonutChart component.
+ * @property {{ label: string; value: number; color: string; }[]} data - An array of data points for the chart segments.
+ * @property {number} [size=200] - The width and height of the chart SVG element.
+ */
 interface DonutChartProps {
     data: {
         label: string;
@@ -10,6 +16,12 @@ interface DonutChartProps {
     size?: number;
 }
 
+/**
+ * @component SimpleDonutChart
+ * @description A simple, non-interactive donut chart component created with SVG, including a legend.
+ * @param {DonutChartProps} props The props for the component.
+ * @returns {React.FC<DonutChartProps>} The rendered donut chart and legend.
+ */
 const SimpleDonutChart: React.FC<DonutChartProps> = ({ data, size = 200 }) => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     if (total === 0) {

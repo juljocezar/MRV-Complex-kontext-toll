@@ -4,6 +4,15 @@ import type { Contradiction, Document } from '../../types';
 import Tooltip from '../ui/Tooltip';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+/**
+ * @interface ContradictionsTabProps
+ * @description Props for the ContradictionsTab component.
+ * @property {Contradiction[]} contradictions - An array of contradiction objects found.
+ * @property {Document[]} documents - The list of all documents, used to find document names by ID.
+ * @property {() => void} onFindContradictions - Callback function to initiate the search for contradictions.
+ * @property {boolean} isLoading - Flag indicating if the contradiction analysis is in progress.
+ * @property {(docId: string) => void} onViewDocument - Callback to open and view a specific document.
+ */
 interface ContradictionsTabProps {
     contradictions: Contradiction[];
     documents: Document[];
@@ -12,6 +21,13 @@ interface ContradictionsTabProps {
     onViewDocument: (docId: string) => void;
 }
 
+/**
+ * @component ContradictionsTab
+ * @description A tab dedicated to analyzing and displaying contradictions found across all documents.
+ * It allows users to trigger an analysis and then presents pairs of contradictory statements with an AI-generated explanation.
+ * @param {ContradictionsTabProps} props The props for the component.
+ * @returns {React.FC<ContradictionsTabProps>} The rendered contradictions tab.
+ */
 const ContradictionsTab: React.FC<ContradictionsTabProps> = ({ contradictions, documents, onFindContradictions, isLoading, onViewDocument }) => {
     
     const getDocName = (docId: string) => documents.find(d => d.id === docId)?.name || 'Unbekanntes Dokument';

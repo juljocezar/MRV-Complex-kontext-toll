@@ -1,10 +1,21 @@
 
 import React from 'react';
 
+/**
+ * @interface LoadingSpinnerProps
+ * @description Props for the LoadingSpinner component.
+ * @property {string} [className] - Optional CSS classes to apply to the spinner SVG element. Defaults to "h-5 w-5 text-white".
+ */
 interface LoadingSpinnerProps {
     className?: string;
 }
 
+/**
+ * @component LoadingSpinner
+ * @description A simple, reusable SVG-based loading spinner component.
+ * @param {LoadingSpinnerProps} props The props for the component.
+ * @returns {React.FC<LoadingSpinnerProps>} The rendered SVG loading spinner.
+ */
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className = "h-5 w-5 text-white" }) => {
     return (
         <svg

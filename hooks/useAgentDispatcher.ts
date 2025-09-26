@@ -3,8 +3,25 @@ import { AppState, AgentActivity } from '../types';
 import { selectAgentForTask } from '../utils/agentSelection';
 import { GeminiService } from '../services/geminiService';
 
+/**
+ * @typedef {'summarization' | 'risk_assessment' | 'strategy_development' | 'report_generation'} TaskType
+ * @description The type of task to be dispatched to an AI agent.
+ */
 type TaskType = 'summarization' | 'risk_assessment' | 'strategy_development' | 'report_generation';
 
+/**
+ * @hook useAgentDispatcher
+ * @description A custom hook to manage dispatching tasks to different AI agents based on the task type.
+ * It handles agent selection, prompt generation, API calls, and state management (loading, error, result).
+ * @param {AppState} appState - The current state of the application, used for accessing settings.
+ * @param {(activity: Omit<AgentActivity, 'id' | 'timestamp'>) => string} addAgentActivity - Callback to log the agent's activity.
+ * @returns {{
+ *   dispatch: (task: TaskType, context: string, promptOverride?: string) => Promise<void>;
+ *   isLoading: boolean;
+ *   error: string | null;
+ *   result: string | null;
+ * }} An object containing the dispatch function and the current state of the operation.
+ */
 export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => string) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

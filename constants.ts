@@ -1,6 +1,13 @@
 import { AgentProfile } from "./types";
 
-
+/**
+ * @const MRV_AGENTS
+ * @description A directory of all available AI agent profiles for the application.
+ * Each agent is defined with a specific role, a set of capabilities, and a system prompt
+ * that guides its behavior. This object allows the application to dynamically select the
+ * most appropriate agent for a given task based on its capabilities.
+ * @type {{ [key: string]: AgentProfile }}
+ */
 export const MRV_AGENTS: { [key: string]: AgentProfile } = {
     documentAnalyst: {
         name: 'Dokumenten-Analyst',

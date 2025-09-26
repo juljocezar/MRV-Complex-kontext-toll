@@ -1,11 +1,24 @@
 
 import React from 'react';
 
+/**
+ * @interface FocusModeSwitcherProps
+ * @description Props for the FocusModeSwitcher component.
+ * @property {boolean} isFocusMode - Whether the focus mode is currently active.
+ * @property {() => void} toggleFocusMode - Callback function to toggle the focus mode state.
+ */
 interface FocusModeSwitcherProps {
     isFocusMode: boolean;
     toggleFocusMode: () => void;
 }
 
+/**
+ * @component FocusModeSwitcher
+ * @description A UI button component that allows the user to toggle a "focus mode",
+ * which typically hides sidebars or other non-essential UI elements to maximize the content area.
+ * @param {FocusModeSwitcherProps} props The props for the component.
+ * @returns {React.FC<FocusModeSwitcherProps>} The rendered focus mode switcher button.
+ */
 const FocusModeSwitcher: React.FC<FocusModeSwitcherProps> = ({ isFocusMode, toggleFocusMode }) => {
     return (
         <button

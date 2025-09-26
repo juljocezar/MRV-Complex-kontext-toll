@@ -2,6 +2,13 @@ import React from 'react';
 import { legalResources, otherResources } from '../../legalResources';
 import Accordion from '../ui/Accordion';
 
+/**
+ * @component LegalBasisTab
+ * @description A tab that displays a static library of relevant legal resources,
+ * including international human rights instruments, complaint mechanisms, and research databases,
+ * organized into expandable sections.
+ * @returns {React.FC} The rendered legal basis tab.
+ */
 const LegalBasisTab: React.FC = () => {
     return (
         <div className="space-y-6">
