@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 
+/**
+ * @interface PromptExecutionModalProps
+ * @description Props for the PromptExecutionModal component.
+ * @property {boolean} isOpen - Whether the modal is currently open.
+ * @property {() => void} onClose - Callback function to close the modal.
+ * @property {(prompt: string) => Promise<string>} onExecute - Asynchronous callback function to execute the given prompt.
+ * @property {string} [suggestedPrompt] - An optional prompt to pre-populate the text area.
+ */
 interface PromptExecutionModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -7,6 +15,13 @@ interface PromptExecutionModalProps {
     suggestedPrompt?: string;
 }
 
+/**
+ * @component PromptExecutionModal
+ * @description A modal for executing free-form text prompts. It provides a textarea
+ * for input, an execute button, and a display area for the result.
+ * @param {PromptExecutionModalProps} props The props for the component.
+ * @returns {React.FC<PromptExecutionModalProps>} The rendered prompt execution modal, or null if not open.
+ */
 const PromptExecutionModal: React.FC<PromptExecutionModalProps> = ({ isOpen, onClose, onExecute, suggestedPrompt }) => {
     const [prompt, setPrompt] = useState(suggestedPrompt || '');
     const [result, setResult] = useState('');

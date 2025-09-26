@@ -2,7 +2,19 @@ import { GeminiService } from './geminiService';
 import { ArgumentationAnalysis, AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
 
+/**
+ * @class ArgumentationService
+ * @description A service dedicated to generating strategic legal arguments for a case.
+ * It analyzes the overall case context to identify supporting arguments and anticipate counter-arguments.
+ */
 export class ArgumentationService {
+    /**
+     * @private
+     * @static
+     * @readonly
+     * @description The JSON schema definition for the expected output from the AI model.
+     * This ensures the AI returns a structured object containing lists of supporting and counter-arguments.
+     */
     private static readonly SCHEMA = {
         type: 'object',
         properties: {
@@ -42,6 +54,15 @@ export class ArgumentationService {
         required: ['supportingArguments', 'counterArguments']
     };
 
+    /**
+     * @static
+     * @async
+     * @function generateArguments
+     * @description Generates a structured analysis of supporting and counter-arguments based on the entire case context.
+     * @param {AppState} appState - The current state of the application, used to build the case context.
+     * @returns {Promise<ArgumentationAnalysis>} A promise that resolves to the structured argumentation analysis.
+     * @throws {Error} If the AI call fails or returns an invalid format.
+     */
     static async generateArguments(appState: AppState): Promise<ArgumentationAnalysis> {
         const context = buildCaseContext(appState);
         const prompt = `

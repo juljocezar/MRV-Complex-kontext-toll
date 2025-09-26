@@ -2,10 +2,22 @@ import React, { useState } from 'react';
 import type { AppState, CaseEntity } from '../../types';
 import InteractiveGraph from '../ui/InteractiveGraph';
 
+/**
+ * @interface GraphTabProps
+ * @description Props for the GraphTab component.
+ * @property {AppState} appState - The current state of the application, containing case entities.
+ */
 interface GraphTabProps {
     appState: AppState;
 }
 
+/**
+ * @component GraphTab
+ * @description A tab for visualizing the relationships between different case entities
+ * (people, organizations, etc.) in an interactive graph.
+ * @param {GraphTabProps} props The props for the component.
+ * @returns {React.FC<GraphTabProps>} The rendered graph tab.
+ */
 const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
     const [selectedEntity, setSelectedEntity] = useState<CaseEntity | null>(null);
 

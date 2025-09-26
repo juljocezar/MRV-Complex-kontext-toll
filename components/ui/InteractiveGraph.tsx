@@ -1,12 +1,25 @@
 import React, { useMemo } from 'react';
 import type { CaseEntity } from '../../types';
 
+/**
+ * @interface InteractiveGraphProps
+ * @description Props for the InteractiveGraph component.
+ * @property {CaseEntity[]} entities - The list of entities to display in the graph.
+ * @property {(entity: CaseEntity) => void} onSelectEntity - Callback function when an entity node is selected.
+ * @property {string | null} selectedEntityId - The ID of the currently selected entity, or null.
+ */
 interface InteractiveGraphProps {
     entities: CaseEntity[];
     onSelectEntity: (entity: CaseEntity) => void;
     selectedEntityId: string | null;
 }
 
+/**
+ * @function entityTypeColor
+ * @description Determines the background color for an entity node based on its type.
+ * @param {CaseEntity['type']} type - The type of the entity.
+ * @returns {string} A Tailwind CSS background color class string.
+ */
 const entityTypeColor = (type: CaseEntity['type']) => {
     switch (type) {
         case 'Person': return 'bg-sky-500';
@@ -16,6 +29,13 @@ const entityTypeColor = (type: CaseEntity['type']) => {
     }
 }
 
+/**
+ * @component InteractiveGraph
+ * @description A component that renders an interactive, node-based graph to visualize entities and their relationships.
+ * Node positions are calculated based on entity type to create a structured layout.
+ * @param {InteractiveGraphProps} props The props for the component.
+ * @returns {React.FC<InteractiveGraphProps>} The rendered interactive graph.
+ */
 const InteractiveGraph: React.FC<InteractiveGraphProps> = ({ entities, onSelectEntity, selectedEntityId }) => {
 
     const nodePositions = useMemo(() => {

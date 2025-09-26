@@ -50,6 +50,21 @@ import { OrchestrationService } from './services/orchestrationService';
 import { extractFileContent } from './utils/fileUtils';
 import { hashText } from './utils/cryptoUtils';
 
+/**
+ * @component App
+ * @description The root component of the MRV-Assistent application.
+ * It serves as the central orchestrator for the entire application, managing the following:
+ * - **Global State:** Holds the complete `AppState` in a single state object.
+ * - **Data Persistence:** Initializes the application by loading all data from `storageService` (IndexedDB)
+ *   and defines all callback functions that update both the in-memory state and the persistent storage.
+ * - **Service Integration:** Contains the handler functions that call the various AI services
+ *   (e.g., `OrchestrationService`, `CaseAnalyzerService`) in response to user actions.
+ * - **UI Rendering:** Renders the main application layout, including the side navigation,
+ *   the main content area (switching between tabs), modals, and notifications.
+ * - **User Interaction Logic:** Defines the logic for handling all major user interactions,
+ *   from uploading a document to generating a report.
+ * @returns {React.FC} The rendered root application component.
+ */
 const App: React.FC = () => {
     const [state, setState] = useState<AppState | null>(null);
     const [detailDocId, setDetailDocId] = useState<string | null>(null);

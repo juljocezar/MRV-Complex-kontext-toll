@@ -3,6 +3,22 @@ import React, { useState } from 'react';
 // Fix: Corrected import path for types.
 import type { GeneratedDocument, ChecklistItem, ActiveTab, Document } from '../../types';
 
+/**
+ * @interface DispatchTabProps
+ * @description Props for the DispatchTab component.
+ * @property {GeneratedDocument | null} dispatchDocument - The primary document being prepared for dispatch.
+ * @property {ChecklistItem[]} checklist - The list of checklist items to be completed before dispatch.
+ * @property {(checklist: ChecklistItem[]) => void} onUpdateChecklist - Callback to update the state of the checklist.
+ * @property {(subject: string, attachments: (Document | GeneratedDocument)[]) => Promise<string>} onDraftBody - AI-powered callback to draft an email body based on subject and attachments.
+ * @property {() => void} onConfirmDispatch - Callback to confirm and log the dispatch action.
+ * @property {boolean} isLoading - Flag indicating if an operation is in progress.
+ * @property {string} loadingSection - Identifier for the specific section that is loading.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Callback to switch to a different tab.
+ * @property {Document[]} documents - List of all uploaded documents available as attachments.
+ * @property {GeneratedDocument[]} generatedDocuments - List of all generated documents available as attachments.
+ * @property {string} coverLetter - The current text of the email body/cover letter.
+ * @property {(value: string) => void} setCoverLetter - Callback to update the email body text.
+ */
 interface DispatchTabProps {
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
@@ -18,6 +34,13 @@ interface DispatchTabProps {
     setCoverLetter: (value: string) => void;
 }
 
+/**
+ * @component DispatchTab
+ * @description A tab for preparing and finalizing the dispatch of documents. It includes
+ * composing an email, selecting attachments, completing a pre-dispatch checklist, and confirming the action.
+ * @param {DispatchTabProps} props The props for the component.
+ * @returns {React.FC<DispatchTabProps>} The rendered dispatch tab.
+ */
 const DispatchTab: React.FC<DispatchTabProps> = ({
     dispatchDocument, checklist, onUpdateChecklist, onDraftBody, onConfirmDispatch, 
     isLoading, loadingSection, setActiveTab, documents, generatedDocuments,

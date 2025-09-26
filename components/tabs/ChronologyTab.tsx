@@ -1,12 +1,27 @@
 import React, { useState, useMemo } from 'react';
 import type { TimelineEvent, Document, AppState } from '../../types';
 
+/**
+ * @interface ChronologyTabProps
+ * @description Props for the ChronologyTab component.
+ * @property {AppState} appState - The current state of the application, containing timeline events, analysis results, and documents.
+ * @property {(events: TimelineEvent[]) => void} onUpdateTimelineEvents - Callback to update the list of timeline events.
+ * @property {(docId: string) => void} onViewDocument - Callback to open and view a specific document.
+ */
 interface ChronologyTabProps {
     appState: AppState;
     onUpdateTimelineEvents: (events: TimelineEvent[]) => void;
     onViewDocument: (docId: string) => void;
 }
 
+/**
+ * @component ChronologyTab
+ * @description A tab that displays a chronological timeline of all documented events in the case.
+ * It allows for manual creation of events and displays detailed, structured information (like acts and participants)
+ * extracted from associated documents.
+ * @param {ChronologyTabProps} props The props for the component.
+ * @returns {React.FC<ChronologyTabProps>} The rendered chronology tab.
+ */
 const ChronologyTab: React.FC<ChronologyTabProps> = ({ appState, onUpdateTimelineEvents, onViewDocument }) => {
     const { timelineEvents, documentAnalysisResults, documents } = appState;
     const [newEvent, setNewEvent] = useState({ date: '', title: '', description: '', documentIds: [] as string[] });

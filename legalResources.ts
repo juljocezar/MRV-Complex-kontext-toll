@@ -1,3 +1,16 @@
+/**
+ * @file legalResources.ts
+ * @description This file contains static, structured data about legal resources,
+ * complaint mechanisms, reporting guides, and external databases relevant to human rights work.
+ * This data is used to populate the static 'Legal Basis' and 'UN Submissions' tabs in the application.
+ */
+
+/**
+ * @const legalResources
+ * @description A structured object containing detailed information on human rights complaint mechanisms (UN and regional)
+ * and guides for reporting, such as creating shadow reports and checklists for fact-finding.
+ * This data directly informs the content of the "Rechtsgrundlagen" (Legal Basis) tab.
+ */
 export const legalResources = {
     complaintMechanisms: {
         title: "Beschwerdemechanismen bei Menschenrechtsverletzungen",
@@ -97,6 +110,12 @@ export const legalResources = {
     },
 };
 
+/**
+ * @const otherResources
+ * @description A structured object containing links and descriptions for external resources,
+ * primarily databases from the OHCHR and other key partner organizations.
+ * This data is used to provide helpful external links within the application.
+ */
 export const otherResources = {
     ohchrDatabases: {
         title: 'OHCHR-Datenbanken',

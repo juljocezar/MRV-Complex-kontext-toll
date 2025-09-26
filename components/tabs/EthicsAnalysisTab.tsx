@@ -4,12 +4,26 @@ import type { EthicsAnalysis } from '../../types';
 import Tooltip from '../ui/Tooltip';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+/**
+ * @interface EthicsAnalysisTabProps
+ * @description Props for the EthicsAnalysisTab component.
+ * @property {EthicsAnalysis | null} analysisResult - The result of the ethics analysis, or null if not yet run.
+ * @property {() => void} onPerformAnalysis - Callback function to trigger the ethics analysis.
+ * @property {boolean} isLoading - Flag indicating if the analysis is currently in progress.
+ */
 interface EthicsAnalysisTabProps {
     analysisResult: EthicsAnalysis | null;
     onPerformAnalysis: () => void;
     isLoading: boolean;
 }
 
+/**
+ * @component EthicsAnalysisTab
+ * @description A tab for performing and displaying an AI-powered ethical analysis of the case.
+ * It assesses potential biases, privacy concerns, and provides recommendations.
+ * @param {EthicsAnalysisTabProps} props The props for the component.
+ * @returns {React.FC<EthicsAnalysisTabProps>} The rendered ethics analysis tab.
+ */
 const EthicsAnalysisTab: React.FC<EthicsAnalysisTabProps> = ({ analysisResult, onPerformAnalysis, isLoading }) => {
     return (
         <div className="space-y-6">

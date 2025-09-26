@@ -1,6 +1,11 @@
 
 import React from 'react';
 
+/**
+ * @interface BarChartProps
+ * @description Props for the SimpleBarChart component.
+ * @property {{ label: string; value: number; }[]} data - An array of data points to be rendered as bars.
+ */
 interface BarChartProps {
     data: {
         label: string;
@@ -8,6 +13,12 @@ interface BarChartProps {
     }[];
 }
 
+/**
+ * @component SimpleBarChart
+ * @description A simple, non-interactive bar chart component for data visualization.
+ * @param {BarChartProps} props The props for the component.
+ * @returns {React.FC<BarChartProps>} The rendered bar chart.
+ */
 const SimpleBarChart: React.FC<BarChartProps> = ({ data }) => {
     const maxValue = Math.max(...data.map(item => item.value), 0);
     if (maxValue === 0) {

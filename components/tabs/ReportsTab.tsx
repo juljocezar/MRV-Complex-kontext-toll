@@ -3,11 +3,24 @@ import React, { useState } from 'react';
 import { AppState } from '../../types';
 import { buildCaseContext } from '../../utils/contextUtils';
 
+/**
+ * @interface ReportsTabProps
+ * @description Props for the ReportsTab component.
+ * @property {(prompt: string, schema: object | null) => Promise<string>} onGenerateReport - Callback to generate a report based on a prompt and optional schema.
+ * @property {AppState} appState - The current state of the application, used to build the context for the report.
+ */
 interface ReportsTabProps {
     onGenerateReport: (prompt: string, schema: object | null) => Promise<string>;
     appState: AppState;
 }
 
+/**
+ * @component ReportsTab
+ * @description A tab for generating various types of case reports, such as summaries, risk analyses, or chronologies,
+ * based on the entire case context.
+ * @param {ReportsTabProps} props The props for the component.
+ * @returns {React.FC<ReportsTabProps>} The rendered reports tab.
+ */
 const ReportsTab: React.FC<ReportsTabProps> = ({ onGenerateReport, appState }) => {
     const [reportType, setReportType] = useState('summary');
     const [generatedReport, setGeneratedReport] = useState('');

@@ -2,12 +2,26 @@
 import React from 'react';
 import type { ProactiveSuggestion } from '../../types';
 
+/**
+ * @interface ProactiveAssistantProps
+ * @description Props for the ProactiveAssistant component.
+ * @property {ProactiveSuggestion[]} suggestions - An array of proactive suggestions. The component will only display the first one.
+ * @property {(suggestion: ProactiveSuggestion) => void} onExecute - Callback function to execute the action associated with the suggestion.
+ * @property {(id: string) => void} onDismiss - Callback function to dismiss the suggestion.
+ */
 interface ProactiveAssistantProps {
     suggestions: ProactiveSuggestion[];
     onExecute: (suggestion: ProactiveSuggestion) => void;
     onDismiss: (id: string) => void;
 }
 
+/**
+ * @component ProactiveAssistant
+ * @description A component that displays a proactive, intelligent suggestion to the user in a pop-up alert.
+ * It shows the first available suggestion and provides options to execute or dismiss it.
+ * @param {ProactiveAssistantProps} props The props for the component.
+ * @returns {React.FC<ProactiveAssistantProps> | null} The rendered proactive assistant alert, or null if there are no suggestions.
+ */
 const ProactiveAssistant: React.FC<ProactiveAssistantProps> = ({ suggestions, onExecute, onDismiss }) => {
     const suggestion = suggestions.length > 0 ? suggestions[0] : null;
 

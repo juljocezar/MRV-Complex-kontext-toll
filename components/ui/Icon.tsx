@@ -1,11 +1,23 @@
 import React from 'react';
 
-// This is a placeholder. A real implementation would use SVG icons.
+/**
+ * @interface IconProps
+ * @description Props for the Icon component.
+ * @property {string} name - The name of the icon to display.
+ * @property {string} [className] - Optional CSS classes to apply to the icon.
+ */
 interface IconProps {
     name: string;
     className?: string;
 }
 
+/**
+ * @component Icon
+ * @description A placeholder icon component that renders an emoji based on a given name.
+ * This is used for rapid prototyping and should be replaced with a proper SVG icon system in a full implementation.
+ * @param {IconProps} props The props for the component.
+ * @returns {React.FC<IconProps>} The rendered icon as a span with an emoji.
+ */
 const Icon: React.FC<IconProps> = ({ name, className }) => {
     // A simple emoji-based icon system for placeholder purposes
     const getEmoji = (iconName: string) => {

@@ -3,7 +3,18 @@ import { GeminiService } from './geminiService';
 // Fix: Corrected import path.
 import type { TemporalAnalysisResult, AISettings } from '../types';
 
+/**
+ * @class TemporalAnalyzerService
+ * @description A service for performing deep temporal analysis on case data to identify patterns, clusters, and causal relationships.
+ */
 export class TemporalAnalyzerService {
+  /**
+   * @private
+   * @static
+   * @readonly
+   * @description A comprehensive JSON schema for guiding the AI to perform a detailed temporal analysis.
+   * It structures the output into categories like chronological sequence, clusters, patterns, causal chains, and anomalies.
+   */
   private static readonly TEMPORAL_ANALYSIS_SCHEMA = {
     type: 'object',
     properties: {
@@ -100,6 +111,17 @@ export class TemporalAnalyzerService {
     required: ["zeitlicher_rahmen", "chronologie", "zeitliche_cluster", "muster", "kausale_ketten", "zeitliche_anomalien"]
   };
 
+  /**
+   * @static
+   * @async
+   * @function analyzeTemporalPatterns
+   * @description Initiates a temporal analysis AI call with the provided data.
+   * @param {any} temporalData - The data to be analyzed, typically a collection of events or timeline data.
+   * @param {string} [timeframe='full'] - The timeframe for the analysis.
+   * @param {string} [temporalFocus='comprehensive'] - The focus of the analysis (e.g., comprehensive, patterns).
+   * @returns {Promise<TemporalAnalysisResult>} A promise that resolves to the structured temporal analysis result.
+   * @throws {Error} If the AI call fails.
+   */
   static async analyzeTemporalPatterns(
     temporalData: any,
     timeframe: string = 'full',

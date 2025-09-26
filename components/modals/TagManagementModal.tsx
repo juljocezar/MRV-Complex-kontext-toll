@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 // Fix: Corrected import path for types.
 import type { Tag } from '../../types';
 
+/**
+ * @interface TagManagementModalProps
+ * @description Props for the TagManagementModal component.
+ * @property {boolean} isOpen - Whether the modal is currently open.
+ * @property {() => void} onClose - Callback function to close the modal.
+ * @property {Tag[]} availableTags - A list of all available tags in the system.
+ * @property {string[]} assignedTags - A list of tag names currently assigned to the item.
+ * @property {(newTags: string[]) => void} onSave - Callback function to save the updated list of assigned tags.
+ * @property {string} itemName - The name of the item being tagged, displayed in the modal title.
+ * @property {(name: string) => void} onCreateTag - Callback to create a new global tag.
+ */
 interface TagManagementModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -12,6 +23,13 @@ interface TagManagementModalProps {
     onCreateTag: (name: string) => void;
 }
 
+/**
+ * @component TagManagementModal
+ * @description A modal that allows users to manage tags for a specific item.
+ * Users can assign existing tags, un-assign them, and create new tags.
+ * @param {TagManagementModalProps} props The props for the component.
+ * @returns {React.FC<TagManagementModalProps>} The rendered tag management modal, or null if not open.
+ */
 const TagManagementModal: React.FC<TagManagementModalProps> = ({ isOpen, onClose, availableTags, assignedTags, onSave, itemName, onCreateTag }) => {
     const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
     const [newTagName, setNewTagName] = useState('');

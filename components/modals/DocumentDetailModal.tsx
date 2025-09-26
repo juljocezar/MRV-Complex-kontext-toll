@@ -1,6 +1,15 @@
 import React, { useState, useRef } from 'react';
 import type { Document, DocumentAnalysisResult, KnowledgeItem, ActiveTab, StructuredEvent, StructuredAct, StructuredParticipant } from '../../types';
 
+/**
+ * @interface DocumentDetailModalProps
+ * @description Props for the DocumentDetailModal component.
+ * @property {Document} document - The document to display details for.
+ * @property {DocumentAnalysisResult | null} analysisResult - The analysis result of the document.
+ * @property {() => void} onClose - Callback function to close the modal.
+ * @property {(item: Omit<KnowledgeItem, 'id' | 'createdAt'>) => void} onAddKnowledgeItem - Callback to add a new knowledge item.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Callback to set the active tab in the main view.
+ */
 interface DocumentDetailModalProps {
     document: Document;
     analysisResult: DocumentAnalysisResult | null;
@@ -9,6 +18,13 @@ interface DocumentDetailModalProps {
     setActiveTab: (tab: ActiveTab) => void;
 }
 
+/**
+ * @component StructuredDataDisplay
+ * @description A component to display structured data extracted from a document analysis.
+ * @param {{ analysis: DocumentAnalysisResult }} props The props for the component.
+ * @param {DocumentAnalysisResult} props.analysis The analysis result containing structured data.
+ * @returns {React.FC<{ analysis: DocumentAnalysisResult }>} The rendered structured data view, or null if no data exists.
+ */
 const StructuredDataDisplay: React.FC<{ analysis: DocumentAnalysisResult }> = ({ analysis }) => {
     const { structuredEvents, structuredActs, structuredParticipants } = analysis;
 
@@ -59,7 +75,14 @@ const StructuredDataDisplay: React.FC<{ analysis: DocumentAnalysisResult }> = ({
     );
 };
 
-
+/**
+ * @component DocumentDetailModal
+ * @description A modal that displays comprehensive details about a single document,
+ * including its metadata, analysis results (summary, cost/workload estimates),
+ * and full text content. It allows users to create knowledge items by selecting text.
+ * @param {DocumentDetailModalProps} props The props for the component.
+ * @returns {React.FC<DocumentDetailModalProps>} The rendered document detail modal.
+ */
 const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, analysisResult, onClose, onAddKnowledgeItem, setActiveTab }) => {
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, text: string } | null>(null);
     const contentRef = useRef<HTMLDivElement>(null);

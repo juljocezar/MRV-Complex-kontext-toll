@@ -1,5 +1,13 @@
 import { AppState, CaseSummary, Risks } from '../types';
 
+/**
+ * @function buildCaseContext
+ * @description Compiles a comprehensive string representation of the current case state.
+ * This function intelligently assembles the most relevant data from across the application
+ * (e.g., case description, key documents, entities, recent events) to provide rich context for AI models.
+ * @param {AppState} appState - The entire current state of the application.
+ * @returns {string} A single string containing the formatted case context.
+ */
 export const buildCaseContext = (appState: AppState): string => {
     // FIX: `caseDescription` is nested inside `caseContext`. Adjusted destructuring.
     const { caseContext, documents, caseEntities, knowledgeItems, timelineEvents, risks, kpis, caseSummary } = appState;

@@ -6,7 +6,19 @@ import TagManagementModal from '../modals/TagManagementModal';
 import AnalysisChatModal from '../modals/AnalysisChatModal';
 import { GeminiService } from '../../services/geminiService';
 
-
+/**
+ * @interface DocumentsTabProps
+ * @description Props for the DocumentsTab component.
+ * @property {AppState} appState - The entire state of the application.
+ * @property {(file: File) => Promise<void>} onAddNewDocument - Callback to upload and add a new document.
+ * @property {(doc: Document) => Promise<void>} onRunOrchestration - Callback to run the full analysis orchestration on a document.
+ * @property {(doc: Document) => void} onUpdateDocument - Callback to update a document's data.
+ * @property {(tags: Tag[]) => void} onUpdateTags - Callback to update the global list of tags.
+ * @property {(item: Omit<KnowledgeItem, 'id' | 'createdAt'>) => void} addKnowledgeItem - Callback to add a new item to the knowledge base.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Callback to switch to a different tab.
+ * @property {(message: string, type?: Notification['type']) => void} addNotification - Callback to show a user notification.
+ * @property {(docId: string) => void} onViewDocumentDetails - Callback to open the document detail modal.
+ */
 interface DocumentsTabProps {
     appState: AppState;
     onAddNewDocument: (file: File) => Promise<void>;
@@ -19,6 +31,13 @@ interface DocumentsTabProps {
     onViewDocumentDetails: (docId: string) => void;
 }
 
+/**
+ * @component DocumentsTab
+ * @description A tab for managing all documents in the case. It provides functionalities
+ * for uploading, viewing details, analyzing, tagging, and chatting with documents.
+ * @param {DocumentsTabProps} props The props for the component.
+ * @returns {React.FC<DocumentsTabProps>} The rendered documents tab.
+ */
 const DocumentsTab: React.FC<DocumentsTabProps> = ({ 
     appState, onAddNewDocument, onRunOrchestration, onUpdateDocument, onUpdateTags,
     addKnowledgeItem, setActiveTab, addNotification, onViewDocumentDetails

@@ -6,6 +6,25 @@ import SimpleBarChart from '../ui/charts/SimpleBarChart';
 import Tooltip from '../ui/Tooltip';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
+/**
+ * @interface DashboardTabProps
+ * @description Props for the DashboardTab component.
+ * @property {Document[]} documents - List of all documents in the case.
+ * @property {GeneratedDocument[]} generatedDocuments - List of all AI-generated documents.
+ * @property {DocumentAnalysisResults} documentAnalysisResults - Analysis results for all documents.
+ * @property {string} caseDescription - The user-editable description of the case.
+ * @property {(desc: string) => void} setCaseDescription - Callback to update the case description.
+ * @property {(tab: ActiveTab) => void} setActiveTab - Callback to switch to a different tab.
+ * @property {() => void} onResetCase - Callback to reset the entire case.
+ * @property {() => void} onExportCase - Callback to export the case data as a JSON file.
+ * @property {(file: File) => void} onImportCase - Callback to import case data from a JSON file.
+ * @property {CaseSummary | null} caseSummary - The AI-generated summary of the case, or null if not generated.
+ * @property {() => void} onPerformOverallAnalysis - Callback to trigger the AI case summary generation.
+ * @property {boolean} isLoading - General loading flag for the application.
+ * @property {string} loadingSection - Identifier for which part of the app is currently loading.
+ * @property {CaseEntity[]} caseEntities - List of all extracted entities in the case.
+ * @property {(message: string, type?: Notification['type'], duration?: number, details?: string) => void} addNotification - Callback to display a notification to the user.
+ */
 interface DashboardTabProps {
     documents: Document[];
     generatedDocuments: GeneratedDocument[];
@@ -24,6 +43,13 @@ interface DashboardTabProps {
     addNotification: (message: string, type?: Notification['type'], duration?: number, details?: string) => void;
 }
 
+/**
+ * @component DashboardTab
+ * @description The main dashboard for the application. It provides a high-level overview of the case,
+ * including key statistics, charts, a case description editor, an AI-powered case summary, and case management functions.
+ * @param {DashboardTabProps} props The props for the component.
+ * @returns {React.FC<DashboardTabProps>} The rendered dashboard tab.
+ */
 const DashboardTab: React.FC<DashboardTabProps> = ({
     documents, generatedDocuments, documentAnalysisResults, caseDescription, setCaseDescription, setActiveTab,
     onResetCase, onExportCase, onImportCase, caseSummary, onPerformOverallAnalysis, isLoading, loadingSection, caseEntities, addNotification
