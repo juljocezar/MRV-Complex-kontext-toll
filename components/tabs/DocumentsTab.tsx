@@ -1,94 +1,118 @@
+
 import React, { useState, useRef, useCallback } from 'react';
-import type { AppState, Document, Tag } from '../../types';
-import { extractFileContent } from '../../utils/fileUtils';
-import { hashText } from '../../utils/cryptoUtils';
+import type { AppState, Document, Tag, AnalysisChatMessage, AgentActivity, KnowledgeItem, ActiveTab, Notification } from '../../types';
 import DocumentDetailModal from '../modals/DocumentDetailModal';
 import TagManagementModal from '../modals/TagManagementModal';
 import AnalysisChatModal from '../modals/AnalysisChatModal';
-import { DocumentAnalystService } from '../../services/documentAnalyst';
+import { GeminiService } from '../../services/geminiService';
+
 
 interface DocumentsTabProps {
     appState: AppState;
-    setAppState: React.Dispatch<React.SetStateAction<AppState | null>>;
+    onAddNewDocument: (file: File) => Promise<void>;
+    onRunOrchestration: (doc: Document) => Promise<void>;
+    onUpdateDocument: (doc: Document) => void;
+    onUpdateTags: (tags: Tag[]) => void;
+    addKnowledgeItem: (item: Omit<KnowledgeItem, 'id' | 'createdAt'>) => void;
+    setActiveTab: (tab: ActiveTab) => void;
+    addNotification: (message: string, type?: Notification['type']) => void;
+    onViewDocumentDetails: (docId: string) => void;
 }
 
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) => {
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ 
+    appState, onAddNewDocument, onRunOrchestration, onUpdateDocument, onUpdateTags,
+    addKnowledgeItem, setActiveTab, addNotification, onViewDocumentDetails
+}) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+    const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
     const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-    const [chatHistory, setChatHistory] = useState<any[]>([]);
+    const [chatHistory, setChatHistory] = useState<AnalysisChatMessage[]>([]);
+    const [isChatLoading, setIsChatLoading] = useState(false);
+
+    const selectedDoc = appState.documents.find(d => d.id === selectedDocId) || null;
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            const files = Array.from(event.target.files);
-            const newDocuments: Document[] = [];
+            const files = [...event.target.files];
             for (const file of files) {
-                const { text, base64, mimeType } = await extractFileContent(file);
-                const content = text || base64 || '';
-                const newDoc: Document = {
-                    id: await hashText(file.name + file.size + content),
-                    name: file.name,
-                    content: content,
-                    textContent: text,
-                    base64Content: base64,
-                    mimeType: mimeType,
-                    classificationStatus: 'unclassified',
-                    tags: [],
-                    createdAt: new Date().toISOString(),
-                };
-                newDocuments.push(newDoc);
+                await onAddNewDocument(file);
             }
-            setAppState(s => s ? { ...s, documents: [...s.documents, ...newDocuments] } : null);
+            // Clear the input value to allow re-uploading the same file
+            if (event.target) {
+                event.target.value = '';
+            }
         }
     };
 
-    const handleAnalyzeDocument = useCallback(async (docId: string) => {
-        if (!appState) return;
+    const handleManualAnalyzeDocument = useCallback(async (docId: string) => {
         const doc = appState.documents.find(d => d.id === docId);
         if (!doc) return;
 
-        setAppState(s => s ? { ...s, isLoading: true, loadingSection: `doc-${docId}` } : null);
-        try {
-            const result = await DocumentAnalystService.analyzeDocument(doc, appState.settings.ai);
-            setAppState(s => {
-                if (!s) return null;
-                // FIX: Explicitly type the updated document object to prevent type inference issues with AppState.
-                const newDocs = s.documents.map((d): Document => {
-                    if (d.id === docId) {
-                        return { 
-                            ...d, 
-                            summary: result.summary, 
-                            classificationStatus: 'classified', 
-                            workCategory: result.classification 
-                        };
-                    }
-                    return d;
-                });
-                const newResults = { ...s.documentAnalysisResults, [docId]: result };
-                return { ...s, documents: newDocs, documentAnalysisResults: newResults };
-            });
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setAppState(s => s ? { ...s, isLoading: false, loadingSection: '' } : null);
-        }
-    }, [appState, setAppState]);
+        addNotification(`Manuelle Analyse für "${doc.name}" gestartet...`, 'info');
+        await onRunOrchestration(doc);
+
+    }, [appState, onRunOrchestration, addNotification]);
 
     const handleSaveTags = (newTags: string[]) => {
         if (selectedDoc) {
             const updatedDoc = { ...selectedDoc, tags: newTags };
-            setAppState(s => s ? { ...s, documents: s.documents.map(d => d.id === selectedDoc.id ? updatedDoc : d) } : s);
-            setSelectedDoc(updatedDoc);
+            onUpdateDocument(updatedDoc);
+            setSelectedDocId(updatedDoc.id);
         }
     };
 
     const handleSendMessage = async (message: string) => {
-        // Mock chat response
-        setChatHistory(h => [...h, { role: 'user', text: message }, { role: 'assistant', text: "Analyzing..." }]);
-        setTimeout(() => {
-             setChatHistory(h => [...h.slice(0, -1), { role: 'assistant', text: "This is a mocked response based on your question." }]);
-        }, 1000);
+        if (!selectedDoc) return;
+
+        const newHistory: AnalysisChatMessage[] = [...chatHistory, { role: 'user', text: message }];
+        setChatHistory(newHistory);
+        setIsChatLoading(true);
+
+        try {
+            const conversationContext = newHistory.map(m => `${m.role}: ${m.text}`).join('\n');
+            const docContent = selectedDoc.textContent || selectedDoc.content;
+
+            const prompt = `
+                Du bist ein KI-Assistent, der Fragen zu einem spezifischen Dokument beantwortet.
+                Sei präzise und beziehe dich nur auf die Informationen im Dokument.
+
+                **Dokumenteninhalt (Auszug):**
+                ---
+                ${docContent.substring(0, 15000)}
+                ---
+
+                **Bisherige Konversation:**
+                ---
+                ${conversationContext}
+                ---
+
+                **Neue Frage vom Benutzer:**
+                ${message}
+
+                **Deine Antwort:**
+            `;
+            
+            const responseText = await GeminiService.callAI(prompt, null, appState.settings.ai);
+            setChatHistory(h => [...h, { role: 'assistant', text: responseText }]);
+
+        } catch (error) {
+            console.error("Chat API call failed:", error);
+            setChatHistory(h => [...h, { role: 'assistant', text: "Entschuldigung, bei der Beantwortung Ihrer Frage ist ein Fehler aufgetreten." }]);
+        } finally {
+            setIsChatLoading(false);
+        }
+    };
+    
+    const handleAddKnowledgeFromChat = (title: string, summary: string, sourceDocId: string) => {
+        addKnowledgeItem({
+            title,
+            summary,
+            sourceDocId,
+            tags: [] // Default to empty tags array
+        });
+        setActiveTab('knowledge');
+        setIsChatModalOpen(false);
     };
 
     return (
@@ -116,20 +140,18 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
                             <tr key={doc.id} className="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
                                 <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{doc.name}</td>
                                 <td className="px-6 py-4">{doc.classificationStatus}</td>
-                                <td className="px-6 py-4">{doc.tags.join(', ')}</td>
+                                <td className="px-6 py-4">{(doc.tags || []).join(', ')}</td>
                                 <td className="px-6 py-4 space-x-2">
-                                    <button onClick={() => setSelectedDoc(doc)} className="text-blue-400 hover:underline">Details</button>
-                                    <button onClick={() => { setSelectedDoc(doc); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
-                                    <button onClick={() => handleAnalyzeDocument(doc.id)} disabled={appState.isLoading && appState.loadingSection === `doc-${doc.id}`} className="text-purple-400 hover:underline disabled:text-gray-500">Analysieren</button>
-                                    <button onClick={() => { setSelectedDoc(doc); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
+                                    <button onClick={() => onViewDocumentDetails(doc.id)} className="text-blue-400 hover:underline">Details</button>
+                                    <button onClick={() => { setSelectedDocId(doc.id); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
+                                    <button onClick={() => handleManualAnalyzeDocument(doc.id)} className="text-purple-400 hover:underline disabled:text-gray-500">Analysieren</button>
+                                    <button onClick={() => { setSelectedDocId(doc.id); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
-
-            {selectedDoc && <DocumentDetailModal document={selectedDoc} analysisResult={appState.documentAnalysisResults[selectedDoc.id] || null} onClose={() => setSelectedDoc(null)} />}
             
             {isTagModalOpen && selectedDoc && (
                 <TagManagementModal
@@ -139,7 +161,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
                     assignedTags={selectedDoc.tags}
                     onSave={handleSaveTags}
                     itemName={selectedDoc.name}
-                    onCreateTag={(name) => setAppState(s => s ? { ...s, tags: [...s.tags, {id: crypto.randomUUID(), name}]} : null)}
+                    onCreateTag={(name) => onUpdateTags([...appState.tags, {id: crypto.randomUUID(), name}])}
                 />
             )}
             
@@ -149,8 +171,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) =>
                     chatHistory={chatHistory}
                     onSendMessage={handleSendMessage}
                     onClose={() => setIsChatModalOpen(false)}
-                    isLoading={false}
-                    onAddKnowledge={() => {}}
+                    isLoading={isChatLoading}
+                    onAddKnowledge={handleAddKnowledgeFromChat}
                 />
             )}
         </div>

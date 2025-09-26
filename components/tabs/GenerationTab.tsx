@@ -1,15 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import type { GeneratedDocument, Document, AppState } from '../../types';
 import { TemplateService, DocumentTemplate } from '../../services/templateService';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface GenerationTabProps {
     onGenerateContent: (params: { instructions: string; templateId?: string; sourceDocuments?: Document[] }) => Promise<GeneratedDocument | null>;
     appState: AppState;
-    setGeneratedDocuments: React.Dispatch<React.SetStateAction<GeneratedDocument[]>>;
+    onUpdateGeneratedDocuments: (docs: GeneratedDocument[]) => void;
     isLoading: boolean;
 }
 
-const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appState, setGeneratedDocuments, isLoading }) => {
+const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appState, onUpdateGeneratedDocuments, isLoading }) => {
     const [instructions, setInstructions] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -101,8 +103,9 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
                         <button
                             onClick={handleGenerate}
                             disabled={isLoading}
-                            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-md disabled:bg-gray-500"
+                            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-md disabled:bg-gray-500 flex items-center justify-center"
                         >
+                            {isLoading && <LoadingSpinner className="h-5 w-5 mr-3" />}
                             {isLoading ? 'Generiere...' : 'Dokument erstellen'}
                         </button>
                     </div>

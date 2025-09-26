@@ -5,7 +5,7 @@ import { GeminiService } from '../services/geminiService';
 
 type TaskType = 'summarization' | 'risk_assessment' | 'strategy_development' | 'report_generation';
 
-export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>) => {
+export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => string) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activi
         try {
             const response = await GeminiService.callAI(prompt, null, appState.settings.ai);
             setResult(response);
-            await addAgentActivity({
+            addAgentActivity({
                 agentName: agent.name,
                 action: `Executed task: ${task}`,
                 result: 'erfolg',
@@ -41,7 +41,7 @@ export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activi
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
             setError(errorMessage);
-            await addAgentActivity({
+            addAgentActivity({
                 agentName: agent.name,
                 action: `Failed task: ${task}`,
                 result: 'fehler',

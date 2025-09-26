@@ -1,18 +1,10 @@
+
 import { GeminiService } from './geminiService';
 import { CaseSummary, AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
+import { legalResources } from '../legalResources';
 
-/**
- * The CaseAnalyzerService is responsible for performing a high-level analysis of the entire case.
- * It synthesizes the overall context and uses the AI to generate a summary, identify key risks,
- * and suggest next steps.
- */
 export class CaseAnalyzerService {
-    /**
-     * Defines the JSON schema for the expected output from the AI.
-     * This ensures that the AI's response is structured and can be reliably parsed.
-     * The schema requests a summary, a list of risks, and a list of next steps.
-     */
     private static readonly SCHEMA = {
         type: 'object',
         properties: {
@@ -46,17 +38,8 @@ export class CaseAnalyzerService {
         required: ['summary', 'identifiedRisks', 'suggestedNextSteps', 'generatedAt']
     };
 
-    /**
-     * Performs the overall case analysis by sending a structured prompt to the Gemini AI.
-     * @param appState The current state of the application, used to build the case context.
-     * @returns A promise that resolves to a `CaseSummary` object.
-     * @throws An error if the AI call fails.
-     */
     static async performOverallAnalysis(appState: AppState): Promise<CaseSummary> {
-        // Build a comprehensive context from the application state.
         const context = buildCaseContext(appState);
-
-        // Construct the prompt for the AI, giving it a specific persona and tasks.
         const prompt = `
 Du bist ein erfahrener Menschenrechtsanwalt und Fallanalyst.
 Basierend auf dem folgenden Fallkontext, führe eine übergeordnete Analyse durch.
@@ -75,11 +58,46 @@ Gib das Ergebnis im geforderten JSON-Format zurück. Setze das 'generatedAt' Fel
         `;
 
         try {
-            // Call the AI service with the prompt and the required schema.
             return await GeminiService.callAIWithSchema<CaseSummary>(prompt, this.SCHEMA, appState.settings.ai);
         } catch (error) {
             console.error('Overall case analysis failed:', error);
             throw new Error('Case analysis failed.');
+        }
+    }
+    
+    static async runFreeformQuery(prompt: string, appState: AppState, isGrounded: boolean): Promise<string> {
+        const context = buildCaseContext(appState);
+        
+        const legalGroundingContext = isGrounded 
+            ? `
+HINWEIS: Stütze deine Antwort PRIMÄR auf die folgenden rechtlichen Ressourcen und zitiere sie, wo immer möglich.
+--- RECHTSGRUNDLAGEN START ---
+${JSON.stringify(legalResources, null, 2)}
+--- RECHTSGRUNDLAGEN ENDE ---
+`
+            : '';
+
+        const fullPrompt = `
+Du bist ein hochintelligenter KI-Analyse-Assistent für Menschenrechtsfälle.
+Du antwortest präzise, faktenbasiert und strukturiert in Markdown.
+
+${legalGroundingContext}
+
+Gesamter Fallkontext:
+---
+${context}
+---
+
+Benutzeranfrage: "${prompt}"
+
+Deine Analyse:
+        `;
+
+        try {
+            return await GeminiService.callAI(fullPrompt, null, appState.settings.ai);
+        } catch (error) {
+            console.error('Freeform query failed:', error);
+            throw new Error('Die Analyse-Anfrage ist fehlgeschlagen.');
         }
     }
 }

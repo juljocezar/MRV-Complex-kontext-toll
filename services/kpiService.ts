@@ -8,12 +8,11 @@ export class KpiService {
         items: {
             type: 'object',
             properties: {
-                id: { type: 'string' },
                 name: { type: 'string', description: "Ein kurzer, prägnanter Name für den KPI." },
                 target: { type: 'string', description: "Eine klare, messbare Zielbeschreibung für den KPI." },
                 progress: { type: 'number', description: "Initialer Fortschritt, immer auf 0 setzen." }
             },
-            required: ['id', 'name', 'target', 'progress']
+            required: ['name', 'target', 'progress']
         }
     };
 
@@ -33,8 +32,7 @@ Deine Aufgaben:
 1.  Analysiere den Kontext und identifiziere die Hauptziele des Falles.
 2.  Formuliere spezifische, messbare, erreichbare, relevante und zeitgebundene (SMART) KPIs.
 3.  Gib für jeden KPI einen Namen und eine klare Zielbeschreibung an.
-4.  Generiere für jeden KPI eine eindeutige ID mit crypto.randomUUID().
-5.  Setze den initialen Fortschritt (progress) immer auf 0.
+4.  Setze den initialen Fortschritt (progress) immer auf 0.
 
 Gib das Ergebnis als JSON-Array zurück, das dem Schema entspricht.
         `;

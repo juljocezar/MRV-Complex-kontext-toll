@@ -1,5 +1,8 @@
+
 import React from 'react';
 import type { EthicsAnalysis } from '../../types';
+import Tooltip from '../ui/Tooltip';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface EthicsAnalysisTabProps {
     analysisResult: EthicsAnalysis | null;
@@ -12,13 +15,16 @@ const EthicsAnalysisTab: React.FC<EthicsAnalysisTabProps> = ({ analysisResult, o
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-white">Ethik-Analyse</h1>
-                <button
-                    onClick={onPerformAnalysis}
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500"
-                >
-                    {isLoading ? 'Analysiere...' : 'Analyse durchführen'}
-                </button>
+                <Tooltip text="Analysiert den gesamten Fall auf potenzielle Voreingenommenheit, Datenschutzbedenken und die Einhaltung von 'Do-No-Harm'-Prinzipien.">
+                    <button
+                        onClick={onPerformAnalysis}
+                        disabled={isLoading}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500 flex items-center justify-center"
+                    >
+                        {isLoading && <LoadingSpinner className="h-4 w-4 mr-2" />}
+                        {isLoading ? 'Analysiere...' : 'Analyse durchführen'}
+                    </button>
+                </Tooltip>
             </div>
             <p className="text-gray-400">
                 Dieser Bereich führt eine KI-gestützte Analyse des Falles auf ethische Bedenken,

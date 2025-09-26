@@ -1,25 +1,28 @@
+
 import React, { useState } from 'react';
 // Fix: Corrected import path for types.
 import { KPI } from '../../types';
+import Tooltip from '../ui/Tooltip';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface KpisTabProps {
     kpis: KPI[];
-    setKpis: React.Dispatch<React.SetStateAction<KPI[]>>;
+    onUpdateKpis: (kpis: KPI[]) => void;
     onSuggestKpis: () => void;
     isLoading: boolean;
 }
 
-const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoading }) => {
+const KpisTab: React.FC<KpisTabProps> = ({ kpis, onUpdateKpis, onSuggestKpis, isLoading }) => {
     const [newKpi, setNewKpi] = useState({ name: '', target: '' });
     
     const handleProgressChange = (id: string, progress: number) => {
-        setKpis(kpis.map(kpi => kpi.id === id ? { ...kpi, progress: Math.max(0, Math.min(100, progress)) } : kpi));
+        onUpdateKpis(kpis.map(kpi => kpi.id === id ? { ...kpi, progress: Math.max(0, Math.min(100, progress)) } : kpi));
     };
 
     const handleAddKpi = (e: React.FormEvent) => {
         e.preventDefault();
         if (newKpi.name && newKpi.target) {
-            setKpis(prev => [...prev, { ...newKpi, id: crypto.randomUUID(), progress: 0 }]);
+            onUpdateKpis([...kpis, { ...newKpi, id: crypto.randomUUID(), progress: 0 }]);
             setNewKpi({ name: '', target: '' });
         }
     };
@@ -28,13 +31,16 @@ const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoadi
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-white">Key Performance Indicators (KPIs)</h1>
-                <button 
-                    onClick={onSuggestKpis}
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500"
-                >
-                    {isLoading ? 'Lade...' : 'KPIs vorschlagen'}
-                </button>
+                <Tooltip text="Analysiert den Fallkontext und schlägt messbare Erfolgsindikatoren (KPIs) vor.">
+                    <button 
+                        onClick={onSuggestKpis}
+                        disabled={isLoading}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500 flex items-center justify-center"
+                    >
+                        {isLoading && <LoadingSpinner className="h-4 w-4 mr-2" />}
+                        {isLoading ? 'Lade...' : 'KPIs vorschlagen'}
+                    </button>
+                </Tooltip>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -81,7 +87,7 @@ const KpisTab: React.FC<KpisTabProps> = ({ kpis, setKpis, onSuggestKpis, isLoadi
                 </div>
             </div>
             
-            {kpis.length === 0 && (
+            {kpis.length === 0 && !isLoading && (
                 <div className="text-center py-12 bg-gray-800 rounded-lg">
                     <p className="text-gray-500">Keine KPIs definiert.</p>
                 </div>

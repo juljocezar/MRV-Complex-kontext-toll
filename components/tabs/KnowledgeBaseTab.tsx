@@ -1,13 +1,15 @@
+
 import React, { useState } from 'react';
 import type { KnowledgeItem, Document } from '../../types';
 
 interface KnowledgeBaseTabProps {
     knowledgeItems: KnowledgeItem[];
-    setKnowledgeItems: React.Dispatch<React.SetStateAction<KnowledgeItem[]>>;
+    onUpdateKnowledgeItems: (items: KnowledgeItem[]) => void;
     documents: Document[];
+    onViewDocument: (docId: string) => void;
 }
 
-const KnowledgeBaseTab: React.FC<KnowledgeBaseTabProps> = ({ knowledgeItems, setKnowledgeItems, documents }) => {
+const KnowledgeBaseTab: React.FC<KnowledgeBaseTabProps> = ({ knowledgeItems, onUpdateKnowledgeItems, documents, onViewDocument }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const getDocName = (docId: string) => documents.find(d => d.id === docId)?.name || 'Unbekanntes Dokument';
@@ -38,7 +40,7 @@ const KnowledgeBaseTab: React.FC<KnowledgeBaseTabProps> = ({ knowledgeItems, set
                         <h3 className="font-semibold text-lg text-white mb-2">{item.title}</h3>
                         <p className="text-gray-300 flex-grow">{item.summary}</p>
                         <div className="mt-4 pt-4 border-t border-gray-700 text-xs text-gray-500">
-                            <p>Quelle: {getDocName(item.sourceDocId)}</p>
+                            <p>Quelle: <button onClick={() => onViewDocument(item.sourceDocId)} className="text-blue-400 hover:underline">{getDocName(item.sourceDocId)}</button></p>
                             <p>Erstellt am: {new Date(item.createdAt).toLocaleDateString()}</p>
                         </div>
                     </div>

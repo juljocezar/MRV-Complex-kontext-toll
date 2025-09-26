@@ -44,10 +44,24 @@ export class WorkloadAnalyzerService {
     required: ['recommended', 'min', 'max', 'details']
   };
 
-  static async analyzeWorkload(documentContent: string, settings: AISettings): Promise<DocumentAnalysisResult> {
-    const workload = await this.estimateWorkload(documentContent, settings);
-    const cost = this.calculateCosts(workload);
-    return { docId: '', workloadEstimate: workload, costEstimate: cost };
+  static async analyzeWorkload(documentContent: string, settings: AISettings): Promise<Partial<DocumentAnalysisResult>> {
+    try {
+        const workload = await this.estimateWorkload(documentContent, settings);
+
+        // Validate the response from the AI to prevent crashes
+        if (!workload || typeof workload.totalHours !== 'number' || !Array.isArray(workload.breakdown)) {
+            console.warn("Workload estimation from AI was malformed:", workload);
+            // Return a result that indicates no workload could be estimated.
+            return { workloadEstimate: undefined, costEstimate: undefined };
+        }
+
+        const cost = this.calculateCosts(workload);
+        return { workloadEstimate: workload, costEstimate: cost };
+    } catch(error) {
+        console.error("Error during workload analysis:", error);
+        // Return a result that indicates failure, so the main analysis doesn't crash.
+        return { workloadEstimate: undefined, costEstimate: undefined };
+    }
   }
 
   private static async estimateWorkload(documentContent: string, settings: AISettings): Promise<WorkloadAnalysis> {

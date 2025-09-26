@@ -22,6 +22,7 @@ const Icon: React.FC<IconProps> = ({ name, className }) => {
             case 'library': return '📚';
             case 'dispatch': return '📤';
             case 'strategy': return '♟️';
+            case 'argumentation': return '🗣️';
             case 'kpis': return '🎯';
             case 'un': return '🇺🇳';
             case 'hrd': return '🛡️';

@@ -1,10 +1,13 @@
+
 import React from 'react';
 // Fix: Corrected import path for types.
 import type { Risks } from '../../types';
+import Tooltip from '../ui/Tooltip';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface StrategyTabProps {
     risks: Risks;
-    setRisks: React.Dispatch<React.SetStateAction<Risks>>;
+    onUpdateRisks: (risks: Risks) => void;
     mitigationStrategies: string;
     onGenerateMitigationStrategies: () => void;
     isLoading: boolean;
@@ -21,10 +24,10 @@ const riskOptions = [
     { id: 'psychologicalBurden', label: 'Psychische Belastung des Mandanten' },
 ];
 
-const StrategyTab: React.FC<StrategyTabProps> = ({ risks, setRisks, mitigationStrategies, onGenerateMitigationStrategies, isLoading }) => {
+const StrategyTab: React.FC<StrategyTabProps> = ({ risks, onUpdateRisks, mitigationStrategies, onGenerateMitigationStrategies, isLoading }) => {
     
     const handleRiskChange = (riskId: keyof Risks) => {
-        setRisks(prev => ({ ...prev, [riskId]: !prev[riskId] }));
+        onUpdateRisks({ ...risks, [riskId]: !risks[riskId] });
     };
 
     return (
@@ -53,13 +56,16 @@ const StrategyTab: React.FC<StrategyTabProps> = ({ risks, setRisks, mitigationSt
                 <div className="bg-gray-800 p-6 rounded-lg flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-semibold text-white">Minderungsstrategien</h2>
-                         <button 
-                            onClick={onGenerateMitigationStrategies}
-                            disabled={isLoading}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed"
-                        >
-                            {isLoading ? 'Generiere...' : 'Strategie vorschlagen'}
-                        </button>
+                        <Tooltip text="Generiert basierend auf den ausgewählten Risiken und dem Fallkontext Vorschläge für Minderungsstrategien.">
+                             <button 
+                                onClick={onGenerateMitigationStrategies}
+                                disabled={isLoading}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center"
+                            >
+                                {isLoading && <LoadingSpinner className="h-4 w-4 mr-2" />}
+                                {isLoading ? 'Generiere...' : 'Strategie vorschlagen'}
+                            </button>
+                        </Tooltip>
                     </div>
                     <div className="flex-grow bg-gray-700 text-gray-200 p-3 rounded-md border border-gray-600 overflow-y-auto">
                          {isLoading ? (

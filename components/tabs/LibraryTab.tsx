@@ -1,13 +1,17 @@
 import React from 'react';
-import { GeneratedDocument } from '../../types';
+import { GeneratedDocument, Document } from '../../types';
 import { DocumentTemplate, TemplateService } from '../../services/templateService';
 
 interface LibraryTabProps {
     generatedDocuments: GeneratedDocument[];
+    documents: Document[];
+    onViewDocument: (docId: string) => void;
 }
 
-const LibraryTab: React.FC<LibraryTabProps> = ({ generatedDocuments }) => {
+const LibraryTab: React.FC<LibraryTabProps> = ({ generatedDocuments, documents, onViewDocument }) => {
     const templates = TemplateService.getAllTemplates();
+
+    const getDocName = (docId: string) => documents.find(d => d.id === docId)?.name;
 
     return (
         <div className="space-y-6">
@@ -24,6 +28,7 @@ const LibraryTab: React.FC<LibraryTabProps> = ({ generatedDocuments }) => {
                                     <th scope="col" className="px-6 py-3">Titel</th>
                                     <th scope="col" className="px-6 py-3">Erstellt am</th>
                                     <th scope="col" className="px-6 py-3">Vorlage</th>
+                                    <th scope="col" className="px-6 py-3">Quellen</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -32,6 +37,21 @@ const LibraryTab: React.FC<LibraryTabProps> = ({ generatedDocuments }) => {
                                         <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{doc.title}</td>
                                         <td className="px-6 py-4">{new Date(doc.createdAt).toLocaleString()}</td>
                                         <td className="px-6 py-4">{doc.templateUsed || 'Keine'}</td>
+                                        <td className="px-6 py-4 text-xs">
+                                            {doc.sourceDocIds && doc.sourceDocIds.length > 0 ? (
+                                                doc.sourceDocIds.map((id, index) => {
+                                                    const name = getDocName(id);
+                                                    return name ? (
+                                                        <span key={id}>
+                                                            <button onClick={() => onViewDocument(id)} className="text-blue-400 hover:underline">{name}</button>
+                                                            {index < doc.sourceDocIds.length - 1 ? ', ' : ''}
+                                                        </span>
+                                                    ) : null
+                                                })
+                                            ) : (
+                                                <span className="text-gray-500">Keine</span>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 // Fix: Corrected import path for types.
 import type { GeneratedDocument, ChecklistItem, ActiveTab, Document } from '../../types';
@@ -5,7 +6,7 @@ import type { GeneratedDocument, ChecklistItem, ActiveTab, Document } from '../.
 interface DispatchTabProps {
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
-    setChecklist: React.Dispatch<React.SetStateAction<ChecklistItem[]>>;
+    onUpdateChecklist: (checklist: ChecklistItem[]) => void;
     onDraftBody: (subject: string, attachments: (Document | GeneratedDocument)[]) => Promise<string>;
     onConfirmDispatch: () => void;
     isLoading: boolean;
@@ -18,7 +19,7 @@ interface DispatchTabProps {
 }
 
 const DispatchTab: React.FC<DispatchTabProps> = ({
-    dispatchDocument, checklist, setChecklist, onDraftBody, onConfirmDispatch, 
+    dispatchDocument, checklist, onUpdateChecklist, onDraftBody, onConfirmDispatch, 
     isLoading, loadingSection, setActiveTab, documents, generatedDocuments,
     coverLetter, setCoverLetter
 }) => {
@@ -35,7 +36,7 @@ const DispatchTab: React.FC<DispatchTabProps> = ({
     };
     
     const handleChecklistToggle = (id: string) => {
-        setChecklist(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
+        onUpdateChecklist(checklist.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
     };
 
     const handleDraftEmailBody = async () => {

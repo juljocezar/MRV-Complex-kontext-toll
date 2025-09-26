@@ -1,13 +1,16 @@
+
 import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
 import { AISettings } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+let ai: GoogleGenAI | null = null;
+if (API_KEY) {
+    ai = new GoogleGenAI({ apiKey: API_KEY });
+} else {
+    console.error("API_KEY environment variable not set. AI features will not work.");
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 // A more robust queue that handles tasks and their corresponding promises
 const callQueue: {
@@ -17,7 +20,7 @@ const callQueue: {
 }[] = [];
 
 let isProcessing = false;
-const THROTTLE_DELAY = 2000; // Increased delay to 2 seconds to be safer with the free tier limits
+const THROTTLE_DELAY = 1000; // 1 second delay between API calls
 
 async function processQueue() {
     if (isProcessing || callQueue.length === 0) {
@@ -50,6 +53,9 @@ const callGeminiAPIThrottled = <T>(
 ): Promise<T> => {
     return new Promise((resolve, reject) => {
         const task = async () => {
+            if (!ai) {
+                throw new Error("Gemini AI client is not initialized. Please check if the API_KEY is correctly set.");
+            }
             const response: GenerateContentResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: contents as any,

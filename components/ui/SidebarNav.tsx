@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { ActiveTab } from '../../types';
 import Icon from './Icon';
@@ -20,9 +21,11 @@ const navGroups = [
     {
         title: 'ANALYSE',
         items: [
+            { id: 'analysis', label: 'Analyse-Zentrum', icon: 'analysis' },
             { id: 'knowledge', label: 'Wissensbasis', icon: 'knowledge' },
             { id: 'graph', label: 'Beziehungs-Graph', icon: 'graph' },
             { id: 'strategy', label: 'Strategie', icon: 'strategy' },
+            { id: 'argumentation', label: 'Argumentation', icon: 'argumentation' },
             { id: 'contradictions', label: 'Widersprüche', icon: 'contradictions' },
             { id: 'ethics', label: 'Ethik-Analyse', icon: 'ethics' },
         ]

@@ -1,5 +1,4 @@
 import React from 'react';
-// Fix: Corrected import path for types.
 import type { AgentActivity, Insight } from '../../types';
 
 interface AssistantSidebarProps {
@@ -18,6 +17,24 @@ const InsightIcon = ({ type }: { type: Insight['type'] }) => {
         default: return null;
     }
 };
+
+const ActivityStatus = ({ result }: { result: AgentActivity['result'] }) => {
+    switch(result) {
+        case 'running':
+            return (
+                <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                    <span className="text-yellow-400">running</span>
+                </div>
+            );
+        case 'erfolg':
+            return <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-300">erfolg</span>;
+        case 'fehler':
+            return <span className="px-2 py-0.5 rounded-full text-xs bg-red-500/20 text-red-300">fehler</span>;
+        default:
+            return null;
+    }
+}
 
 const AssistantSidebar: React.FC<AssistantSidebarProps> = ({ agentActivityLog, insights, onGenerateInsights, isLoading, loadingSection }) => {
     return (
@@ -62,16 +79,17 @@ const AssistantSidebar: React.FC<AssistantSidebarProps> = ({ agentActivityLog, i
                 <div>
                     <h4 className="text-sm font-semibold text-gray-300 mb-2">Agenten-Aktivität</h4>
                      <div className="space-y-2">
-                        {agentActivityLog.slice(0, 10).reverse().map(log => (
+                        {agentActivityLog.slice(0, 10).map(log => (
                             <div key={log.id} className="text-xs p-2 rounded-md bg-gray-700/50">
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="font-bold text-gray-200">{log.agentName}</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs ${log.result === 'erfolg' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
-                                        {log.result}
-                                    </span>
+                                    <div className="text-xs">
+                                        <ActivityStatus result={log.result} />
+                                    </div>
                                 </div>
-                                <p className="text-gray-400">{log.action}</p>
-                                <p className="text-right text-gray-500 mt-1">{new Date(log.timestamp).toLocaleTimeString()}</p>
+                                <p className="text-gray-400 truncate" title={log.action}>{log.action}</p>
+                                {log.details && <p className="text-gray-500 italic truncate" title={log.details}>{log.details}</p>}
+                                <p className="text-right text-gray-500 mt-1 text-[10px]">{new Date(log.timestamp).toLocaleTimeString()}</p>
                             </div>
                         ))}
                         {agentActivityLog.length === 0 && (

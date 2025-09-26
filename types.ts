@@ -31,6 +31,7 @@ export interface CaseEntity {
   type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt';
   description: string;
   relationships?: EntityRelationship[];
+  roles?: ('Opfer' | 'Täter' | 'Quelle' | 'Intervenierende Partei')[];
 }
 
 export interface EntityRelationship {
@@ -113,7 +114,8 @@ export type AgentCapability =
   | 'cost_estimation'
   | 'ethics_analysis'
   | 'contradiction_detection'
-  | 'template_based_extraction';
+  | 'template_based_extraction'
+  | 'argumentation_support';
 
 export interface AgentProfile {
     name: string;
@@ -129,7 +131,7 @@ export interface AgentActivity {
     timestamp: string;
     agentName: string;
     action: string;
-    result: 'erfolg' | 'fehler';
+    result: 'running' | 'erfolg' | 'fehler';
     details?: string;
 }
 
@@ -140,6 +142,30 @@ export interface AuditLogEntry {
     details: string;
 }
 
+// --- HURIDOCS-inspired Structured Data Types ---
+export interface StructuredEvent {
+    title: string;
+    startDate: string; // ISO Date
+    endDate?: string;
+    location: string;
+    description: string;
+}
+
+export interface StructuredAct {
+    victimName: string;
+    actType: string; // e.g., 'Folter', 'willkürliche Inhaftierung'
+    method?: string;
+    consequences?: string;
+}
+
+export interface StructuredParticipant {
+    name: string;
+    type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt';
+    role: 'Opfer' | 'Täter' | 'Quelle' | 'Intervenierende Partei' | 'Andere';
+    description: string;
+}
+
+
 // Analysis Results
 export interface DocumentAnalysisResult {
     docId: string;
@@ -149,6 +175,11 @@ export interface DocumentAnalysisResult {
     workloadEstimate?: WorkloadAnalysis;
     costEstimate?: CostAnalysis;
     classification?: string; // HURIDOCS standard
+    suggestedTags?: string[];
+    // New structured data fields
+    structuredEvents?: StructuredEvent[];
+    structuredActs?: StructuredAct[];
+    structuredParticipants?: StructuredParticipant[];
 }
 
 export interface DocumentAnalysisResults {
@@ -190,6 +221,22 @@ export interface SuggestedEntity {
     sourceDocumentName: string;
 }
 
+export interface ArgumentationPoint {
+  point: string;
+  evidence: string[];
+}
+
+export interface ArgumentationAnalysis {
+  supportingArguments: ArgumentationPoint[];
+  counterArguments: ArgumentationPoint[];
+}
+
+export interface Notification {
+    id: string;
+    message: string;
+    type: 'success' | 'error' | 'info';
+    details?: string;
+}
 
 // State & Settings
 export interface CaseContext {
@@ -250,6 +297,9 @@ export interface AppState {
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
     coverLetter: string;
+    argumentationAnalysis: ArgumentationAnalysis | null;
+    proactiveSuggestions: ProactiveSuggestion[];
+    notifications: Notification[];
 }
 
 // UI & Component Props
@@ -260,11 +310,13 @@ export type ActiveTab =
   | 'chronology'
   | 'knowledge'
   | 'graph'
+  | 'analysis'
   | 'reports'
   | 'generation'
   | 'library'
   | 'dispatch'
   | 'strategy'
+  | 'argumentation'
   | 'kpis'
   | 'un-submissions'
   | 'hrd-support'
@@ -284,6 +336,18 @@ export interface ChecklistItem {
     id: string;
     text: string;
     checked: boolean;
+}
+
+export interface ProactiveSuggestion {
+    id: string;
+    text: string;
+    action: { 
+        type: 'navigate'; 
+        payload: ActiveTab 
+    } | { 
+        type: 'execute'; 
+        payload: () => void 
+    };
 }
 
 // Misc
