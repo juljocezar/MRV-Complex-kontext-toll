@@ -40,6 +40,10 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
         if (file) {
             onImportCase(file);
         }
+        // Reset the input value to allow re-uploading the same file
+        if (e.target) {
+            e.target.value = '';
+        }
     };
 
     const docStatusData = useMemo(() => {
@@ -81,7 +85,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
                 <div className="bg-gray-800 p-4 rounded-lg">
                      <h3 className="text-lg font-semibold text-gray-300">Fall-Verwaltung</h3>
                      <div className="mt-4 flex flex-wrap gap-2">
-                        <input type="file" ref={importInputRef} className="hidden" accept=".json" onChange={handleFileImport} />
+                        <input type="file" ref={importInputRef} className="hidden" accept=".json" onChange={handleFileImport} data-testid="import-input" />
                         <Tooltip text="Exportiert den gesamten Fall als JSON-Datei.">
                             <button onClick={onExportCase} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm">Export</button>
                         </Tooltip>
