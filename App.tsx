@@ -50,12 +50,31 @@ import { OrchestrationService } from './services/orchestrationService';
 import { extractFileContent } from './utils/fileUtils';
 import { hashText } from './utils/cryptoUtils';
 
+// App.tsx ist die Hauptkomponente der Anwendung. Sie fungiert als zentraler Controller,
+// der den gesamten Anwendungszustand (AppState) verwaltet, alle UI-Komponenten rendert
+// und die Interaktionen zwischen der Benutzeroberfläche und den Backend-Diensten (wie KI-Analyse, Speicherung) koordiniert.
+
 const App: React.FC = () => {
+    // Zentraler State-Hook, der das gesamte AppState-Objekt enthält.
+    // 'null' während des initialen Ladens aus der Datenbank.
     const [state, setState] = useState<AppState | null>(null);
+
+    // State für die Anzeige des Dokumenten-Detail-Modals. Enthält die ID des anzuzeigenden Dokuments.
     const [detailDocId, setDetailDocId] = useState<string | null>(null);
+
+    // State zur Verwaltung von Benachrichtigungen, die dem Benutzer angezeigt werden.
     const [notifications, setNotifications] = useState<Notification[]>([]);
+
+    // Ref für das Debouncing von Speicheroperationen, z.B. bei der Eingabe der Fallbeschreibung.
     const debounceTimeoutRef = useRef<number | null>(null);
 
+    /**
+     * Fügt eine neue Benachrichtigung zum Benachrichtigungs-Container hinzu.
+     * @param message - Die anzuzeigende Nachricht.
+     * @param type - Der Typ der Benachrichtigung ('info', 'success', 'error').
+     * @param duration - Wie lange die Benachrichtigung sichtbar bleibt (in ms).
+     * @param details - Optionale zusätzliche Details zur Benachrichtigung.
+     */
     const addNotification = useCallback((message: string, type: Notification['type'] = 'info', duration = 5000, details?: string) => {
         const id = crypto.randomUUID();
         setNotifications(prev => [...prev, { id, message, type, details }]);
@@ -64,6 +83,11 @@ const App: React.FC = () => {
         }, duration);
     }, []);
     
+    /**
+     * Protokolliert eine Benutzer- oder Systemaktion im Audit-Log für Nachverfolgbarkeit.
+     * @param action - Eine kurze Beschreibung der Aktion (z.B. "Dokument gelöscht").
+     * @param details - Detailliertere Informationen zur Aktion.
+     */
     const addAuditLog = useCallback(async (action: string, details: string) => {
         const newLogEntry: AuditLogEntry = {
             id: crypto.randomUUID(),
@@ -71,15 +95,23 @@ const App: React.FC = () => {
             action,
             details,
         };
+        // Fügt den Log-Eintrag zum State und zur persistenten Speicherung hinzu.
         setState(s => s ? { ...s, auditLog: [newLogEntry, ...s.auditLog] } : null);
         await storage.addAuditLogEntry(newLogEntry);
     }, []);
 
+    /**
+     * Setzt den aktiven Tab in der Benutzeroberfläche.
+     * @param tab - Der zu aktivierende Tab.
+     */
     const setActiveTab = (tab: ActiveTab) => {
         addAuditLog('Tab gewechselt', `Neuer Tab: ${tab}`);
         setState(prevState => prevState ? { ...prevState, activeTab: tab } : null);
     };
 
+    /**
+     * Schaltet den Fokusmodus um, der die Seitenleisten ausblendet, um eine ablenkungsfreie Ansicht zu ermöglichen.
+     */
     const toggleFocusMode = () => {
         setState(prevState => {
             if (!prevState) return null;
@@ -88,8 +120,16 @@ const App: React.FC = () => {
         });
     };
     
-    // --- Granular State & Storage Updaters ---
+    // --- Granulare State- und Speicher-Updater ---
+    // Die folgenden `useCallback`-Hooks sind dafür verantwortlich, spezifische Teile des AppState zu aktualisieren.
+    // Jede Funktion aktualisiert sowohl den React-State als auch den persistenten Speicher (IndexedDB),
+    // um die Datenkonsistenz zu gewährleisten. Dieses Muster (State aktualisieren, dann speichern) wird in der gesamten App verwendet.
 
+    /**
+     * Fügt einen neuen Eintrag zur Agentenaktivität hinzu (z.B. "KI analysiert Dokument X").
+     * @param activity - Das Aktivitätsobjekt ohne ID und Zeitstempel.
+     * @returns Die ID der neu erstellten Aktivität.
+     */
     const addAgentActivity = useCallback((activity: Omit<AgentActivity, 'id' | 'timestamp'>): string => {
         const id = crypto.randomUUID();
         const newActivity: AgentActivity = {
@@ -194,11 +234,20 @@ const App: React.FC = () => {
         await storage.saveAllTags(tags);
     }, []);
     
-    // --- Complex AI Service Handlers ---
+    // --- Komplexe KI-Service-Handler ---
+    // Diese Funktionen kapseln die Logik für die aufwändigen KI-gesteuerten Analysen.
+    // Sie rufen die entsprechenden Services auf, verarbeiten die Ergebnisse und aktualisieren den globalen Zustand.
 
+    /**
+     * Führt die vollständige Analyse-Orchestrierung für ein einzelnes Dokument aus.
+     * Dies umfasst die Dokumentenanalyse, Widerspruchserkennung und Einblickgenerierung.
+     * Diese Funktion wird aufgerufen, wenn ein Dokument neu analysiert werden soll.
+     * @param doc - Das zu analysierende Dokument.
+     */
     const runDocumentOrchestration = useCallback(async (doc: Document) => {
         if (!state) return;
         
+        // Ruft den OrchestrationService auf, der die einzelnen Analyseschritte koordiniert.
         const result = await OrchestrationService.handleNewDocument(
             doc,
             state,
@@ -207,21 +256,27 @@ const App: React.FC = () => {
             addNotification
         );
 
-        if (!result) return; // Orchestration failed and handled its own error state
+        // Wenn die Orchestrierung fehlschlägt, wurde die Benachrichtigung bereits im Service behandelt.
+        if (!result) return;
 
-        // Apply all gathered changes in a single update
+        // Verarbeitet das Ergebnis der Orchestrierung und aktualisiert den Zustand in einer einzigen, gebündelten Operation.
+        // Dies verhindert mehrere Neurenderings und stellt die Datenkonsistenz sicher.
         setState(s => {
             if (!s) return null;
 
+            // Aktualisiert das analysierte Dokument in der Dokumentenliste.
             const updatedDocs = s.documents.map(d => d.id === result.updatedDoc.id ? result.updatedDoc : d);
             
+            // Fügt neue globale Tags hinzu, falls sie nicht bereits existieren.
             const existingGlobalTagNames = new Set(s.tags.map(t => t.name));
             const newGlobalTags = result.newGlobalTags.filter(tagName => !existingGlobalTagNames.has(tagName))
                 .map(name => ({ id: crypto.randomUUID(), name }));
             
+            // Fügt neue vorgeschlagene Entitäten hinzu, um Duplikate zu vermeiden.
             const existingSuggestionNames = new Set(s.suggestedEntities.map(e => e.name));
             const newSuggestions = result.newSuggestedEntities.filter(e => !existingSuggestionNames.has(e.name));
 
+            // Erstellt den neuen, vollständigen Zustand.
             const finalState = {
                 ...s,
                 documents: updatedDocs,
@@ -234,7 +289,7 @@ const App: React.FC = () => {
                 timelineEvents: [...s.timelineEvents, ...result.newTimelineEvents],
             };
 
-            // Persist the changes to storage
+            // Speichert alle neuen Daten persistent in der IndexedDB.
             storage.updateDocument(result.updatedDoc);
             storage.saveDocumentAnalysisResult(doc.id, result.analysisResult);
             if (newGlobalTags.length > 0) storage.addMultipleTags(newGlobalTags);
@@ -249,6 +304,11 @@ const App: React.FC = () => {
         
     }, [state, addAgentActivity, updateAgentActivity, addNotification]);
     
+    /**
+     * Verarbeitet das Hinzufügen einer neuen Datei: Extrahiert den Inhalt, erstellt ein neues Dokument-Objekt,
+     * speichert es und startet dann die Analyse-Orchestrierung.
+     * @param file - Die vom Benutzer hochgeladene Datei.
+     */
     const addNewDocumentAndAnalyze = useCallback(async (file: File) => {
         if (!state) return;
         const { text, base64, mimeType } = await extractFileContent(file);
@@ -582,8 +642,13 @@ const App: React.FC = () => {
         handleDismissSuggestion(suggestion.id);
     };
 
+    /**
+     * Rendert die Komponente für den aktuell ausgewählten Tab.
+     * Fungiert als eine Art "Router" für den Hauptinhaltsbereich der Anwendung.
+     * @returns Die React-Komponente für den aktiven Tab.
+     */
     const renderTab = () => {
-        if (!state) return null;
+        if (!state) return null; // Zeigt nichts an, solange der State lädt
         switch (state.activeTab) {
             case 'dashboard':
                 return <DashboardTab 
@@ -741,9 +806,13 @@ const App: React.FC = () => {
         }
     };
     
+    // useEffect-Hook zum initialen Laden der Daten beim Start der Anwendung.
+    // Dieser Hook wird nur einmal ausgeführt, wenn die Komponente zum ersten Mal gerendert wird (leeres Abhängigkeitsarray []).
     useEffect(() => {
         const load = async () => {
+            // Initialisiert die Datenbankverbindung.
             await storage.initDB();
+            // Lädt alle persistenten Daten aus der IndexedDB und konstruiert den initialen Anwendungszustand.
             const initialAppState: AppState = {
                 activeTab: 'dashboard',
                 documents: await storage.getAllDocuments(),
@@ -782,9 +851,19 @@ const App: React.FC = () => {
     }, []);
     
     // Generate proactive suggestions whenever key state aspects change
+                // Setzt den geladenen Zustand und löst damit das erste Rendering der eigentlichen App-UI aus.
+                setState(initialAppState);
+        }
+        load();
+    }, []);
+
+    // useEffect-Hook zur Generierung von proaktiven Vorschlägen.
+    // Dieser Hook wird immer dann ausgeführt, wenn sich relevante Teile des Zustands ändern (z.B. Dokumente, Widersprüche).
+    // Er entkoppelt die Vorschlagslogik vom Rest der Anwendung.
     useEffect(() => {
         if (state && !state.isLoading) {
             const suggestions = ProactiveSuggestionService.getSuggestions(state);
+            // Aktualisiert die Vorschläge nur, wenn sie sich tatsächlich geändert haben, um unnötige Renderings zu vermeiden.
             if (JSON.stringify(suggestions) !== JSON.stringify(state.proactiveSuggestions)) {
                 setState(s => s ? { ...s, proactiveSuggestions: suggestions } : null);
             }
@@ -792,24 +871,37 @@ const App: React.FC = () => {
     }, [state?.documents, state?.contradictions, state?.risks, state?.caseEntities, state?.caseSummary, state?.isLoading]);
 
 
+    // Zeigt einen Ladebildschirm an, bis der initiale Zustand aus der Datenbank geladen wurde.
     if (!state) {
         return <div className="bg-gray-900 text-white h-screen flex items-center justify-center">Loading...</div>;
     }
 
+    // Findet das Dokumentobjekt für das Detail-Modal basierend auf der `detailDocId`.
     const detailDoc = detailDocId ? state.documents.find(d => d.id === detailDocId) : null;
 
+    // Haupt-JSX-Struktur der Anwendung.
+    // Verwendet ein Flexbox-Layout für die Hauptbereiche: Sidebar, Hauptinhalt und Assistenten-Sidebar.
     return (
         <div className="h-screen w-screen bg-gray-900 text-gray-200 flex overflow-hidden">
+            {/* Container für schwebende Benachrichtigungen */}
             <NotificationContainer notifications={notifications} onDismiss={id => setNotifications(prev => prev.filter(n => n.id !== id))} />
+
+            {/* Linke Navigations-Sidebar, wird im Fokusmodus ausgeblendet */}
             {!state.isFocusMode && <SidebarNav activeTab={state.activeTab} setActiveTab={setActiveTab} />}
+
+            {/* Hauptinhaltsbereich */}
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className="bg-gray-800/50 border-b border-gray-700 p-2 flex justify-end">
+                    {/* Schalter zum Aktivieren/Deaktivieren des Fokusmodus */}
                     <FocusModeSwitcher isFocusMode={state.isFocusMode} toggleFocusMode={toggleFocusMode} />
                 </header>
                 <div className="flex-1 overflow-y-auto p-6">
+                    {/* Rendert den Inhalt des aktiven Tabs */}
                     {renderTab()}
                 </div>
             </main>
+
+            {/* Rechte Assistenten-Sidebar, wird im Fokusmodus ausgeblendet */}
             {!state.isFocusMode && (
                 <AssistantSidebar 
                     agentActivityLog={state.agentActivity} 
@@ -819,6 +911,8 @@ const App: React.FC = () => {
                     loadingSection={state.loadingSection}
                 />
             )}
+
+            {/* Modal zur Anzeige von Dokumentendetails, wird nur bei Bedarf gerendert */}
             {detailDoc && (
                  <DocumentDetailModal 
                     document={detailDoc} 
@@ -828,6 +922,8 @@ const App: React.FC = () => {
                     setActiveTab={setActiveTab}
                 />
             )}
+
+            {/* Komponente für proaktive Vorschläge, die am unteren Rand des Bildschirms angezeigt wird */}
             <ProactiveAssistant
                 suggestions={state.proactiveSuggestions}
                 onExecute={handleExecuteSuggestion}
