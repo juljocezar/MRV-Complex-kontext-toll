@@ -17,8 +17,27 @@ interface OrchestrationResult {
     newTimelineEvents: TimelineEvent[];
 }
 
+/**
+ * Der OrchestrationService ist für die Koordination komplexer, mehrstufiger Analyseprozesse verantwortlich.
+ * Wenn ein neues Dokument hinzugefügt wird, steuert dieser Service eine Kette von KI-Analysen,
+ * sammelt die Ergebnisse und gibt sie gebündelt zurück.
+ */
 export class OrchestrationService {
     
+    /**
+     * Behandelt die vollständige Analyse eines neu hinzugefügten oder manuell analysierten Dokuments.
+     * Dieser Prozess umfasst mehrere Schritte:
+     * 1.  Grundlegende Dokumentenanalyse (Zusammenfassung, Entitäten, Ereignisse).
+     * 2.  Widerspruchserkennung gegen bestehende Dokumente.
+     * 3.  Generierung von strategischen Einblicken basierend auf den neuen Informationen.
+     *
+     * @param doc - Das zu analysierende Dokument.
+     * @param currentState - Der aktuelle Gesamtzustand der Anwendung.
+     * @param addAgentActivity - Funktion zum Protokollieren des Starts einer Agenten-Aktivität.
+     * @param updateAgentActivity - Funktion zum Aktualisieren des Status einer Agenten-Aktivität.
+     * @param addNotification - Funktion zum Anzeigen von Benachrichtigungen für den Benutzer.
+     * @returns Ein `OrchestrationResult`-Objekt mit allen neuen Daten oder `null` bei einem Fehler.
+     */
     static async handleNewDocument(
         doc: Document,
         currentState: AppState,
@@ -27,10 +46,12 @@ export class OrchestrationService {
         addNotification: (message: string, type?: Notification['type']) => void
     ): Promise<OrchestrationResult | null> {
         
+        // Initialisiert leere Arrays zum Sammeln der Ergebnisse aus den verschiedenen Analyseschritten.
         const knowledgeItemsToCreate: Omit<KnowledgeItem, 'id' | 'createdAt'>[] = [];
         const newTimelineEvents: TimelineEvent[] = [];
         
-        // --- 1. Document Analysis ---
+        // --- Schritt 1: Dokumentenanalyse ---
+        // Extrahiert grundlegende Informationen aus dem Dokument.
         const docAnalysisAgent = MRV_AGENTS.documentAnalyst;
         const analysisActivityId = addAgentActivity({
             agentName: docAnalysisAgent.name,
@@ -44,9 +65,11 @@ export class OrchestrationService {
         let newGlobalTags: string[] = [];
 
         try {
+            // Ruft den DocumentAnalystService auf, um die KI-Analyse durchzuführen.
             analysisResult = await DocumentAnalystService.analyzeDocument(doc, currentState.tags, currentState.settings.ai);
             updateAgentActivity(analysisActivityId, { result: 'erfolg', details: `Zusammenfassung, ${analysisResult.structuredEvents?.length || 0} Ereignisse & ${analysisResult.structuredActs?.length || 0} Handlungen extrahiert.` });
             
+            // Erstellt einen Wissenseintrag aus der generierten Zusammenfassung.
             if (analysisResult.summary) {
                 knowledgeItemsToCreate.push({
                     title: `KI-Zusammenfassung: ${doc.name}`,
@@ -56,7 +79,7 @@ export class OrchestrationService {
                 });
             }
 
-            // Create timeline events from structured events
+            // Erstellt Chronologie-Ereignisse aus den extrahierten strukturierten Daten.
             if (analysisResult.structuredEvents) {
                 analysisResult.structuredEvents.forEach(event => {
                     newTimelineEvents.push({
@@ -69,6 +92,7 @@ export class OrchestrationService {
                 });
             }
             
+            // Verarbeitet die Ergebnisse: neue Tags, aktualisiertes Dokumentobjekt und neue Entitätsvorschläge.
             newGlobalTags = analysisResult.suggestedTags || [];
             const combinedTags = Array.from(new Set([...doc.tags, ...newGlobalTags]));
             updatedDoc = {
@@ -83,11 +107,12 @@ export class OrchestrationService {
         } catch (e) {
              updateAgentActivity(analysisActivityId, { result: 'fehler', details: e instanceof Error ? e.message : 'Unbekannter Fehler' });
              addNotification(`Analyse für "${doc.name}" fehlgeschlagen.`, 'error');
-             // The caller should handle the UI update for the error status
+             // Bei einem kritischen Fehler in diesem ersten Schritt wird die Orchestrierung abgebrochen.
             return null;
         }
         
-        // --- 2. Contradiction Detection ---
+        // --- Schritt 2: Widerspruchserkennung ---
+        // Vergleicht das neue Dokument mit allen vorhandenen Dokumenten, um Widersprüche zu finden.
         const contradictionAgent = MRV_AGENTS.contradictionDetector;
         const contradictionActivityId = addAgentActivity({
             agentName: contradictionAgent.name,
@@ -98,12 +123,15 @@ export class OrchestrationService {
         let newContradictions: Contradiction[] = [];
         try {
             const newDocContext = `Dokument: ${doc.name}\nZusammenfassung: ${analysisResult.summary}`;
+            // Erstellt einen temporären Zustand für die Prüfung, der das aktualisierte neue Dokument enthält.
             const allDocsForCheck = [...currentState.documents.filter(d => d.id !== doc.id), updatedDoc];
             const stateForContradictionCheck = {
                 ...currentState,
                 documents: allDocsForCheck
             };
             newContradictions = await ContradictionDetectorService.findContradictions(stateForContradictionCheck, newDocContext);
+
+            // Verarbeitet die gefundenen Widersprüche und erstellt entsprechende Wissenseinträge.
             if (newContradictions.length > 0) {
                  updateAgentActivity(contradictionActivityId, { result: 'erfolg', details: `${newContradictions.length} neue Widersprüche gefunden.` });
                  addNotification(`${newContradictions.length} neue Widersprüche gefunden.`, 'info');
@@ -122,11 +150,13 @@ export class OrchestrationService {
                  updateAgentActivity(contradictionActivityId, { result: 'erfolg', details: `Keine neuen Widersprüche.` });
             }
         } catch (e) {
+             // Fehler bei der Widerspruchserkennung werden protokolliert, brechen aber nicht die gesamte Orchestrierung ab.
              updateAgentActivity(contradictionActivityId, { result: 'fehler', details: e instanceof Error ? e.message : 'Unbekannter Fehler' });
         }
 
 
-        // --- 3. Insight Generation ---
+        // --- Schritt 3: Generierung von Einblicken ---
+        // Sucht nach übergeordneten strategischen Einblicken, die sich aus den neuen Daten ergeben.
         const insightAgent = MRV_AGENTS.caseStrategist;
          const insightActivityId = addAgentActivity({
             agentName: insightAgent.name,
@@ -137,6 +167,7 @@ export class OrchestrationService {
         let newInsights: Insight[] = [];
         try {
             const newDocContext = `Neues Dokument hinzugefügt: ${doc.name}\nZusammenfassung: ${analysisResult.summary}`;
+            // Erstellt einen temporären Zustand, der alle bisherigen Ergebnisse (neues Dokument, neue Widersprüche) enthält.
             const allDocsForCheck = [...currentState.documents.filter(d => d.id !== doc.id), updatedDoc];
             const stateForInsightCheck = {
                 ...currentState,
@@ -144,6 +175,8 @@ export class OrchestrationService {
                 contradictions: [...currentState.contradictions, ...newContradictions]
             };
             newInsights = await InsightService.generateInsights(stateForInsightCheck, newDocContext);
+
+            // Verarbeitet die neuen Einblicke und erstellt entsprechende Wissenseinträge.
              if (newInsights.length > 0) {
                 updateAgentActivity(insightActivityId, { result: 'erfolg', details: `${newInsights.length} neue Einblicke generiert.` });
                 addNotification(`${newInsights.length} neue strategische Einblicke generiert.`, 'info');
@@ -159,9 +192,12 @@ export class OrchestrationService {
                 updateAgentActivity(insightActivityId, { result: 'erfolg', details: `Keine neuen Einblicke.` });
             }
         } catch (e) {
+             // Fehler bei der Einblickgenerierung werden ebenfalls protokolliert, ohne den Prozess abzubrechen.
              updateAgentActivity(insightActivityId, { result: 'fehler', details: e instanceof Error ? e.message : 'Unbekannter Fehler' });
         }
 
+        // --- Zusammenfassung und Ergebnis-Aggregation ---
+        // Stellt eine zusammenfassende Benachrichtigung für den Benutzer zusammen.
         const summaryParts = [];
         if (newTimelineEvents.length > 0) summaryParts.push(`${newTimelineEvents.length} Ereignis(se)`);
         if (newSuggestedEntities.length > 0) summaryParts.push(`${newSuggestedEntities.length} Entität(en)`);
@@ -176,13 +212,14 @@ export class OrchestrationService {
         }
         addNotification(summaryText, 'success');
 
-
+        // Fügt allen gesammelten Wissenseinträgen IDs und Zeitstempel hinzu.
         const newKnowledgeItems: KnowledgeItem[] = knowledgeItemsToCreate.map(item => ({
             ...item,
             id: crypto.randomUUID(),
             createdAt: new Date().toISOString(),
         }));
         
+        // Gibt das gebündelte Ergebnisobjekt zurück, das alle neuen und aktualisierten Daten enthält.
         return {
             updatedDoc,
             analysisResult,
