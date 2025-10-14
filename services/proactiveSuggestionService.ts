@@ -1,4 +1,5 @@
 
+
 import { AppState, ProactiveSuggestion } from "../types";
 
 export class ProactiveSuggestionService {
@@ -13,7 +14,49 @@ export class ProactiveSuggestionService {
 
         if (appState.isLoading) return []; // Don't show suggestions while loading
 
-        // Suggestion 1: Analyze unclassified documents
+        // --- New, more intelligent suggestions ---
+
+        // 1. Pattern: Deep contextual research
+        // Look at the last 5 document analyses
+        const analysisActivities = appState.agentActivity
+            .filter(a => a.action.startsWith('Analysiere:'))
+            .slice(0, 5);
+
+        if (analysisActivities.length >= 3) {
+            const contextualDocsAnalyzed = analysisActivities.filter(activity => {
+                const docName = activity.action.replace('Analysiere: ', '');
+                const doc = appState.documents.find(d => d.name === docName);
+                return doc?.contentType === 'contextual-report';
+            }).length;
+
+            if (contextualDocsAnalyzed >= 3 && appState.activeTab !== 'legal-basis') {
+                 suggestions.push({
+                    id: 'suggest-deeper-research',
+                    text: 'Sie konzentrieren sich auf Hintergrundrecherchen. Sollen die externen Rechtsdatenbanken konsultiert werden?',
+                    action: { type: 'navigate', payload: 'legal-basis' }
+                });
+            }
+        }
+
+        // 2. Correlation: Risks to HRD Tools
+        if (appState.risks.digital && appState.activeTab !== 'hrd-support') {
+             suggestions.push({
+                id: 'suggest-comms-plan',
+                text: 'Digitales Risiko erkannt. Jetzt einen sicheren Kommunikationsplan erstellen?',
+                action: { type: 'navigate', payload: 'hrd-support' }
+            });
+        }
+        if ((appState.risks.physical || appState.risks.intimidation) && appState.activeTab !== 'hrd-support') {
+            suggestions.push({
+                id: 'suggest-hrd-emergency-resources',
+                text: 'Physische Risiken erkannt. Sollen Notfall-Ressourcen für HRDs geprüft werden?',
+                action: { type: 'navigate', payload: 'hrd-support' }
+            });
+        }
+
+        // --- Existing suggestions (will be appended) ---
+
+        // Suggestion: Analyze unclassified documents
         if (appState.documents.some(d => d.classificationStatus === 'unclassified')) {
             suggestions.push({
                 id: 'analyze-docs',
@@ -22,7 +65,7 @@ export class ProactiveSuggestionService {
             });
         }
         
-        // Suggestion 2: Review new contradictions
+        // Suggestion: Review new contradictions
         if (appState.contradictions.length > 0) {
              suggestions.push({
                 id: 'review-contradictions',
@@ -31,7 +74,7 @@ export class ProactiveSuggestionService {
             });
         }
 
-        // Suggestion 3: Generate mitigation strategies if risks are selected but no strategies exist
+        // Suggestion: Generate mitigation strategies if risks are selected but no strategies exist
         const hasActiveRisks = Object.values(appState.risks).some(isActive => isActive);
         if (hasActiveRisks && !appState.mitigationStrategies) {
             suggestions.push({
@@ -41,7 +84,7 @@ export class ProactiveSuggestionService {
             });
         }
 
-        // Suggestion 4: Analyze entity relationships if none exist
+        // Suggestion: Analyze entity relationships if none exist
         const needsRelationshipAnalysis = appState.caseEntities.length > 1 && appState.caseEntities.every(e => !e.relationships || e.relationships.length === 0);
         if (needsRelationshipAnalysis) {
              suggestions.push({
@@ -51,7 +94,7 @@ export class ProactiveSuggestionService {
             });
         }
         
-        // Suggestion 5: Generate an overall analysis if it hasn't been done
+        // Suggestion: Generate an overall analysis if it hasn't been done
         if (!appState.caseSummary && appState.documents.length > 0) {
              suggestions.push({
                 id: 'perform-overall-analysis',
@@ -59,9 +102,10 @@ export class ProactiveSuggestionService {
                 action: { type: 'navigate', payload: 'dashboard' }
             });
         }
-
-        // Return a limited number of unique suggestions, filtering out ones the user has already seen/dismissed in this session.
-        // For simplicity here, we just return the first two found.
-        return suggestions.slice(0, 2);
+        
+        // --- Finalization ---
+        // Return a limited number of unique suggestions
+        const uniqueSuggestions = suggestions.filter((v,i,a) => a.findIndex(t => (t.id === v.id)) === i);
+        return uniqueSuggestions.slice(0, 2);
     }
 }

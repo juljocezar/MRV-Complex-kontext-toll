@@ -1,4 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
+import ReactFlow, {
+    Controls,
+    Background,
+    MiniMap,
+    useNodesState,
+    useEdgesState,
+    Node,
+    Edge,
+} from 'reactflow';
 import type { CaseEntity } from '../../types';
 
 interface InteractiveGraphProps {
@@ -7,99 +16,115 @@ interface InteractiveGraphProps {
     selectedEntityId: string | null;
 }
 
-const entityTypeColor = (type: CaseEntity['type']) => {
-    switch (type) {
-        case 'Person': return 'bg-sky-500';
-        case 'Organisation': return 'bg-amber-500';
-        case 'Standort': return 'bg-teal-500';
-        default: return 'bg-gray-500';
+const nodeColor = (node: Node) => {
+    switch (node.data.type) {
+        case 'Person':
+            return '#3b82f6'; // blue-500
+        case 'Organisation':
+            return '#f59e0b'; // amber-500
+        case 'Standort':
+            return '#10b981'; // emerald-500
+        default:
+            return '#6b7280'; // gray-500
     }
-}
+};
 
 const InteractiveGraph: React.FC<InteractiveGraphProps> = ({ entities, onSelectEntity, selectedEntityId }) => {
+    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-    const nodePositions = useMemo(() => {
-        const positions: { [key: string]: { x: number; y: number } } = {};
-        const width = 800; // canvas width
-        const height = 500; // canvas height
-        const centerX = width / 2;
-        const centerY = height / 2;
+    useMemo(() => {
+        const positions = new Map<string, { x: number, y: number }>();
+        const initialNodes: Node[] = [];
+        const initialEdges: Edge[] = [];
+        const width = 800;
+        const height = 600;
 
+        // Basic layout algorithm
         const orgs = entities.filter(e => e.type === 'Organisation');
         const people = entities.filter(e => e.type === 'Person');
-        const others = entities.filter(e => e.type !== 'Organisation' && e.type !== 'Person');
-        
-        // Place orgs in the middle
-        orgs.forEach((org, i) => {
-            positions[org.id] = { x: centerX + (i - (orgs.length-1)/2) * 150, y: centerY };
+        const others = entities.filter(e => !['Person', 'Organisation'].includes(e.type));
+
+        orgs.forEach((entity, i) => {
+            positions.set(entity.id, { x: width / 2 + (i - (orgs.length - 1) / 2) * 200, y: height / 2 });
         });
 
-        // Place people in a circle around
-        const personRadius = Math.min(width, height) / 3;
-        people.forEach((person, i) => {
+        people.forEach((entity, i) => {
             const angle = (i / people.length) * 2 * Math.PI;
-            positions[person.id] = {
-                x: centerX + personRadius * Math.cos(angle),
-                y: centerY + personRadius * Math.sin(angle)
-            };
+            const radius = 250;
+            positions.set(entity.id, { x: width / 2 + radius * Math.cos(angle), y: height / 2 + radius * Math.sin(angle) });
         });
-        
-        // Place others at the bottom
-        others.forEach((other, i) => {
-            positions[other.id] = { x: (width / (others.length + 1)) * (i + 1) , y: height - 50 };
+
+        others.forEach((entity, i) => {
+            positions.set(entity.id, { x: (width / (others.length + 1)) * (i + 1), y: height - 100 });
         });
 
 
-        return positions;
-    }, [entities]);
+        entities.forEach(entity => {
+            const position = positions.get(entity.id) || { x: Math.random() * width, y: Math.random() * height };
+            initialNodes.push({
+                id: entity.id,
+                position,
+                data: { label: entity.name, type: entity.type },
+                style: {
+                    background: nodeColor({ data: { type: entity.type } } as Node),
+                    color: 'white',
+                    border: '1px solid #333',
+                    width: 120
+                }
+            });
+
+            (entity.relationships || []).forEach(rel => {
+                initialEdges.push({
+                    id: `e-${entity.id}-${rel.targetEntityId}`,
+                    source: entity.id,
+                    target: rel.targetEntityId,
+                    label: rel.description,
+                    animated: true,
+                    style: { stroke: '#a0a0a0' },
+                    labelStyle: { fill: '#ddd', fontSize: 10 },
+                });
+            });
+        });
+
+        setNodes(initialNodes);
+        setEdges(initialEdges);
+    }, [entities, setNodes, setEdges]);
     
+    useMemo(() => {
+        setNodes((nds) =>
+            nds.map((node) => ({
+                ...node,
+                style: {
+                    ...node.style,
+                    border: selectedEntityId === node.id ? '2px solid #fff' : '1px solid #333',
+                    boxShadow: selectedEntityId === node.id ? '0 0 15px rgba(59, 130, 246, 0.7)' : 'none',
+                },
+            }))
+        );
+    }, [selectedEntityId, setNodes]);
+
+    const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+        const entity = entities.find(e => e.id === node.id);
+        if (entity) {
+            onSelectEntity(entity);
+        }
+    }, [entities, onSelectEntity]);
+
     return (
-        <div className="w-full h-full" style={{ position: 'relative', minWidth: '800px', minHeight: '500px' }}>
-            <svg className="absolute top-0 left-0 w-full h-full" style={{ zIndex: 0 }}>
-                {entities.flatMap(entity => 
-                    (entity.relationships || []).map(rel => {
-                        const sourcePos = nodePositions[entity.id];
-                        const targetPos = nodePositions[rel.targetEntityId];
-
-                        if (!sourcePos || !targetPos) return null;
-
-                        return (
-                            <line 
-                                key={`${entity.id}-${rel.targetEntityId}`}
-                                x1={sourcePos.x} y1={sourcePos.y}
-                                x2={targetPos.x} y2={targetPos.y}
-                                stroke="rgba(107, 114, 128, 0.5)"
-                                strokeWidth="2"
-                            />
-                        );
-                    })
-                )}
-            </svg>
-
-            {entities.map(entity => {
-                const pos = nodePositions[entity.id];
-                if (!pos) return null;
-
-                const isSelected = selectedEntityId === entity.id;
-
-                return (
-                    <button 
-                        key={entity.id} 
-                        className={`absolute p-2 rounded-lg text-white text-xs text-center shadow-lg transition-all duration-200 ${entityTypeColor(entity.type)} ${isSelected ? 'ring-2 ring-offset-2 ring-offset-gray-800 ring-blue-500 scale-110' : 'hover:scale-110'}`}
-                        style={{ 
-                            left: `${pos.x}px`, 
-                            top: `${pos.y}px`, 
-                            transform: 'translate(-50%, -50%)',
-                            zIndex: 1
-                        }}
-                        onClick={() => onSelectEntity(entity)}
-                    >
-                        <div className="font-bold">{entity.name}</div>
-                        <div className="text-gray-200 text-[10px]">({entity.type})</div>
-                    </button>
-                )
-            })}
-        </div>
+        <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={handleNodeClick}
+            fitView
+            className="bg-gray-800"
+        >
+            <Controls />
+            <MiniMap nodeColor={nodeColor} />
+            <Background gap={12} size={1} color="#4a5568" />
+        </ReactFlow>
     );
 };
 

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { ActiveTab } from '../../types';
 import Icon from './Icon';
@@ -33,6 +32,7 @@ const navGroups = [
     {
         title: 'ERSTELLUNG',
         items: [
+            { id: 'schnellerfassung', label: 'Schnellerfassung', icon: 'capture' },
             { id: 'generation', label: 'Generierung', icon: 'generation' },
             { id: 'reports', label: 'Berichte', icon: 'reports' },
             { id: 'library', label: 'Bibliothek', icon: 'library' },
@@ -53,6 +53,8 @@ const navGroups = [
         items: [
             { id: 'agents', label: 'Agenten', icon: 'agents' },
             { id: 'audit', label: 'Audit Log', icon: 'audit' },
+            { id: 'architecture-analysis', label: 'Architektur-Analyse', icon: 'analysis' },
+            { id: 'status', label: 'Status Quo', icon: 'reports' },
             { id: 'settings', label: 'Einstellungen', icon: 'settings' },
         ]
     }

@@ -8,6 +8,11 @@ export class DocumentAnalystService {
         properties: {
             summary: { type: 'string', description: "Eine prägnante Zusammenfassung des Dokuments in 3-5 Sätzen." },
             classification: { type: 'string', description: 'Klassifizierung des Dokuments nach HURIDOCS-Standards (z.B. Opferbericht, Zeugenaussage, Polizeibericht, Gerichtsentscheidung, Handbuch, juristischer Text).' },
+            contentType: { 
+                type: 'string', 
+                enum: ['case-specific', 'contextual-report'], 
+                description: "Klassifiziere den Inhaltstyp: 'case-specific' (direkt zum Fall, z.B. Zeugenaussage, Beweismittel) oder 'contextual-report' (allgemeiner Bericht, Studie, Analyse eines Phänomens). Eine Entscheidung MUSS getroffen werden."
+            },
             suggestedTags: { 
                 type: 'array', 
                 description: "Eine Liste von 1-3 relevanten Tags für das Dokument basierend auf seinem Inhalt.", 
@@ -57,7 +62,7 @@ export class DocumentAnalystService {
                 }
             }
         },
-        required: ['summary', 'classification', 'suggestedTags', 'structuredEvents', 'structuredActs', 'structuredParticipants']
+        required: ['summary', 'classification', 'contentType', 'suggestedTags', 'structuredEvents', 'structuredActs', 'structuredParticipants']
     };
 
     static async analyzeDocument(document: Document, existingTags: Tag[], settings: AISettings): Promise<DocumentAnalysisResult> {
@@ -75,14 +80,16 @@ export class DocumentAnalystService {
             Deine Aufgaben:
             1.  **Zusammenfassung:** Erstelle eine prägnante Zusammenfassung des Dokuments.
             2.  **Klassifizierung:** Klassifiziere das Dokument nach HURIDOCS-Standards (z.B. Opferbericht, Zeugenaussage, Polizeibericht, Handbuch, juristischer Text).
-            3.  **Tags vorschlagen:** Schlage 1-3 passende Tags vor. Berücksichtige existierende Tags: ${existingTagNames || 'Keine'}.
-            4.  **Strukturierte Daten extrahieren:**
+            3.  **Inhaltstyp bestimmen (WICHTIG):** Du musst eine definitive Klassifizierung des Inhaltstyps vornehmen. Entscheide, ob das Dokument primär 'case-specific' (direkt zum Fall, z.B. eine spezifische Zeugenaussage, ein Beweismittel, eine E-Mail im Fall) oder 'contextual-report' (liefert allgemeinen Kontext, z.B. ein allgemeiner Menschenrechtsbericht, eine Studie, eine Analyse eines gesellschaftlichen Phänomens) ist. Wäge ab: Dient das Dokument als direkter Beweis für ein Ereignis im Fall oder erklärt es den Hintergrund, in dem der Fall stattfindet?
+            4.  **Tags vorschlagen:** Schlage 1-3 passende Tags vor. Berücksichtige existierende Tags: ${existingTagNames || 'Keine'}.
+            5.  **Strukturierte Daten extrahieren:**
                 -   **WICHTIG:** Extrahiere nur Daten, wenn das Dokument tatsächliche Vorfälle oder Fallbeispiele beschreibt. Wenn es sich um ein Metadokument (z.B. ein Handbuch, ein Bericht über Methodik, ein juristischer Text) handelt, gib für die folgenden drei Punkte leere Arrays zurück und erwähne in der Zusammenfassung, dass es sich um ein Metadokument handelt.
                 -   **Ereignisse (Events):** Extrahiere alle beschriebenen Vorfälle von Menschenrechtsverletzungen.
                 -   **Handlungen (Acts):** Extrahiere für jedes Ereignis die spezifischen Handlungen/Verletzungen.
                 -   **Beteiligte (Participants):** Identifiziere alle Akteure. Bestimme für jeden Akteur: Name, Typ (Person, Organisation, Standort), Rolle (Opfer, Täter, Quelle, etc.) und eine kurze, kontextbezogene Beschreibung.
 
-            Gib das Ergebnis im geforderten JSON-Format zurück. Sei dabei äußerst präzise und halte dich strikt an die Fakten aus dem Dokument.
+            Sei dabei äußerst präzise und halte dich strikt an die Fakten aus dem Dokument.
+            GIB NUR DAS GEFORDERTE JSON ZURÜCK, OHNE EINLEITUNG ODER ZUSÄTZLICHEN TEXT.
         `;
 
         try {
@@ -106,6 +113,7 @@ export class DocumentAnalystService {
                     sourceDocumentName: document.name 
                 })),
                 classification: mainResult.classification,
+                contentType: mainResult.contentType,
                 suggestedTags: mainResult.suggestedTags,
                 structuredEvents: mainResult.structuredEvents,
                 structuredActs: mainResult.structuredActs,

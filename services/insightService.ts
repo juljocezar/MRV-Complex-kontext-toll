@@ -44,7 +44,7 @@ Berücksichtige insbesondere die folgenden zusätzlichen strategischen Informati
 
 Deine Aufgaben:
 1.  Identifiziere kritische Risiken, ungenutzte Chancen oder wichtige Beobachtungen, die sich aus dem Gesamtkontext ergeben. Welche strategischen Implikationen ergeben sich aus den Risiken und Widersprüchen?
-2.  Formuliere jeden Einblick als klaren, umsetzbaren Satz.
+2.  Formuliere jeden Einblick als eine konkrete, handlungsorientierte Empfehlung, eine spezifische Risiko-Warnung oder eine signifikante Beobachtung, die eine strategische Neubewertung erfordert. Vermeide Banalitäten.
 3.  Klassifiziere jeden Einblick als 'recommendation' (Empfehlung), 'risk' (Risiko) oder 'observation' (Beobachtung).
 4.  Wenn keine signifikanten neuen Einblicke gefunden werden, gib ein leeres Array zurück.
 

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { EthicsAnalysis } from '../../types';
 import Tooltip from '../ui/Tooltip';
@@ -41,8 +42,8 @@ const EthicsAnalysisTab: React.FC<EthicsAnalysisTabProps> = ({ analysisResult, o
             {!isLoading && analysisResult ? (
                 <div className="bg-gray-800 p-6 rounded-lg space-y-4">
                     <div>
-                        <h2 className="text-xl font-semibold text-white mb-2">Bewertung der Voreingenommenheit (Bias)</h2>
-                        <p className="text-gray-300">{analysisResult.biasAssessment}</p>
+                        <h2 className="text-xl font-semibold text-white mb-2">Analyse ethischer Verstöße durch Gegenseite</h2>
+                        <p className="text-gray-300">{analysisResult.ethicalViolationsAssessment}</p>
                     </div>
                     <div className="border-t border-gray-700 pt-4">
                         <h2 className="text-xl font-semibold text-white mb-2">Datenschutzbedenken</h2>

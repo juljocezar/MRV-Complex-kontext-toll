@@ -24,15 +24,21 @@ import AgentManagementTab from './components/tabs/AgentManagementTab';
 import AuditLogTab from './components/tabs/AuditLogTab';
 import SettingsTab from './components/tabs/SettingsTab';
 import PlaceholderTab from './components/tabs/PlaceholderTab';
+import QuickCaptureTab from './components/tabs/QuickCaptureTab';
 import FocusModeSwitcher from './components/ui/FocusModeSwitcher';
 import DocumentDetailModal from './components/modals/DocumentDetailModal';
+import KnowledgeChunkingModal from './components/modals/KnowledgeChunkingModal';
 import ProactiveAssistant from './components/ui/ProactiveAssistant';
 import NotificationContainer from './components/ui/NotificationContainer';
+import GlobalSearch from './components/ui/GlobalSearch';
+import SearchResultsModal from './components/modals/SearchResultsModal';
+import AnalyseDocTab from './components/tabs/AnalyseDocTab';
+import StatusDocTab from './components/tabs/StatusDocTab';
 
 
 import * as storage from './services/storageService';
 
-import { AppState, ActiveTab, CaseEntity, Document, GeneratedDocument, AgentActivity, KnowledgeItem, ProactiveSuggestion, Notification, Tag, Risks, KPI, TimelineEvent, AppSettings, ChecklistItem, AuditLogEntry } from './types';
+import { AppState, ActiveTab, CaseEntity, Document, GeneratedDocument, AgentActivity, KnowledgeItem, ProactiveSuggestion, Notification, Tag, Risks, KPI, TimelineEvent, AppSettings, ChecklistItem, AuditLogEntry, SearchResult, SuggestedEntity, SuggestedKnowledgeChunk, Contradiction, ArgumentationPoint, SnippetAnalysisResult } from './types';
 import { GeminiService } from './services/geminiService';
 import { CaseAnalyzerService } from './services/caseAnalyzerService';
 import { ContradictionDetectorService } from './services/contradictionDetectorService';
@@ -46,15 +52,25 @@ import { EntityRelationshipService } from './services/entityRelationshipService'
 import { ArgumentationService } from './services/argumentationService';
 import { ProactiveSuggestionService } from './services/proactiveSuggestionService';
 import { OrchestrationService } from './services/orchestrationService';
+import { SearchService } from './services/searchService';
+import { KnowledgeService } from './services/knowledgeService';
 // Fix: Import `extractFileContent` and `hashText` to resolve undefined errors.
 import { extractFileContent } from './utils/fileUtils';
 import { hashText } from './utils/cryptoUtils';
+import { marked } from 'marked';
 
 const App: React.FC = () => {
     const [state, setState] = useState<AppState | null>(null);
     const [detailDocId, setDetailDocId] = useState<string | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const debounceTimeoutRef = useRef<number | null>(null);
+    
+    const [searchService, setSearchService] = useState<SearchService | null>(null);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    
+    const [knowledgeChunkSuggestions, setKnowledgeChunkSuggestions] = useState<SuggestedKnowledgeChunk[] | null>(null);
+    const [chunkingDoc, setChunkingDoc] = useState<Document | null>(null);
 
     const addNotification = useCallback((message: string, type: Notification['type'] = 'info', duration = 5000, details?: string) => {
         const id = crypto.randomUUID();
@@ -196,83 +212,192 @@ const App: React.FC = () => {
     
     // --- Complex AI Service Handlers ---
 
-    const runDocumentOrchestration = useCallback(async (doc: Document) => {
+    const addNewDocument = useCallback(async (file: File) => {
         if (!state) return;
-        
-        const result = await OrchestrationService.handleNewDocument(
-            doc,
-            state,
-            addAgentActivity,
-            updateAgentActivity,
-            addNotification
-        );
 
-        if (!result) return; // Orchestration failed and handled its own error state
+        try {
+            const { text, base64, mimeType } = await extractFileContent(file);
+            const content = text || base64 || '';
+            const id = await hashText(file.name + file.size + content);
 
-        // Apply all gathered changes in a single update
-        setState(s => {
-            if (!s) return null;
+            if (state.documents.some(d => d.id === id)) {
+                addNotification(`Doppelte Datei übersprungen: ${file.name}`, 'info');
+                return;
+            }
 
-            const updatedDocs = s.documents.map(d => d.id === result.updatedDoc.id ? result.updatedDoc : d);
-            
-            const existingGlobalTagNames = new Set(s.tags.map(t => t.name));
-            const newGlobalTags = result.newGlobalTags.filter(tagName => !existingGlobalTagNames.has(tagName))
-                .map(name => ({ id: crypto.randomUUID(), name }));
-            
-            const existingSuggestionNames = new Set(s.suggestedEntities.map(e => e.name));
-            const newSuggestions = result.newSuggestedEntities.filter(e => !existingSuggestionNames.has(e.name));
-
-            const finalState = {
-                ...s,
-                documents: updatedDocs,
-                documentAnalysisResults: { ...s.documentAnalysisResults, [doc.id]: result.analysisResult },
-                tags: [...s.tags, ...newGlobalTags],
-                suggestedEntities: [...s.suggestedEntities, ...newSuggestions],
-                contradictions: [...s.contradictions, ...result.newContradictions],
-                insights: [...s.insights, ...result.newInsights],
-                knowledgeItems: [...s.knowledgeItems, ...result.newKnowledgeItems],
-                timelineEvents: [...s.timelineEvents, ...result.newTimelineEvents],
+            const newDoc: Document = {
+                id, name: file.name, content, textContent: text, base64Content: base64,
+                mimeType, classificationStatus: 'unclassified', tags: [], createdAt: new Date().toISOString(),
             };
 
-            // Persist the changes to storage
-            storage.updateDocument(result.updatedDoc);
-            storage.saveDocumentAnalysisResult(doc.id, result.analysisResult);
-            if (newGlobalTags.length > 0) storage.addMultipleTags(newGlobalTags);
-            if (newSuggestions.length > 0) storage.addMultipleSuggestedEntities(newSuggestions);
-            if (result.newContradictions.length > 0) storage.addMultipleContradictions(result.newContradictions);
-            if (result.newInsights.length > 0) storage.addMultipleInsights(result.newInsights);
-            if (result.newKnowledgeItems.length > 0) storage.addMultipleKnowledgeItems(result.newKnowledgeItems);
-            if (result.newTimelineEvents.length > 0) storage.addMultipleTimelineEvents(result.newTimelineEvents);
+            setState(s => s ? { ...s, documents: [...s.documents, newDoc] } : s);
+            await storage.addDocument(newDoc);
+            addNotification(`Dokument "${file.name}" hinzugefügt.`, 'success');
+        
+        } catch (error) {
+            console.error("Failed to add document", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            addNotification("Hinzufügen des Dokuments fehlgeschlagen.", "error", 5000, errorMessage);
+        }
+    }, [state, addNotification]);
 
-            return finalState;
+    // Fix: Refactored `analyzeSingleDocument` to return a `Promise<void>` to match the expected prop type in `DocumentsTab`.
+    // This ensures the function signature is correct and allows for potential async handling in child components.
+    const analyzeSingleDocument = useCallback((docId: string): Promise<void> => {
+        return new Promise<void>((resolve, reject) => {
+            setState(currentState => {
+                if (!currentState) {
+                    const errorMsg = "Anwendung nicht initialisiert.";
+                    addNotification(errorMsg, "error");
+                    reject(new Error(errorMsg));
+                    return currentState;
+                }
+
+                const docToAnalyze = currentState.documents.find(d => d.id === docId);
+
+                if (!docToAnalyze) {
+                    const errorMsg = "Dokument zur Analyse nicht gefunden.";
+                    addNotification(errorMsg, "error");
+                    console.error(`Document with ID ${docId} not found in state.`);
+                    reject(new Error(errorMsg));
+                    return currentState; // No state change if doc is not found
+                }
+
+                // Fire off the async analysis logic.
+                // It will handle its own state updates when it's done.
+                (async () => {
+                    try {
+                        const result = await OrchestrationService.handleNewDocument(
+                            docToAnalyze,
+                            currentState, // We pass the guaranteed latest state here
+                            addAgentActivity,
+                            updateAgentActivity,
+                            addNotification
+                        );
+
+                        if (!result) {
+                            addNotification(`Hintergrund-Analyse für "${docToAnalyze.name}" konnte nicht abgeschlossen werden.`, 'error');
+                            const docWithError = { ...docToAnalyze, classificationStatus: 'error' as const };
+                            // Use functional update to set error status
+                            setState(s => {
+                                if (!s) return null;
+                                const docs = s.documents.map(d => d.id === docWithError.id ? docWithError : d);
+                                return { ...s, documents: docs };
+                            });
+                            await storage.updateDocument(docWithError);
+                            resolve(); // Resolve, as the operation itself is complete, even if analysis failed.
+                            return; // Early exit from async function
+                        }
+            
+                        // When analysis is successful, update state with the results
+                        setState(s => {
+                            if (!s) return null;
+                
+                            const updatedDocs = s.documents.map(d => d.id === result.updatedDoc.id ? result.updatedDoc : d);
+                            
+                            const existingGlobalTagNames = new Set(s.tags.map(t => t.name));
+                            const newGlobalTags = result.newGlobalTags.filter(tagName => !existingGlobalTagNames.has(tagName))
+                                .map(name => ({ id: crypto.randomUUID(), name }));
+                            
+                            const existingSuggestionNames = new Set(s.suggestedEntities.map(e => e.name));
+                            const newSuggestions = result.newSuggestedEntities.filter(e => !existingSuggestionNames.has(e.name));
+                
+                            const finalState = {
+                                ...s,
+                                documents: updatedDocs,
+                                documentAnalysisResults: { ...s.documentAnalysisResults, [docId]: result.analysisResult },
+                                tags: [...s.tags, ...newGlobalTags],
+                                suggestedEntities: [...s.suggestedEntities, ...newSuggestions],
+                                contradictions: [...s.contradictions, ...result.newContradictions],
+                                insights: [...s.insights, ...result.newInsights],
+                                knowledgeItems: [...s.knowledgeItems, ...result.newKnowledgeItems],
+                                timelineEvents: [...s.timelineEvents, ...result.newTimelineEvents],
+                            };
+                
+                            // Persist changes to storage
+                            storage.updateDocument(result.updatedDoc);
+                            storage.saveDocumentAnalysisResult(docId, result.analysisResult);
+                            if (newGlobalTags.length > 0) storage.addMultipleTags(newGlobalTags);
+                            if (newSuggestions.length > 0) storage.addMultipleSuggestedEntities(newSuggestions);
+                            if (result.newContradictions.length > 0) storage.addMultipleContradictions(result.newContradictions);
+                            if (result.newInsights.length > 0) storage.addMultipleInsights(result.newInsights);
+                            if (result.newKnowledgeItems.length > 0) storage.addMultipleKnowledgeItems(result.newKnowledgeItems);
+                            if (result.newTimelineEvents.length > 0) storage.addMultipleTimelineEvents(result.newTimelineEvents);
+                
+                            return finalState;
+                        });
+
+                        resolve(); // Resolve on success
+                
+                    } catch (error) {
+                        console.error("Failed to analyze document", error);
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        addNotification(`Analyse für "${docToAnalyze.name}" fehlgeschlagen.`, "error", 5000, errorMessage);
+                        const docWithError = { ...docToAnalyze, classificationStatus: 'error' as const };
+                        // Use functional update to set error status
+                        setState(s => {
+                            if (!s) return null;
+                            const docs = s.documents.map(d => d.id === docWithError.id ? docWithError : d);
+                            return { ...s, documents: docs };
+                        });
+                        await storage.updateDocument(docWithError);
+                        reject(error); // Reject on catched error
+                    } finally {
+                        // Finally, turn off the loading indicators
+                        setState(s => s ? { ...s, isLoading: false, analyzingDocId: null } : s);
+                    }
+                })(); // IIFE
+
+                // Return the initial state change (setting loading to true)
+                return { ...currentState, isLoading: true, analyzingDocId: docId };
+            });
         });
-        
-    }, [state, addAgentActivity, updateAgentActivity, addNotification]);
-    
-    const addNewDocumentAndAnalyze = useCallback(async (file: File) => {
+    }, [addAgentActivity, updateAgentActivity, addNotification]);
+
+    const handleDecomposeDocument = useCallback(async (docId: string) => {
         if (!state) return;
-        const { text, base64, mimeType } = await extractFileContent(file);
-        const content = text || base64 || '';
-        const id = await hashText(file.name + file.size + content);
+        const doc = state.documents.find(d => d.id === docId);
+        if (!doc) return;
+
+        setState(s => s ? { ...s, isLoading: true, loadingSection: 'knowledge_chunking' } : null);
+        addAuditLog('Dokumenten-Zerlegung gestartet', `Dokument: ${doc.name}`);
+        try {
+            const chunks = await KnowledgeService.suggestChunksFromDocument(doc, state.settings.ai);
+            setKnowledgeChunkSuggestions(chunks.map(c => ({ ...c, selected: true })));
+            setChunkingDoc(doc);
+            addNotification(`KI hat ${chunks.length} Wissensbausteine vorgeschlagen.`, 'info');
+        } catch (error) {
+            console.error("Failed to decompose document:", error);
+            addNotification("Zerlegung in Wissensbausteine fehlgeschlagen.", "error", 5000, error instanceof Error ? error.message : String(error));
+        } finally {
+            setState(s => s ? { ...s, isLoading: false, loadingSection: '' } : null);
+        }
+    }, [state, addAuditLog, addNotification]);
+
+    const handleAcceptKnowledgeChunks = useCallback(async (chunks: SuggestedKnowledgeChunk[]) => {
+        if (!state || !chunkingDoc) return;
         
-        if (state.documents.some(d => d.id === id)) {
-            addNotification(`Doppelte Datei übersprungen: ${file.name}`, 'info');
-            return;
+        const newItems = chunks
+            .filter(c => c.selected)
+            .map(c => ({
+                id: crypto.randomUUID(),
+                title: c.title,
+                summary: c.summary,
+                sourceDocId: chunkingDoc.id,
+                createdAt: new Date().toISOString(),
+                tags: ['KI-extrahiert', chunkingDoc.name],
+            }));
+
+        if (newItems.length > 0) {
+            setState(s => s ? { ...s, knowledgeItems: [...s.knowledgeItems, ...newItems] } : null);
+            await storage.addMultipleKnowledgeItems(newItems);
+            addNotification(`${newItems.length} Wissensbaustein(e) wurden zur Wissensbasis hinzugefügt.`, 'success');
+            addAuditLog('Wissensbausteine übernommen', `${newItems.length} Stück aus "${chunkingDoc.name}"`);
         }
 
-        const newDoc: Document = {
-            id, name: file.name, content, textContent: text, base64Content: base64,
-            mimeType, classificationStatus: 'unclassified', tags: [], createdAt: new Date().toISOString(),
-        };
-
-        addNotification(`Dokument "${file.name}" hinzugefügt. Analyse wird gestartet...`, 'info');
-        await addDocument(newDoc);
-        
-        // Use a slight delay to ensure state has updated before orchestration,
-        // which reads from the latest state.
-        setTimeout(() => runDocumentOrchestration(newDoc), 100);
-
-    }, [state, addDocument, runDocumentOrchestration, addNotification]);
+        setKnowledgeChunkSuggestions(null);
+        setChunkingDoc(null);
+    }, [state, chunkingDoc, addNotification, addAuditLog]);
 
 
     const viewDocumentDetails = useCallback((docId: string) => {
@@ -415,24 +540,59 @@ const App: React.FC = () => {
         return await GeminiService.callAI(prompt, schema, state.settings.ai);
     };
 
-    const generateContent = async (params: any) => {
+    const generateContentStream = async (params: { instructions: string; template?: string; templateName?: string; sourceDocuments?: Document[], selectedArguments?: ArgumentationPoint[] }, onChunk: (chunk: string) => void): Promise<GeneratedDocument | null> => {
         if (!state) return null;
         setState(s => s ? { ...s, isLoading: true, loadingSection: 'generation' } : null);
         try {
-             const result = await ContentCreatorService.createContent({
+            const fullContent = await ContentCreatorService.createContentStream({
                 ...params,
                 caseContext: buildCaseContext(state)
-            }, state.settings.ai);
+            }, state.settings.ai, onChunk);
+
+            const htmlContent = await marked.parse(fullContent);
+
             const newDoc: GeneratedDocument = {
                 id: crypto.randomUUID(),
-                title: `Generated Document ${new Date().toISOString()}`,
-                content: result.content,
-                htmlContent: result.htmlContent,
+                title: params.templateName || `Generated Document ${new Date().toISOString()}`,
+                content: fullContent,
+                htmlContent: htmlContent,
                 createdAt: new Date().toISOString(),
-                templateUsed: result.metadata.template_used,
-                sourceDocIds: result.metadata.source_documents,
+                templateUsed: params.templateName,
+                sourceDocIds: params.sourceDocuments?.map((d: Document) => d.id) || [],
             };
-            setState(s => s ? { ...s, generatedDocuments: [...s.generatedDocuments, newDoc] } : null);
+
+            const extractedEntities = await CaseAnalyzerService.extractEntitiesFromText(
+                newDoc.content, 
+                newDoc.title,
+                state.settings.ai
+            );
+
+            let newSuggestions: SuggestedEntity[] = [];
+            if (extractedEntities.length > 0) {
+                const existingEntityNames = new Set([
+                    ...state.caseEntities.map(e => e.name.toLowerCase()),
+                    ...state.suggestedEntities.map(e => e.name.toLowerCase())
+                ]);
+                
+                newSuggestions = extractedEntities
+                    .filter(e => !existingEntityNames.has(e.name.toLowerCase()))
+                    .map(e => ({
+                        ...e,
+                        id: crypto.randomUUID(),
+                        sourceDocumentId: newDoc.id, // Link to the new generated doc
+                    }));
+                
+                if (newSuggestions.length > 0) {
+                    addNotification(`${newSuggestions.length} neue Entitäten im generierten Dokument vorgeschlagen.`, 'info');
+                    storage.addMultipleSuggestedEntities(newSuggestions);
+                }
+            }
+
+            setState(s => s ? { 
+                ...s, 
+                generatedDocuments: [...s.generatedDocuments, newDoc],
+                suggestedEntities: s.suggestedEntities.concat(newSuggestions)
+            } : null);
             storage.addGeneratedDocument(newDoc);
             addNotification("Dokument erfolgreich generiert.", "success");
             return newDoc;
@@ -555,11 +715,17 @@ const App: React.FC = () => {
         }
     };
     
-    const runFreeformAnalysis = async (prompt: string, isGrounded: boolean): Promise<string> => {
-        if (!state) return "Anwendung nicht initialisiert.";
+    const runFreeformAnalysisStream = async (prompt: string, isGrounded: boolean, onChunk: (chunk: string) => void): Promise<string> => {
+        if (!state || !searchService) return "Anwendung nicht initialisiert.";
         addAuditLog("Freie Analyse gestartet", `Prompt: ${prompt.substring(0, 50)}...`);
         try {
-            const response = await CaseAnalyzerService.runFreeformQuery(prompt, state, isGrounded);
+            const response = await CaseAnalyzerService.runFreeformQueryStream(
+                prompt,
+                state,
+                isGrounded,
+                searchService.search.bind(searchService),
+                onChunk
+            );
             addNotification("Analyse abgeschlossen.", "success");
             return response;
         } catch(e) {
@@ -581,17 +747,111 @@ const App: React.FC = () => {
         }
         handleDismissSuggestion(suggestion.id);
     };
+    
+    const handleSearch = (query: string) => {
+        if (searchService && query) {
+            const results = searchService.search(query);
+            setSearchResults(results);
+            setIsSearchOpen(true);
+        } else if (!query) {
+            setIsSearchOpen(false);
+            setSearchResults([]);
+        }
+    };
+
+    const handlePrepareDispatch = useCallback((doc: GeneratedDocument) => {
+        const defaultChecklist: ChecklistItem[] = [
+            { id: 'disp_c1', text: 'Empfänger und Adresse überprüft', checked: false },
+            { id: 'disp_c2', text: 'Betreff ist präzise und korrekt', checked: false },
+            { id: 'disp_c3', text: 'Inhalt auf Fakten und Grammatik geprüft', checked: false },
+            { id: 'disp_c4', text: 'Alle notwendigen Anhänge sind ausgewählt', checked: false },
+            { id: 'disp_c5', text: 'Vertraulichkeitsstufe des Inhalts bewertet', checked: false },
+        ];
+        
+        setState(s => s ? {
+            ...s,
+            dispatchDocument: doc,
+            checklist: defaultChecklist,
+            coverLetter: '', // Reset cover letter
+            activeTab: 'dispatch'
+        } : null);
+        
+        addAuditLog('Dokument für Versand vorbereitet', `Dokument: ${doc.title}`);
+        addNotification(`Dokument "${doc.title}" für Versand vorbereitet.`, 'info');
+    }, [addAuditLog, addNotification]);
+
+    const handleRiskNotificationFromContradiction = useCallback((contradiction: Contradiction) => {
+        if (!state) return;
+        const doc1Name = state.documents.find(d => d.id === contradiction.source1DocId)?.name || 'Unbekannt';
+        const doc2Name = state.documents.find(d => d.id === contradiction.source2DocId)?.name || 'Unbekannt';
+
+        setActiveTab('strategy');
+        addNotification(
+            'Überprüfen Sie Ihre Risikobewertung', 
+            'info', 
+            10000, 
+            `Der Widerspruch zwischen "${doc1Name}" und "${doc2Name}" könnte die Glaubwürdigkeit von Beweismitteln beeinträchtigen.`
+        );
+        addAuditLog('Risiko-Check von Widerspruch ausgelöst', `Widerspruch ID: ${contradiction.id}`);
+    }, [state, addNotification, addAuditLog]);
+
+    const handleSaveSnippetAsKnowledge = useCallback(async (snippetText: string, analysis: SnippetAnalysisResult) => {
+        if (!state) return;
+    
+        addAuditLog('Wissens-Schnipsel gespeichert', `Titel: ${analysis.suggestedTitle}`);
+    
+        // Create new knowledge item
+        const newItem: KnowledgeItem = {
+            id: crypto.randomUUID(),
+            title: analysis.suggestedTitle,
+            summary: snippetText,
+            sourceDocId: `schnipsel-${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            tags: analysis.suggestedTags,
+        };
+        
+        // Create new suggested entities, avoiding duplicates
+        const existingEntityNames = new Set([
+            ...state.caseEntities.map(e => e.name.toLowerCase()),
+            ...state.suggestedEntities.map(e => e.name.toLowerCase())
+        ]);
+        const newSuggestions: SuggestedEntity[] = analysis.suggestedEntities
+            .filter(e => !existingEntityNames.has(e.name.toLowerCase()))
+            .map(e => ({
+                ...e,
+                id: crypto.randomUUID(),
+                sourceDocumentId: newItem.id, // Link to the new knowledge item
+                sourceDocumentName: `Schnipsel: ${newItem.title}`
+            }));
+    
+        setState(s => {
+            if (!s) return null;
+            return {
+                ...s,
+                knowledgeItems: [...s.knowledgeItems, newItem],
+                suggestedEntities: [...s.suggestedEntities, ...newSuggestions],
+            }
+        });
+    
+        await storage.addKnowledgeItem(newItem);
+        if (newSuggestions.length > 0) {
+            await storage.addMultipleSuggestedEntities(newSuggestions);
+        }
+        
+        addNotification(`Schnipsel als Wissenseintrag "${newItem.title}" gespeichert.`, 'success');
+        if (newSuggestions.length > 0) {
+            addNotification(`${newSuggestions.length} neue Entitäten vorgeschlagen.`, 'info');
+        }
+        setActiveTab('knowledge');
+    
+    }, [state, addNotification, addAuditLog]);
 
     const renderTab = () => {
         if (!state) return null;
         switch (state.activeTab) {
             case 'dashboard':
                 return <DashboardTab 
-                    documents={state.documents} 
-                    caseEntities={state.caseEntities}
-                    generatedDocuments={state.generatedDocuments}
-                    documentAnalysisResults={state.documentAnalysisResults}
-                    caseDescription={state.caseContext.caseDescription}
+                    appState={state}
                     setCaseDescription={updateCaseDescription}
                     setActiveTab={setActiveTab}
                     onResetCase={() => { if(window.confirm('Are you sure?')) storage.clearDB().then(() => window.location.reload()); }}
@@ -619,17 +879,16 @@ const App: React.FC = () => {
                              addNotification(`Import fehlgeschlagen`, 'error', 10000, error.message);
                         }
                     }}
-                    caseSummary={state.caseSummary}
                     onPerformOverallAnalysis={performOverallAnalysis}
-                    isLoading={state.isLoading && state.loadingSection === 'case_analysis'}
-                    loadingSection={state.loadingSection}
                     addNotification={addNotification}
+                    onViewDocumentDetails={viewDocumentDetails}
                  />;
             case 'documents':
                 return <DocumentsTab 
                     appState={state}
-                    onAddNewDocument={addNewDocumentAndAnalyze}
-                    onRunOrchestration={runDocumentOrchestration}
+                    onAddNewDocument={addNewDocument}
+                    onAnalyzeDocument={analyzeSingleDocument}
+                    onDecomposeDocument={handleDecomposeDocument}
                     onUpdateDocument={(doc) => {
                         updateDocuments(state.documents.map(d => d.id === doc.id ? doc : d));
                     }}
@@ -667,11 +926,13 @@ const App: React.FC = () => {
             case 'graph':
                 return <GraphTab appState={state} />;
             case 'analysis':
-                return <AnalysisTab appState={state} onPerformAnalysis={runFreeformAnalysis} />;
+                return <AnalysisTab appState={state} onPerformAnalysisStream={runFreeformAnalysisStream} />;
             case 'reports':
                 return <ReportsTab onGenerateReport={generateReport} appState={state} />;
+            case 'schnellerfassung':
+                return <QuickCaptureTab appState={state} onSaveSnippet={handleSaveSnippetAsKnowledge} />;
             case 'generation':
-                return <GenerationTab onGenerateContent={generateContent} appState={state} onUpdateGeneratedDocuments={updateGeneratedDocuments} isLoading={state.isLoading && state.loadingSection === 'generation'} />;
+                return <GenerationTab onGenerateContentStream={generateContentStream} appState={state} onUpdateGeneratedDocuments={updateGeneratedDocuments} isLoading={state.isLoading && state.loadingSection === 'generation'} onPrepareDispatch={handlePrepareDispatch} />;
             case 'library':
                 return <LibraryTab 
                     generatedDocuments={state.generatedDocuments} 
@@ -714,11 +975,16 @@ const App: React.FC = () => {
                     onFindContradictions={findContradictions} 
                     isLoading={state.isLoading && state.loadingSection === 'contradictions'} 
                     onViewDocument={viewDocumentDetails}
+                    onAddRiskNotification={handleRiskNotificationFromContradiction}
                 />;
             case 'agents':
                 return <AgentManagementTab agentActivityLog={state.agentActivity} />;
             case 'audit':
                 return <AuditLogTab auditLog={state.auditLog} agentActivityLog={state.agentActivity} />;
+            case 'architecture-analysis':
+                return <AnalyseDocTab />;
+            case 'status':
+                return <StatusDocTab />;
             case 'settings':
                 return <SettingsTab 
                     settings={state.settings} 
@@ -769,6 +1035,7 @@ const App: React.FC = () => {
                 isFocusMode: false,
                 isLoading: false,
                 loadingSection: '',
+                analyzingDocId: null,
                 suggestedEntities: await storage.getAllSuggestedEntities(),
                 dispatchDocument: null,
                 checklist: [],
@@ -777,6 +1044,11 @@ const App: React.FC = () => {
                 notifications: [],
             };
             setState(initialAppState);
+
+            // Init Search Service
+            const sService = new SearchService();
+            sService.buildIndex(initialAppState);
+            setSearchService(sService);
         }
         load();
     }, []);
@@ -789,7 +1061,7 @@ const App: React.FC = () => {
                 setState(s => s ? { ...s, proactiveSuggestions: suggestions } : null);
             }
         }
-    }, [state?.documents, state?.contradictions, state?.risks, state?.caseEntities, state?.caseSummary, state?.isLoading]);
+    }, [state?.documents, state?.contradictions, state?.risks, state?.caseEntities, state?.caseSummary, state?.isLoading, state?.agentActivity]);
 
 
     if (!state) {
@@ -803,7 +1075,10 @@ const App: React.FC = () => {
             <NotificationContainer notifications={notifications} onDismiss={id => setNotifications(prev => prev.filter(n => n.id !== id))} />
             {!state.isFocusMode && <SidebarNav activeTab={state.activeTab} setActiveTab={setActiveTab} />}
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className="bg-gray-800/50 border-b border-gray-700 p-2 flex justify-end">
+                <header className="bg-gray-800/50 border-b border-gray-700 p-2 flex justify-between items-center">
+                    <div className="flex-grow">
+                         <GlobalSearch onSearch={handleSearch} />
+                    </div>
                     <FocusModeSwitcher isFocusMode={state.isFocusMode} toggleFocusMode={toggleFocusMode} />
                 </header>
                 <div className="flex-1 overflow-y-auto p-6">
@@ -828,11 +1103,39 @@ const App: React.FC = () => {
                     setActiveTab={setActiveTab}
                 />
             )}
+             {knowledgeChunkSuggestions && chunkingDoc && (
+                <KnowledgeChunkingModal
+                    isOpen={true}
+                    documentName={chunkingDoc.name}
+                    suggestions={knowledgeChunkSuggestions}
+                    onClose={() => {
+                        setKnowledgeChunkSuggestions(null);
+                        setChunkingDoc(null);
+                    }}
+                    onAccept={handleAcceptKnowledgeChunks}
+                />
+            )}
             <ProactiveAssistant
                 suggestions={state.proactiveSuggestions}
                 onExecute={handleExecuteSuggestion}
                 onDismiss={handleDismissSuggestion}
             />
+             {isSearchOpen && (
+                <SearchResultsModal
+                    results={searchResults}
+                    onClose={() => setIsSearchOpen(false)}
+                    onResultClick={(result) => {
+                        if (result.type === 'Document') {
+                            viewDocumentDetails(result.id);
+                        } else if (result.type === 'Entity') {
+                            setActiveTab('entities');
+                        } else if (result.type === 'Knowledge') {
+                            setActiveTab('knowledge');
+                        }
+                        setIsSearchOpen(false);
+                    }}
+                />
+            )}
         </div>
     );
 };

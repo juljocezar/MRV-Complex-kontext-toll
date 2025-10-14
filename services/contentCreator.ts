@@ -9,6 +9,10 @@ export class ContentCreatorService {
         `--- DOKUMENT START: ${doc.name} ---\nINHALT (Auszug):\n${doc.content.substring(0, 2000)}...\n--- DOKUMENT ENDE ---\n`
     ).join('\n');
     
+    const argumentsContext = (params.selectedArguments && params.selectedArguments.length > 0)
+        ? `**WICHTIGE ARGUMENTE ZUM INTEGRIEREN:**\n${params.selectedArguments.map(arg => `- ${arg.point} (Beweis: ${arg.evidence.join(', ')})`).join('\n')}\nStelle sicher, dass diese Argumente prominent und überzeugend in den Text eingearbeitet werden.\n`
+        : '';
+
     const prompt = `
 Du bist ein Spezialist für die Erstellung hochwertiger, strukturierter Dokumente im Bereich Menschenrechte.
 
@@ -18,6 +22,8 @@ FALLKONTEXT:
 ${params.caseContext}
 
 ${documentsContext ? `QUELLDOKUMENTE:\n${documentsContext}\n` : ''}
+
+${argumentsContext}
 
 ANWEISUNGEN:
 ${params.instructions}
@@ -54,6 +60,51 @@ Schreibe in professionellem, präzisem Deutsch.
     } catch (error) {
       console.error('Content creation failed:', error);
       throw new Error(`Content creation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  static async createContentStream(params: ContentCreationParams, settings: AISettings, onChunk: (chunk: string) => void): Promise<string> {
+    const documentsContext = (params.sourceDocuments || []).map(doc => 
+        `--- DOKUMENT START: ${doc.name} ---\nINHALT (Auszug):\n${doc.content.substring(0, 2000)}...\n--- DOKUMENT ENDE ---\n`
+    ).join('\n');
+    
+    const argumentsContext = (params.selectedArguments && params.selectedArguments.length > 0)
+        ? `**WICHTIGE ARGUMENTE ZUM INTEGRIEREN:**\n${params.selectedArguments.map(arg => `- ${arg.point} (Beweis: ${arg.evidence.join(', ')})`).join('\n')}\nStelle sicher, dass diese Argumente prominent und überzeugend in den Text eingearbeitet werden.\n`
+        : '';
+
+    const prompt = `
+Du bist ein Spezialist für die Erstellung hochwertiger, strukturierter Dokumente im Bereich Menschenrechte.
+
+${params.template ? `TEMPLATE/STRUKTUR:\n${params.template}\n` : ''}
+
+FALLKONTEXT:
+${params.caseContext}
+
+${documentsContext ? `QUELLDOKUMENTE:\n${documentsContext}\n` : ''}
+
+${argumentsContext}
+
+ANWEISUNGEN:
+${params.instructions}
+
+Erstelle ein professionelles, vollständiges Dokument basierend auf den Anweisungen, dem Fallkontext und den Quelldokumenten.
+${params.template ? 'Folge genau der bereitgestellten Template-Struktur und fülle alle Abschnitte aus.' : ''}
+${documentsContext ? 'Nutze primär die Informationen aus den Quelldokumenten und zitiere sie ggf. ("laut [Dateiname]"). Ergänze mit Informationen aus dem allgemeinen Fallkontext.' : ''}
+Formatiere deine Antwort in Markdown.
+
+Bei fehlenden Informationen:
+- Verwende "[Information nicht verfügbar]"
+- Weise auf Informationslücken hin
+- Schlage vor, wo weitere Recherchen nötig sind
+
+Schreibe in professionellem, präzisem Deutsch.
+    `;
+
+    try {
+        return await GeminiService.generateContentStream(prompt, settings, onChunk);
+    } catch (error) {
+        console.error('Content creation stream failed:', error);
+        throw new Error(`Content creation stream failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

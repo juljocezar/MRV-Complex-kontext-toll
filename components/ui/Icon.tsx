@@ -19,6 +19,7 @@ const Icon: React.FC<IconProps> = ({ name, className }) => {
             case 'analysis': return '🔬';
             case 'reports': return '📈';
             case 'generation': return '✍️';
+            case 'capture': return '✒️';
             case 'library': return '📚';
             case 'dispatch': return '📤';
             case 'strategy': return '♟️';

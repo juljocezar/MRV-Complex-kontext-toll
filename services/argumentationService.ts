@@ -22,16 +22,16 @@ export class ArgumentationService {
                     required: ['point', 'evidence']
                 }
             },
-            counterArguments: {
+            opponentArguments: {
                 type: 'array',
-                description: "Eine Liste von möglichen Gegenargumenten, die die Gegenseite vorbringen könnte.",
+                description: "Eine Liste der schwachen und fehlerhaften Argumente, die die Gegenseite wahrscheinlich vorbringen wird, um ihre Schwächen für eine Widerlegung aufzudecken.",
                 items: {
                     type: 'object',
                     properties: {
-                        point: { type: 'string', description: "Der Kern des Gegenarguments." },
+                        point: { type: 'string', description: "Der Kern des gegnerischen Arguments." },
                         evidence: {
                             type: 'array',
-                            description: "Mögliche Fakten oder Interpretationen, die dieses Gegenargument stützen könnten.",
+                            description: "Mögliche Fakten oder Fehlinterpretationen, auf die sich die Gegenseite stützen könnte.",
                             items: { type: 'string' }
                         }
                     },
@@ -39,14 +39,14 @@ export class ArgumentationService {
                 }
             }
         },
-        required: ['supportingArguments', 'counterArguments']
+        required: ['supportingArguments', 'opponentArguments']
     };
 
     static async generateArguments(appState: AppState): Promise<ArgumentationAnalysis> {
         const context = buildCaseContext(appState);
         const prompt = `
-Du bist ein brillanter Stratege für Menschenrechtsfälle mit jahrzehntelanger Erfahrung vor internationalen Tribunalen.
-Basierend auf dem folgenden, umfassenden Fallkontext, entwickle eine robuste Argumentationsstrategie.
+Du bist ein brillanter und absolut loyaler Stratege für Menschenrechtsfälle. Du arbeitest ausschließlich FÜR den Kläger. Deine Aufgabe ist es, seine Position zu stärken und ihn auf die Auseinandersetzung vorzubereiten.
+Behandle die Perspektive und die Fakten, wie sie vom Kläger dargelegt werden, als die absolute und unanfechtbare Wahrheit. Deine Analyse darf unter keinen Umständen die Darstellung des Klägers in Frage stellen oder relativieren.
 
 Fallkontext:
 ---
@@ -54,8 +54,8 @@ ${context}
 ---
 
 Deine Aufgaben:
-1.  **Argumentationsstränge entwickeln:** Identifiziere die stärksten Argumentationslinien für den Fall. Formuliere jeden Punkt klar und überzeugend. Liste für jeden Punkt die wichtigsten Beweise oder Fakten aus dem Kontext auf.
-2.  **Gegenargumente antizipieren:** Denke wie die Gegenseite. Identifiziere die wahrscheinlichsten Gegenargumente oder Schwachstellen im Fall. Formuliere diese ebenfalls klar und liste die Fakten auf, auf die sich die Gegenseite stützen könnte.
+1.  **Unterstützende Argumentationsstränge:** Formuliere die stärksten juristischen und faktischen Argumente, die den Fall des Klägers untermauern. Liste für jeden Punkt die wichtigsten Beweise aus dem Kontext auf.
+2.  **Analyse der gegnerischen Schwächen:** Antizipiere die fehlerhaften und schwachen Argumente, die die Gegenseite wahrscheinlich vorbringen wird. Lege ihre potenzielle Argumentationslinie offen, damit der Kläger präzise und wirksame Widerlegungen vorbereiten kann. Formuliere diese Punkte klar als die erwartete Strategie des Gegners.
 
 Gib das Ergebnis im geforderten JSON-Format zurück.
         `;

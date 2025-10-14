@@ -1,79 +1,52 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# MRV-Assistent Professional (Mrv-kompley-kontext-Tool)
 
-# Run and deploy your AI Studio app
+## Übersicht
 
-This repository contains everything you need to run your app locally.
+Der MRV-Assistent Professional ist ein fortschrittliches, KI-gestütztes Dashboard, das speziell für Fallbearbeiter im Bereich Menschenrechte entwickelt wurde. Die Anwendung dient der Verwaltung, Analyse und Generierung von Falldokumenten, Strategien und Berichten. Sie nutzt die generative KI der Gemini-API, um detaillierte Einblicke, Risikobewertungen und optimierte Arbeitsabläufe zu ermöglichen.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ZyTGO917OocFkHsbn9BhaK47QO_9PJjT
+Die gesamte Anwendung ist als reine Client-Side-Anwendung konzipiert, die alle Daten sicher in der IndexedDB des Browsers speichert. Dies gewährleistet hohe Datensicherheit und Offline-Fähigkeit.
 
-## Prerequisites
+## Hauptfunktionen
 
-Before you begin, ensure you have the following installed:
-*   [Node.js](https://nodejs.org/) (v18 or later is recommended)
-*   [npm](https://www.npmjs.com/) (usually comes with Node.js)
+- **Dashboard:** Bietet einen schnellen Überblick über den Fallstatus, Statistiken und eine KI-gestützte Gesamtanalyse.
+- **Dokumentenverwaltung:** Hochladen und Verwalten von Falldokumenten mit KI-gestützter Analyse (Zusammenfassung, Klassifizierung, Entitätenextraktion).
+- **Stammdaten (Entitäten):** Erfassen und Verwalten von Personen, Organisationen und Orten mit automatischer Analyse von Beziehungsgeflechten.
+- **Chronologie & Wissensbasis:** Automatische und manuelle Erstellung von Ereignis-Zeitachsen und einer durchsuchbaren Wissensdatenbank.
+- **Tiefe Analyse:**
+    - **Analyse-Zentrum:** Freiform-Chat mit der KI über den gesamten Fallkontext.
+    - **Widerspruchsanalyse:** Findet widersprüchliche Aussagen über mehrere Dokumente hinweg.
+    - **Strategie & Risiko:** Identifiziert Risiken und generiert Minderungsstrategien.
+    - **Argumentationshilfe:** Entwickelt Argumente für die eigene Position und antizipiert Gegenargumente.
+- **Dokumentenerstellung:** Generiert Berichte und andere Dokumente basierend auf dem Fallkontext und anpassbaren Vorlagen.
+- **Spezialwerkzeuge:** Bietet Unterstützung für UN-Einreichungen, HRD-Support und Ethik-Analysen.
+- **System & Audit:** Transparente Protokollierung aller Benutzer- und KI-Agenten-Aktionen.
 
-## Getting Started
+## Technischer Stack
 
-Follow these steps to get your development environment set up:
+-   **Framework:** React 18 (via CDN)
+-   **Sprache:** TypeScript
+-   **Styling:** Tailwind CSS (via CDN)
+-   **KI-Modell:** Google Gemini API (`@google/genai`)
+-   **Lokaler Speicher:** IndexedDB
+-   **Markdown-Rendering:** `marked`
+-   **Architektur:** Build-less Frontend-Anwendung mit `importmap` für das Laden von Modulen.
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd <repository-directory>
-    ```
+## Projektstruktur
 
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
+Das Projekt ist in eine logische und serviceorientierte Struktur unterteilt:
 
-3.  **Set up your environment variables:**
-    *   Create a new file named `.env.local` by copying the example file:
-        ```bash
-        cp .env.example .env.local
-        ```
-    *   Open `.env.local` and add your Gemini API key.
+-   `components/`: Enthält alle React-Komponenten, unterteilt in `tabs`, `ui` und `modals`.
+-   `services/`: Kapselt die Geschäftslogik, insbesondere die Interaktion mit externen APIs und die Datenverarbeitung.
+    -   `geminiService.ts`: Zentraler, gedrosselter und fehlerresistenter Gateway zur Gemini-API.
+    -   `storageService.ts`: Abstraktionsschicht für alle IndexedDB-Operationen.
+    -   `orchestrationService.ts`: Koordiniert komplexe, mehrstufige KI-Workflows.
+    -   Weitere Services für spezifische Analyseaufgaben (z.B. `caseAnalyzerService`, `contradictionDetectorService`).
+-   `utils/`: Globale Hilfsfunktionen.
+-   `types.ts`: Zentrale Definition aller TypeScript-Typen.
+-   `constants.ts`: Anwendungsweite Konstanten, wie z.B. die Definitionen der KI-Agenten.
 
-4.  **How to get a Gemini API key:**
-    *   Go to [Google AI Studio](https://aistudio.google.com/).
-    *   Click on **"Get API key"** in the top left corner.
-    *   Create a new API key in a new or existing Google Cloud project.
-    *   Copy the key and paste it into `.env.local`.
+## Inbetriebnahme
 
-5.  **Run the application:**
-    ```bash
-    npm run dev
-    ```
-    Your application should now be running on `http://localhost:5173`.
-
-## Project Structure
-
-Here is an overview of the key directories in this project:
-
-*   `src/components/`: Contains reusable React components.
-*   `src/constants/`: Holds constant values used throughout the application.
-*   `src/hooks/`: Custom React hooks for managing state and side effects.
-*   `src/services/`: Modules for interacting with external APIs (like the Gemini API).
-*   `src/types/`: TypeScript type definitions.
-*   `src/utils/`: Utility functions that can be shared across the app.
-*   `src/tests/`: Contains all the tests for the project.
-
-## Available Scripts
-
-In the project directory, you can run the following commands:
-
-*   `npm run dev`: Runs the app in development mode.
-*   `npm run build`: Builds the app for production to the `dist` folder.
-*   `npm run preview`: Serves the production build locally for previewing.
-*   `npm test`: Runs the test suite (to be added).
-
-## Visual Studio Code Recommendations
-
-If you are using Visual Studio Code, here are some recommended extensions for a better development experience:
-
-*   [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
-*   [Prettier - Code formatter](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
-*   [Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss) (if you decide to use Tailwind)
-*   [GitLens — Git supercharged](https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens)
+1.  Stellen Sie sicher, dass eine Umgebungsvariable `API_KEY` mit einem gültigen Google Gemini API-Schlüssel vorhanden ist.
+2.  Da es sich um eine build-less Anwendung handelt, können die Dateien von jedem einfachen statischen Webserver (z.B. `python -m http.server` oder `npx serve`) ausgeliefert werden.
+3.  Öffnen Sie die `index.html` im Browser.

@@ -11,6 +11,7 @@ export interface Document {
   summary?: string;
   classificationStatus: 'unclassified' | 'classified' | 'error';
   workCategory?: string; // e.g., 'Opferbericht', 'Zeugenaussage'
+  contentType?: 'case-specific' | 'contextual-report' | 'unknown'; // New field for content classification
   tags: string[];
   createdAt: string;
 }
@@ -98,6 +99,7 @@ export type AgentCapability =
   | 'entity_extraction'
   | 'summarization'
   | 'document_classification'
+  | 'knowledge_chunking'
   | 'case_analysis'
   | 'risk_assessment'
   | 'strategy_development'
@@ -175,11 +177,22 @@ export interface DocumentAnalysisResult {
     workloadEstimate?: WorkloadAnalysis;
     costEstimate?: CostAnalysis;
     classification?: string; // HURIDOCS standard
+    contentType?: 'case-specific' | 'contextual-report' | 'unknown'; // New field for content classification
     suggestedTags?: string[];
     // New structured data fields
     structuredEvents?: StructuredEvent[];
     structuredActs?: StructuredAct[];
     structuredParticipants?: StructuredParticipant[];
+}
+
+export interface SnippetAnalysisResult {
+    suggestedTitle: string;
+    suggestedTags: string[];
+    suggestedEntities: {
+        name: string;
+        type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt';
+        description: string;
+    }[];
 }
 
 export interface DocumentAnalysisResults {
@@ -200,7 +213,7 @@ export interface CostAnalysis {
 }
 
 export interface EthicsAnalysis {
-    biasAssessment: string;
+    ethicalViolationsAssessment: string;
     privacyConcerns: string[];
     recommendations: string[];
 }
@@ -221,6 +234,12 @@ export interface SuggestedEntity {
     sourceDocumentName: string;
 }
 
+export interface SuggestedKnowledgeChunk {
+    title: string;
+    summary: string;
+    selected: boolean;
+}
+
 export interface ArgumentationPoint {
   point: string;
   evidence: string[];
@@ -228,7 +247,7 @@ export interface ArgumentationPoint {
 
 export interface ArgumentationAnalysis {
   supportingArguments: ArgumentationPoint[];
-  counterArguments: ArgumentationPoint[];
+  opponentArguments: ArgumentationPoint[];
 }
 
 export interface Notification {
@@ -269,6 +288,13 @@ export interface AppSettings {
     complexity: ComplexitySettings;
 }
 
+export interface SearchResult {
+    id: string;
+    type: 'Document' | 'Entity' | 'Knowledge';
+    title: string;
+    preview: string;
+}
+
 export interface AppState {
     activeTab: ActiveTab;
     documents: Document[];
@@ -293,6 +319,7 @@ export interface AppState {
     isFocusMode: boolean;
     isLoading: boolean;
     loadingSection: string; // e.g., 'document_analysis', 'insights'
+    analyzingDocId: string | null;
     suggestedEntities: SuggestedEntity[];
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
@@ -325,7 +352,10 @@ export type ActiveTab =
   | 'contradictions'
   | 'agents'
   | 'audit'
-  | 'settings';
+  | 'settings'
+  | 'architecture-analysis'
+  | 'schnellerfassung'
+  | 'status';
   
 export interface AnalysisChatMessage {
   role: 'user' | 'assistant';
@@ -357,6 +387,7 @@ export interface ContentCreationParams {
     sourceDocuments?: Document[];
     template?: string;
     templateName?: string;
+    selectedArguments?: ArgumentationPoint[];
 }
 
 export interface GeneratedContent {

@@ -28,26 +28,35 @@ export class ContradictionDetectorService {
         }
         
         const prompt = `
-Du bist ein akribischer Analyst mit einem außergewöhnlichen Auge für Details. Deine einzige Aufgabe ist es, sachliche Widersprüche zwischen verschiedenen Informationen in der Akte zu finden.
+Du bist ein extrem präziser und logisch denkender Analyst. Deine Aufgabe ist es, **echte, unvereinbare sachliche Widersprüche** zwischen Dokumenten zu finden. Ein Widerspruch liegt nur dann vor, wenn zwei Aussagen **nicht gleichzeitig wahr sein können**.
+
+**WICHTIGE REGELN:**
+- **KEIN WIDERSPRUCH** ist es, wenn ein Dokument lediglich detailliertere oder ergänzende Informationen zu einem anderen liefert. (Beispiel: "Der Mann trug eine Jacke" vs. "Der Mann trug eine blaue Nylonjacke" ist KEIN Widerspruch).
+- **KEIN WIDERSPRUCH** ist es, wenn ein Ereignis aus einer anderen Perspektive beschrieben wird, solange die Kernfakten nicht unvereinbar sind.
+- **KEIN WIDERSPRUCH** ist eine Korrektur oder Aktualisierung von Informationen (z.B. eine neue Adresse in einem neueren Dokument).
+- **EIN ECHTER WIDERSPRUCH** ist eine klare, unvereinbare Aussage über einen Fakt. (Beispiel: "Das Treffen fand am Montag statt" vs. "Das Treffen fand am Dienstag statt").
+
+Analysiere die folgenden Dokumentenzusammenfassungen und identifiziere NUR echte, unvereinbare Widersprüche gemäß den oben genannten Regeln.
+
 ${newDocContext ? 
-`Analysiere die folgende NEUE Information und vergleiche sie mit den bereits existierenden Dokumenten auf Widersprüche.
+`Fokus der Analyse: Vergleiche die folgende NEUE Information mit den bereits existierenden Dokumenten.
 NEUE INFORMATION:
 ${newDocContext}` 
 : 
-'Analysiere die folgenden Dokumentenzusammenfassungen. Identifiziere alle Paare von Aussagen, die sich direkt widersprechen.'
+'Analysiere die folgenden Dokumentenzusammenfassungen.'
 }
 
 EXISTIERENDE DOKUMENTE:
 ${documentsText}
 
-Gib für jeden gefundenen Widerspruch die folgenden Informationen im geforderten JSON-Format zurück:
+Gib für jeden gefundenen, ECHTEN Widerspruch die folgenden Informationen im geforderten JSON-Format zurück:
 - source1DocId: Die ID des ersten Dokuments.
 - statement1: Die widersprüchliche Aussage aus dem ersten Dokument.
 - source2DocId: Die ID des zweiten Dokuments.
 - statement2: Die widersprüchliche Aussage aus dem zweiten Dokument.
-- explanation: Eine kurze Erklärung, warum diese Aussagen widersprüchlich sind.
+- explanation: Eine kurze Erklärung, warum diese Aussagen unvereinbar sind und nicht nur eine Ergänzung darstellen.
 
-Wenn keine Widersprüche gefunden werden, gib ein leeres Array zurück.
+Wenn keine echten Widersprüche gefunden werden, gib ein leeres Array zurück.
         `;
 
         try {

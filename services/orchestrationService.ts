@@ -1,4 +1,3 @@
-import React from 'react';
 import { AppState, Document, AgentActivity, DocumentAnalysisResult, SuggestedEntity, Contradiction, Insight, KnowledgeItem, Tag, Notification, TimelineEvent } from '../types';
 import { DocumentAnalystService } from './documentAnalyst';
 import { ContradictionDetectorService } from './contradictionDetectorService';
@@ -76,6 +75,7 @@ export class OrchestrationService {
                 summary: analysisResult.summary,
                 classificationStatus: 'classified',
                 workCategory: analysisResult.classification,
+                contentType: analysisResult.contentType,
                 tags: combinedTags
             };
             newSuggestedEntities = analysisResult.entities || [];

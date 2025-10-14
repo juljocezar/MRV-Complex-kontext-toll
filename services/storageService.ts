@@ -233,14 +233,14 @@ export const saveMitigationStrategies = (content: string) => update(STORES.mitig
 export const getArgumentationAnalysis = () => getOne<ArgumentationAnalysis>(STORES.argumentationAnalysis, 1);
 export const saveArgumentationAnalysis = (analysis: ArgumentationAnalysis) => {
     // A defensive check to ensure we are saving a valid object.
-    if (!analysis || typeof analysis.supportingArguments === 'undefined' || typeof analysis.counterArguments === 'undefined') {
+    if (!analysis || typeof analysis.supportingArguments === 'undefined' || typeof analysis.opponentArguments === 'undefined') {
         console.warn("Attempted to save invalid ArgumentationAnalysis", analysis);
         return Promise.resolve(); // Do nothing if analysis is malformed
     }
     return update(STORES.argumentationAnalysis, { 
         id: 1, 
         supportingArguments: analysis.supportingArguments, 
-        counterArguments: analysis.counterArguments 
+        opponentArguments: analysis.opponentArguments 
     });
 };
 

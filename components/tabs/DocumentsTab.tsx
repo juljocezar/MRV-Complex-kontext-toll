@@ -1,16 +1,18 @@
-
 import React, { useState, useRef, useCallback } from 'react';
 import type { AppState, Document, Tag, AnalysisChatMessage, AgentActivity, KnowledgeItem, ActiveTab, Notification } from '../../types';
 import DocumentDetailModal from '../modals/DocumentDetailModal';
 import TagManagementModal from '../modals/TagManagementModal';
 import AnalysisChatModal from '../modals/AnalysisChatModal';
 import { GeminiService } from '../../services/geminiService';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import Tooltip from '../ui/Tooltip';
 
 
 interface DocumentsTabProps {
     appState: AppState;
     onAddNewDocument: (file: File) => Promise<void>;
-    onRunOrchestration: (doc: Document) => Promise<void>;
+    onAnalyzeDocument: (docId: string) => Promise<void>;
+    onDecomposeDocument: (docId: string) => Promise<void>;
     onUpdateDocument: (doc: Document) => void;
     onUpdateTags: (tags: Tag[]) => void;
     addKnowledgeItem: (item: Omit<KnowledgeItem, 'id' | 'createdAt'>) => void;
@@ -20,7 +22,7 @@ interface DocumentsTabProps {
 }
 
 const DocumentsTab: React.FC<DocumentsTabProps> = ({ 
-    appState, onAddNewDocument, onRunOrchestration, onUpdateDocument, onUpdateTags,
+    appState, onAddNewDocument, onAnalyzeDocument, onDecomposeDocument, onUpdateDocument, onUpdateTags,
     addKnowledgeItem, setActiveTab, addNotification, onViewDocumentDetails
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,15 +46,6 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
             }
         }
     };
-
-    const handleManualAnalyzeDocument = useCallback(async (docId: string) => {
-        const doc = appState.documents.find(d => d.id === docId);
-        if (!doc) return;
-
-        addNotification(`Manuelle Analyse für "${doc.name}" gestartet...`, 'info');
-        await onRunOrchestration(doc);
-
-    }, [appState, onRunOrchestration, addNotification]);
 
     const handleSaveTags = (newTags: string[]) => {
         if (selectedDoc) {
@@ -93,8 +86,17 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
                 **Deine Antwort:**
             `;
             
-            const responseText = await GeminiService.callAI(prompt, null, appState.settings.ai);
-            setChatHistory(h => [...h, { role: 'assistant', text: responseText }]);
+            setChatHistory(h => [...h, { role: 'assistant', text: '' }]);
+            
+            let accumulatedText = "";
+            await GeminiService.generateContentStream(prompt, appState.settings.ai, (chunk) => {
+                accumulatedText += chunk;
+                setChatHistory(h => {
+                    const newH = [...h];
+                    newH[newH.length - 1] = { role: 'assistant', text: accumulatedText };
+                    return newH;
+                });
+            });
 
         } catch (error) {
             console.error("Chat API call failed:", error);
@@ -115,6 +117,24 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
         setIsChatModalOpen(false);
     };
 
+    const getStatusBadge = (status: Document['classificationStatus']) => {
+        switch(status) {
+            case 'classified': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/20 text-green-300">Analysiert</span>;
+            case 'unclassified': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-500/20 text-yellow-300">Unanalysiert</span>;
+            case 'error': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-500/20 text-red-300">Fehler</span>;
+            default: return null;
+        }
+    }
+
+    const getContentTypeBadge = (type: Document['contentType']) => {
+        switch(type) {
+            case 'case-specific': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-500/20 text-blue-300">Fallbezogen</span>;
+            case 'contextual-report': return <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-500/20 text-purple-300">Kontextbezogen</span>;
+            default: return <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-500/20 text-gray-400">Unbekannt</span>;
+        }
+    }
+
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -131,24 +151,45 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
                         <tr>
                             <th scope="col" className="px-6 py-3">Name</th>
                             <th scope="col" className="px-6 py-3">Status</th>
+                            <th scope="col" className="px-6 py-3">Inhaltstyp</th>
                             <th scope="col" className="px-6 py-3">Tags</th>
                             <th scope="col" className="px-6 py-3">Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {appState.documents.map(doc => (
+                        {appState.documents.map(doc => {
+                            const isAnalyzing = appState.isLoading && appState.analyzingDocId === doc.id;
+                            const isChunking = appState.isLoading && appState.loadingSection === 'knowledge_chunking' && appState.analyzingDocId === doc.id;
+                            return (
                             <tr key={doc.id} className="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
                                 <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{doc.name}</td>
-                                <td className="px-6 py-4">{doc.classificationStatus}</td>
+                                <td className="px-6 py-4">{getStatusBadge(doc.classificationStatus)}</td>
+                                <td className="px-6 py-4">{getContentTypeBadge(doc.contentType)}</td>
                                 <td className="px-6 py-4">{(doc.tags || []).join(', ')}</td>
-                                <td className="px-6 py-4 space-x-2">
-                                    <button onClick={() => onViewDocumentDetails(doc.id)} className="text-blue-400 hover:underline">Details</button>
-                                    <button onClick={() => { setSelectedDocId(doc.id); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
-                                    <button onClick={() => handleManualAnalyzeDocument(doc.id)} className="text-purple-400 hover:underline disabled:text-gray-500">Analysieren</button>
-                                    <button onClick={() => { setSelectedDocId(doc.id); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
+                                <td className="px-6 py-4 space-x-2 whitespace-nowrap">
+                                    {isAnalyzing || isChunking ? (
+                                        <div className="flex items-center text-yellow-400">
+                                            <LoadingSpinner className="h-4 w-4 mr-2" />
+                                            <span>{isChunking ? 'Zerlege...' : 'Analysiere...'}</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {doc.classificationStatus === 'unclassified' && (
+                                                <button onClick={() => onAnalyzeDocument(doc.id)} className="text-purple-400 hover:underline">Analysieren</button>
+                                            )}
+                                            {doc.classificationStatus === 'classified' && (
+                                                <Tooltip text="Dokument von KI in Wissensbausteine zerlegen lassen">
+                                                    <button onClick={() => onDecomposeDocument(doc.id)} className="text-teal-400 hover:underline">In Wissen zerlegen</button>
+                                                </Tooltip>
+                                            )}
+                                            <button onClick={() => onViewDocumentDetails(doc.id)} className="text-blue-400 hover:underline">Details</button>
+                                            <button onClick={() => { setSelectedDocId(doc.id); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
+                                            <button onClick={() => { setSelectedDocId(doc.id); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
+                                        </>
+                                    )}
                                 </td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>

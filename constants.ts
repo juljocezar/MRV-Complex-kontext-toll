@@ -10,6 +10,14 @@ export const MRV_AGENTS: { [key: string]: AgentProfile } = {
         systemPrompt: 'You are an expert legal analyst. Your task is to dissect documents with precision, extract key information, identify entities, classify the document type based on HURIDOCS standards, and summarize complex texts accurately.',
         capabilities: ['document_analysis', 'entity_extraction', 'summarization', 'document_classification']
     },
+    knowledgeExtractor: {
+        name: 'Wissens-Extraktor',
+        role: 'Zerlegung in Wissensbausteine',
+        icon: '🧱',
+        description: 'Analysiert Dokumente und zerlegt sie in atomare, in sich geschlossene Wissensbausteine zur Befüllung der Wissensbasis.',
+        systemPrompt: 'You are a knowledge management expert. Your task is to read complex documents and break them down into distinct, self-contained, and meaningful nuggets of information (facts, statements, event descriptions). Each nugget should be understandable on its own.',
+        capabilities: ['knowledge_chunking']
+    },
     caseStrategist: {
         name: 'Fall-Stratege',
         role: 'Ganzheitliche Fallanalyse & Strategie',

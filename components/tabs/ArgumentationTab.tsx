@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { ArgumentationAnalysis } from '../../types';
 import Icon from '../ui/Icon';
@@ -28,7 +29,7 @@ const ArgumentationTab: React.FC<ArgumentationTabProps> = ({ analysis, onGenerat
                 </Tooltip>
             </div>
             <p className="text-gray-400">
-                Nutzen Sie diese KI-gestützte Funktion, um basierend auf dem gesamten Fallkontext mögliche Argumentationsstränge und potenzielle Gegenargumente zu identifizieren und Ihre Fallstrategie zu schärfen.
+                Diese Funktion agiert als Ihr strategischer Verbündeter. Sie entwickelt schlagkräftige Argumente für Ihre Position und analysiert die voraussichtlichen, fehlerhaften Argumentationslinien der Gegenseite, um Sie optimal auf die Widerlegung vorzubereiten.
             </p>
 
             {isLoading && (
@@ -41,7 +42,7 @@ const ArgumentationTab: React.FC<ArgumentationTabProps> = ({ analysis, onGenerat
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                     {/* Supporting Arguments */}
                     <div className="bg-gray-800 p-6 rounded-lg">
-                        <h2 className="text-xl font-semibold text-green-400 mb-4">Argumentationsstränge (Ihre Position)</h2>
+                        <h2 className="text-xl font-semibold text-green-400 mb-4">Schlagkräftige Argumente für Ihre Position</h2>
                         <div className="space-y-4">
                             {analysis.supportingArguments.map((arg, argIndex) => (
                                 <div key={`sup-arg-${argIndex}`} className="bg-gray-700/50 p-4 rounded-md">
@@ -57,11 +58,11 @@ const ArgumentationTab: React.FC<ArgumentationTabProps> = ({ analysis, onGenerat
                         </div>
                     </div>
 
-                    {/* Counter Arguments */}
+                    {/* Opponent Arguments */}
                     <div className="bg-gray-800 p-6 rounded-lg">
-                        <h2 className="text-xl font-semibold text-red-400 mb-4">Mögliche Gegenargumente (Gegenseite)</h2>
+                        <h2 className="text-xl font-semibold text-red-400 mb-4">Analyse gegnerischer Argumente (Zur Vorbereitung der Widerlegung)</h2>
                         <div className="space-y-4">
-                            {analysis.counterArguments.map((arg, argIndex) => (
+                            {analysis.opponentArguments.map((arg, argIndex) => (
                                 <div key={`con-arg-${argIndex}`} className="bg-gray-700/50 p-4 rounded-md">
                                     <p className="font-semibold text-gray-200">{arg.point}</p>
                                      {arg.evidence.length > 0 && (
@@ -71,7 +72,7 @@ const ArgumentationTab: React.FC<ArgumentationTabProps> = ({ analysis, onGenerat
                                     )}
                                 </div>
                             ))}
-                            {analysis.counterArguments.length === 0 && <p className="text-gray-500">Keine spezifischen Gegenargumente gefunden.</p>}
+                            {analysis.opponentArguments.length === 0 && <p className="text-gray-500">Keine spezifischen gegnerischen Argumente gefunden.</p>}
                         </div>
                     </div>
                 </div>

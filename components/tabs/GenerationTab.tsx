@@ -1,22 +1,26 @@
-
 import React, { useState, useEffect } from 'react';
-import type { GeneratedDocument, Document, AppState } from '../../types';
+import type { GeneratedDocument, Document, AppState, ArgumentationPoint } from '../../types';
 import { TemplateService, DocumentTemplate } from '../../services/templateService';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import { marked } from 'marked';
 
 interface GenerationTabProps {
-    onGenerateContent: (params: { instructions: string; templateId?: string; sourceDocuments?: Document[] }) => Promise<GeneratedDocument | null>;
+    onGenerateContentStream: (params: { instructions: string; template?: string; templateName?: string; sourceDocuments?: Document[], selectedArguments?: ArgumentationPoint[] }, onChunk: (chunk: string) => void) => Promise<GeneratedDocument | null>;
     appState: AppState;
     onUpdateGeneratedDocuments: (docs: GeneratedDocument[]) => void;
     isLoading: boolean;
+    onPrepareDispatch: (doc: GeneratedDocument) => void;
 }
 
-const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appState, onUpdateGeneratedDocuments, isLoading }) => {
+const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, appState, onUpdateGeneratedDocuments, isLoading, onPrepareDispatch }) => {
     const [instructions, setInstructions] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+    const [selectedArgs, setSelectedArgs] = useState<number[]>([]);
     const [latestGeneratedDoc, setLatestGeneratedDoc] = useState<GeneratedDocument | null>(null);
     const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
+
+    const supportingArguments = appState.argumentationAnalysis?.supportingArguments || [];
 
     useEffect(() => {
         setTemplates(TemplateService.getAllTemplates());
@@ -37,11 +41,27 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
     const handleGenerate = async () => {
         setLatestGeneratedDoc(null);
         const sourceDocuments = appState.documents.filter(doc => selectedDocs.includes(doc.id));
+        const template = selectedTemplateId ? TemplateService.getTemplateById(selectedTemplateId) : null;
+        const selectedArguments = selectedArgs.map(index => supportingArguments[index]);
         
-        const result = await onGenerateContent({
+        const params = {
             instructions,
-            templateId: selectedTemplateId,
+            template: template?.content,
+            templateName: template?.name,
             sourceDocuments: sourceDocuments,
+            selectedArguments: selectedArguments,
+        };
+
+        const result = await onGenerateContentStream(params, (chunk) => {
+            setLatestGeneratedDoc(prev => ({
+                id: 'temp-streaming-id',
+                title: params.templateName || 'Generiere...',
+                content: (prev?.content || '') + chunk,
+                htmlContent: '', // Not parsed during stream for performance
+                createdAt: new Date().toISOString(),
+                sourceDocIds: [], // Placeholder
+                templateUsed: params.templateName,
+            }));
         });
 
         if (result) {
@@ -53,6 +73,25 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
         setSelectedDocs(prev => 
             prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
         );
+    };
+    
+    const handleArgToggle = (argIndex: number) => {
+        setSelectedArgs(prev =>
+            prev.includes(argIndex) ? prev.filter(index => index !== argIndex) : [...prev, argIndex]
+        );
+    };
+
+    const handleDownload = () => {
+        if (!latestGeneratedDoc) return;
+        const blob = new Blob([latestGeneratedDoc.content], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${latestGeneratedDoc.title.replace(/ /g, '_')}.md`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -99,6 +138,26 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
                             ))}
                         </div>
                     </div>
+
+                    {supportingArguments.length > 0 && (
+                         <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Schlüsselargumente integrieren</label>
+                            <div className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 max-h-48 overflow-y-auto space-y-2">
+                                {supportingArguments.map((arg, index) => (
+                                    <label key={index} className="flex items-start space-x-2 text-sm text-gray-200 cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedArgs.includes(index)} 
+                                            onChange={() => handleArgToggle(index)}
+                                            className="h-4 w-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500 mt-1"
+                                        />
+                                        <span className="flex-grow">{arg.point}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex-grow flex items-end">
                         <button
                             onClick={handleGenerate}
@@ -113,9 +172,21 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appSta
 
                 {/* --- Right Column: Output --- */}
                 <div className="lg:col-span-2 bg-gray-800 p-6 rounded-lg min-h-[600px] flex flex-col">
-                     <h2 className="text-xl font-semibold text-white mb-4">Vorschau</h2>
+                     <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold text-white">Vorschau</h2>
+                        {latestGeneratedDoc && latestGeneratedDoc.id !== 'temp-streaming-id' && (
+                            <div className="flex space-x-2">
+                                <button onClick={handleDownload} className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs">
+                                    Download (.md)
+                                </button>
+                                <button onClick={() => onPrepareDispatch(latestGeneratedDoc)} className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded-md text-xs">
+                                    Für Versand vorbereiten
+                                </button>
+                            </div>
+                        )}
+                     </div>
                      <div className="flex-grow bg-gray-900/50 p-4 rounded-md border border-gray-700 overflow-y-auto">
-                        {isLoading && <p className="text-gray-400">Dokument wird generiert...</p>}
+                        {isLoading && !latestGeneratedDoc && <p className="text-gray-400">Dokument wird generiert...</p>}
                         {latestGeneratedDoc ? (
                             <div 
                                 className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap"

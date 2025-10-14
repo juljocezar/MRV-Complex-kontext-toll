@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Contradiction, Document } from '../../types';
 import Tooltip from '../ui/Tooltip';
@@ -10,9 +9,10 @@ interface ContradictionsTabProps {
     onFindContradictions: () => void;
     isLoading: boolean;
     onViewDocument: (docId: string) => void;
+    onAddRiskNotification: (contradiction: Contradiction) => void;
 }
 
-const ContradictionsTab: React.FC<ContradictionsTabProps> = ({ contradictions, documents, onFindContradictions, isLoading, onViewDocument }) => {
+const ContradictionsTab: React.FC<ContradictionsTabProps> = ({ contradictions, documents, onFindContradictions, isLoading, onViewDocument, onAddRiskNotification }) => {
     
     const getDocName = (docId: string) => documents.find(d => d.id === docId)?.name || 'Unbekanntes Dokument';
 
@@ -42,7 +42,18 @@ const ContradictionsTab: React.FC<ContradictionsTabProps> = ({ contradictions, d
                 <div className="space-y-4">
                     {contradictions.map(item => (
                         <div key={item.id} className="bg-gray-800 p-6 rounded-lg shadow">
-                            <h3 className="text-lg font-semibold text-red-400 mb-3">Potenzieller Widerspruch gefunden</h3>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-red-400 mb-3">Potenzieller Widerspruch gefunden</h3>
+                                </div>
+                                <button 
+                                    onClick={() => onAddRiskNotification(item)}
+                                    className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded-md text-xs"
+                                    title="Zum Strategie-Tab navigieren und ein Risiko bewerten"
+                                >
+                                    Mögliches Risiko markieren
+                                </button>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-t border-gray-700 py-4">
                                 <div>
                                     <p className="text-sm text-gray-400 mb-1">Aussage A (aus <button onClick={() => onViewDocument(item.source1DocId)} className="font-semibold text-blue-400 hover:underline">{getDocName(item.source1DocId)}</button>)</p>
