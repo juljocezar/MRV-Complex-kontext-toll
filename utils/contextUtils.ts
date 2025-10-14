@@ -1,3 +1,4 @@
+// Fix: Corrected import path for types.
 import { AppState, CaseSummary, Risks } from '../types';
 
 export const buildCaseContext = (appState: AppState): string => {

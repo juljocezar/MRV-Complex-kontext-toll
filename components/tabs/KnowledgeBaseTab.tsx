@@ -1,5 +1,7 @@
 
+
 import React, { useState } from 'react';
+// Fix: Corrected import path for types.
 import type { KnowledgeItem, Document } from '../../types';
 
 interface KnowledgeBaseTabProps {

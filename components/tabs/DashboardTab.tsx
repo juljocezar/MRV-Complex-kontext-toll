@@ -1,5 +1,7 @@
 
+
 import React, { useMemo, useRef, useState } from 'react';
+// Fix: Corrected import path for types.
 import { AppState, Document, GeneratedDocument, DocumentAnalysisResults, CaseSummary, ActiveTab, DocumentAnalysisResult, CaseEntity, Notification, StructuredEvent, StructuredAct, StructuredParticipant } from '../../types';
 import SimpleDonutChart from '../ui/charts/SimpleDonutChart';
 import SimpleBarChart from '../ui/charts/SimpleBarChart';

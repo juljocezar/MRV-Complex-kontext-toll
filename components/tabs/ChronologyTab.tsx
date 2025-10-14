@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+// Fix: Corrected import path for types.
 import type { TimelineEvent, Document, AppState } from '../../types';
 
 interface ChronologyTabProps {

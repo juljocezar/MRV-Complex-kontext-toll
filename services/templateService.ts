@@ -85,6 +85,53 @@ Mit freundlichen Grüßen,
 `
         },
         {
+            id: 'formal_notice_inaction_de_v1',
+            name: 'Mahnung bei Untätigkeit an Behörden (DE)',
+            description: 'Eine formelle Mitteilung an nationale Behörden über die Eskalation eines Falles an eine internationale Instanz und die Einleitung eines Wiedergutmachungsprozesses.',
+            content: `
+[Ihr Vor- und Nachname/Name der Organisation]
+[Ihre Straße und Hausnummer]
+[Ihre PLZ und Ort]
+
+<br>
+
+[Name der Behörde, z.B. Staatsanwaltschaft]
+[Abteilung/Ansprechpartner]
+[Straße und Hausnummer]
+[PLZ und Ort]
+
+<br>
+<br>
+
+<p align="right">[Ort], den {{current_date}}</p>
+
+<br>
+
+**Betreff: Einleitung eines Wiedergutmachungsprozesses wegen Verletzungen der Menschenrechte im Fall [Fallname/Aktenzeichen]; Mitteilung über Einreichung bei [Internationale Instanz eintragen]**
+
+<br>
+
+Sehr geehrte Damen und Herren,
+
+hiermit nehmen wir Bezug auf unsere bisherige Korrespondenz vom [Datum der letzten Korrespondenz eintragen] bezüglich des oben genannten Falles. Wir müssen mit Bedauern feststellen, dass bis zum heutigen Tage keine substantielle Reaktion oder Bearbeitung Ihrerseits erfolgt ist, welche der Schwere der vorliegenden Menschenrechtsverletzungen gerecht wird.
+
+Aufgrund Ihrer anhaltenden Untätigkeit sehen wir uns gezwungen, den notwendigen **Wiedergutmachungsprozess** auf internationaler Ebene einzuleiten. Wir informieren Sie hiermit, dass eine formelle Eingabe bei [z.B. dem UN-Sonderberichterstatter für Folter] eingereicht wurde, um die Rechte der Betroffenen zu wahren und eine Wiedergutmachung für die erlittenen Verletzungen zu erwirken.
+
+Wir möchten Sie bei dieser Gelegenheit nachdrücklich an Ihre aus nationalem und internationalem Recht resultierende Rechenschaftspflicht und Ihre Ermittlungspflicht erinnern. Diese Pflichten dienen nicht nur der Aufklärung des Sachverhalts, sondern sind fundamental auf die **Wiedergutmachung für die erlittenen Menschenrechtsverletzungen** ausgerichtet. Die Einleitung des internationalen Verfahrens entbindet Sie nicht von Ihrer Verpflichtung, diesen Prozess auf nationaler Ebene aktiv zu betreiben. Im Gegenteil, es wird erwartet, dass Sie nun unverzüglich zur Untersuchung beitragen, mit den internationalen Gremien kooperieren und alle notwendigen Schritte einleiten, um eine umfassende Wiedergutmachung zu gewährleisten.
+
+Wir fordern Sie auf, uns umgehend, spätestens jedoch innerhalb von [Frist setzen, z.B. 14 Tagen], über die von Ihnen nun eingeleiteten Schritte im Rahmen des Wiedergutmachungsprozesses zu informieren.
+
+Eine Kopie dieses Schreibens geht den betroffenen Parteien zu.
+
+Mit freundlichen Grüßen
+
+<br>
+<br>
+
+[Ihr Name/Name der Organisation]
+`
+        },
+        {
             id: 'un_allegation_letter_v1',
             name: 'UN Allegation Letter (Vorlage)',
             description: 'Eine Standardvorlage für ein Anschuldigungsschreiben an UN-Sonderverfahren.',

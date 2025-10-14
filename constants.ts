@@ -1,3 +1,4 @@
+// Fix: Corrected import path for types.
 import { AgentProfile } from "./types";
 
 

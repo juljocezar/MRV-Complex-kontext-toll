@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // This is a placeholder. A real implementation would use SVG icons.
@@ -33,6 +34,7 @@ const Icon: React.FC<IconProps> = ({ name, className }) => {
             case 'agents': return '🤖';
             case 'audit': return '📋';
             case 'settings': return '⚙️';
+            case 'microphone': return '🎤';
             default: return '❓';
         }
     }

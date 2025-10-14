@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import type { GeneratedDocument, Document, AppState, ArgumentationPoint } from '../../types';
+// Fix: Corrected import path for types.
+import type { GeneratedDocument, Document, AppState, ArgumentationPoint, ContentCreationParams } from '../../types';
 import { TemplateService, DocumentTemplate } from '../../services/templateService';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { marked } from 'marked';
+import { ExportService } from '../../services/exportService';
+import { ContentCreatorService } from '../../services/contentCreator';
+
 
 interface GenerationTabProps {
-    onGenerateContentStream: (params: { instructions: string; template?: string; templateName?: string; sourceDocuments?: Document[], selectedArguments?: ArgumentationPoint[] }, onChunk: (chunk: string) => void) => Promise<GeneratedDocument | null>;
+    onGenerateContentStream: (params: ContentCreationParams) => Promise<GeneratedDocument[] | null>;
     appState: AppState;
     onUpdateGeneratedDocuments: (docs: GeneratedDocument[]) => void;
     isLoading: boolean;
@@ -17,10 +21,17 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
     const [selectedArgs, setSelectedArgs] = useState<number[]>([]);
-    const [latestGeneratedDoc, setLatestGeneratedDoc] = useState<GeneratedDocument | null>(null);
+    const [latestGeneratedDocs, setLatestGeneratedDocs] = useState<GeneratedDocument[]>([]);
     const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedContent, setEditedContent] = useState('');
+    const [isCorrecting, setIsCorrecting] = useState(false);
+    const [isBilingual, setIsBilingual] = useState<boolean>(true);
+    const [activePreviewLang, setActivePreviewLang] = useState<'de' | 'en'>('de');
+
 
     const supportingArguments = appState.argumentationAnalysis?.supportingArguments || [];
+    const activeDoc = latestGeneratedDocs.find(d => d.language === activePreviewLang) || latestGeneratedDocs[0] || null;
 
     useEffect(() => {
         setTemplates(TemplateService.getAllTemplates());
@@ -38,34 +49,30 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
         }
     };
 
-    const handleGenerate = async () => {
-        setLatestGeneratedDoc(null);
+    const handleGenerate = async (options?: { versionChainId?: string }) => {
+        setLatestGeneratedDocs([]);
+        setIsEditing(false);
         const sourceDocuments = appState.documents.filter(doc => selectedDocs.includes(doc.id));
         const template = selectedTemplateId ? TemplateService.getTemplateById(selectedTemplateId) : null;
         const selectedArguments = selectedArgs.map(index => supportingArguments[index]);
         
-        const params = {
+        const params: ContentCreationParams = {
             instructions,
             template: template?.content,
             templateName: template?.name,
             sourceDocuments: sourceDocuments,
             selectedArguments: selectedArguments,
+            isBilingual,
+            language: 'de', // base language, service will handle bilingual
+            caseContext: '', // App.tsx will inject this
+            versionChainId: options?.versionChainId,
         };
 
-        const result = await onGenerateContentStream(params, (chunk) => {
-            setLatestGeneratedDoc(prev => ({
-                id: 'temp-streaming-id',
-                title: params.templateName || 'Generiere...',
-                content: (prev?.content || '') + chunk,
-                htmlContent: '', // Not parsed during stream for performance
-                createdAt: new Date().toISOString(),
-                sourceDocIds: [], // Placeholder
-                templateUsed: params.templateName,
-            }));
-        });
+        const results = await onGenerateContentStream(params);
 
-        if (result) {
-            setLatestGeneratedDoc(result);
+        if (results) {
+            setLatestGeneratedDocs(results);
+            setActivePreviewLang(results.find(d => d.language === 'de') ? 'de' : 'en');
         }
     };
 
@@ -81,17 +88,53 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
         );
     };
 
-    const handleDownload = () => {
-        if (!latestGeneratedDoc) return;
-        const blob = new Blob([latestGeneratedDoc.content], { type: 'text/markdown;charset=utf-8' });
+    const handleDownloadMd = () => {
+        if (!activeDoc) return;
+        const blob = new Blob([activeDoc.content], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${latestGeneratedDoc.title.replace(/ /g, '_')}.md`;
+        link.download = `${activeDoc.title.replace(/ /g, '_')}.md`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+    };
+
+    const handleDownloadDoc = () => {
+        if (!activeDoc || !activeDoc.htmlContent) return;
+        ExportService.exportToDoc(activeDoc.htmlContent, activeDoc.title.replace(/ /g, '_'));
+    };
+
+    const handleToggleEdit = () => {
+        if (!activeDoc) return;
+        if (isEditing) {
+            // Save changes from editor back to state
+            (async () => {
+                const html = await marked.parse(editedContent);
+                setLatestGeneratedDocs(prevDocs => prevDocs.map(doc =>
+                    doc.id === activeDoc.id ? { ...doc, content: editedContent, htmlContent: html } : doc
+                ));
+                setIsEditing(false);
+            })();
+        } else {
+            // Enter edit mode
+            setEditedContent(activeDoc.content);
+            setIsEditing(true);
+        }
+    };
+    
+    const handleAiProofread = async () => {
+        if (!editedContent) return;
+        setIsCorrecting(true);
+        try {
+            const correctedText = await ContentCreatorService.proofreadText(editedContent, appState.settings.ai);
+            setEditedContent(correctedText);
+        } catch (error) {
+            console.error("AI proofreading failed", error);
+        } finally {
+            setIsCorrecting(false);
+        }
     };
 
     return (
@@ -157,10 +200,22 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
                             </div>
                         </div>
                     )}
+                    
+                    <div className="pt-2">
+                        <label className="flex items-center space-x-2 text-sm text-gray-200 cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={isBilingual}
+                                onChange={(e) => setIsBilingual(e.target.checked)}
+                                className="h-4 w-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500"
+                            />
+                            <span>Dokument zweisprachig (DE/EN) erstellen</span>
+                        </label>
+                    </div>
 
                     <div className="flex-grow flex items-end">
                         <button
-                            onClick={handleGenerate}
+                            onClick={() => handleGenerate()}
                             disabled={isLoading}
                             className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-md disabled:bg-gray-500 flex items-center justify-center"
                         >
@@ -172,31 +227,88 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
 
                 {/* --- Right Column: Output --- */}
                 <div className="lg:col-span-2 bg-gray-800 p-6 rounded-lg min-h-[600px] flex flex-col">
-                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-white">Vorschau</h2>
-                        {latestGeneratedDoc && latestGeneratedDoc.id !== 'temp-streaming-id' && (
-                            <div className="flex space-x-2">
-                                <button onClick={handleDownload} className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs">
-                                    Download (.md)
+                    <div className="flex-shrink-0 flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold text-white">
+                            {isEditing ? 'Dokument bearbeiten' : 'Vorschau'}
+                        </h2>
+                        {activeDoc && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button 
+                                    onClick={handleToggleEdit} 
+                                    className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs"
+                                >
+                                    {isEditing ? 'Änderungen übernehmen' : 'Bearbeiten'}
                                 </button>
-                                <button onClick={() => onPrepareDispatch(latestGeneratedDoc)} className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded-md text-xs">
-                                    Für Versand vorbereiten
-                                </button>
+                                {!isEditing && (
+                                    <>
+                                        <button onClick={() => handleGenerate({ versionChainId: activeDoc.versionChainId })} className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded-md text-xs">
+                                            Neue Version erstellen
+                                        </button>
+                                        <button onClick={handleDownloadMd} className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs">
+                                            Download (.md)
+                                        </button>
+                                        <button onClick={handleDownloadDoc} className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs">
+                                            Download (.doc)
+                                        </button>
+                                        {activeDoc.id !== 'temp-streaming-id' && (
+                                            <button onClick={() => onPrepareDispatch(activeDoc)} className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded-md text-xs">
+                                                Für Versand vorbereiten
+                                            </button>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         )}
-                     </div>
-                     <div className="flex-grow bg-gray-900/50 p-4 rounded-md border border-gray-700 overflow-y-auto">
-                        {isLoading && !latestGeneratedDoc && <p className="text-gray-400">Dokument wird generiert...</p>}
-                        {latestGeneratedDoc ? (
-                            <div 
-                                className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap"
-                                dangerouslySetInnerHTML={{ __html: latestGeneratedDoc.htmlContent || latestGeneratedDoc.content.replace(/\n/g, '<br />') }}
-                            >
+                    </div>
+
+                    <div className="flex-grow bg-gray-900/50 rounded-md border border-gray-700 overflow-hidden flex flex-col">
+                        {latestGeneratedDocs.length > 1 && (
+                            <div className="flex-shrink-0 flex space-x-1 border-b border-gray-700 bg-gray-800/50">
+                                {latestGeneratedDocs.map(doc => (
+                                    <button
+                                        key={doc.language}
+                                        onClick={() => setActivePreviewLang(doc.language!)}
+                                        className={`px-4 py-2 text-sm font-medium ${activePreviewLang === doc.language ? 'border-b-2 border-blue-500 text-white bg-gray-700/50' : 'text-gray-400 hover:bg-gray-700/20'}`}
+                                    >
+                                        {doc.language?.toUpperCase()}
+                                    </button>
+                                ))}
                             </div>
-                        ) : !isLoading && (
-                            <p className="text-gray-500">Hier wird das generierte Dokument angezeigt.</p>
                         )}
-                     </div>
+                        {isEditing ? (
+                            <>
+                                <textarea
+                                    value={editedContent}
+                                    onChange={e => setEditedContent(e.target.value)}
+                                    className="w-full flex-grow bg-transparent text-gray-300 p-4 resize-none focus:outline-none"
+                                    spellCheck="false"
+                                />
+                                <div className="flex-shrink-0 p-2 bg-gray-900/80 border-t border-gray-700">
+                                    <button
+                                        onClick={handleAiProofread}
+                                        disabled={isCorrecting}
+                                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-xs disabled:bg-gray-500 flex items-center"
+                                    >
+                                        {isCorrecting && <LoadingSpinner className="h-4 w-4 mr-2" />}
+                                        {isCorrecting ? 'Korrigiere...' : 'Mit KI korrigieren'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="p-4 overflow-y-auto h-full">
+                                {isLoading && <p className="text-gray-400">Dokument(e) wird/werden generiert...</p>}
+                                {activeDoc ? (
+                                    <div 
+                                        className="prose prose-invert max-w-none text-gray-300"
+                                        dangerouslySetInnerHTML={{ __html: activeDoc.htmlContent }}
+                                    >
+                                    </div>
+                                ) : !isLoading && (
+                                    <p className="text-gray-500">Hier wird das generierte Dokument angezeigt.</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

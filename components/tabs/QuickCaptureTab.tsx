@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { AppState, SnippetAnalysisResult } from '../../types';
 import { CaseAnalyzerService } from '../../services/caseAnalyzerService';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import useSpeechRecognition from '../../hooks/useSpeechRecognition';
+import MicrophoneButton from '../ui/MicrophoneButton';
+
 
 interface QuickCaptureTabProps {
     appState: AppState;
@@ -13,6 +17,18 @@ const QuickCaptureTab: React.FC<QuickCaptureTabProps> = ({ appState, onSaveSnipp
     const [analysisResult, setAnalysisResult] = useState<SnippetAnalysisResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const { finalTranscript, isListening, error: speechError } = useSpeechRecognition();
+
+    useEffect(() => {
+        if (finalTranscript) {
+            setInputText(prev => (prev ? prev + ' ' : '') + finalTranscript);
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+            }
+        }
+    }, [finalTranscript]);
 
     const handleAnalyze = async () => {
         if (!inputText.trim()) return;
@@ -47,13 +63,19 @@ const QuickCaptureTab: React.FC<QuickCaptureTabProps> = ({ appState, onSaveSnipp
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-gray-800 p-6 rounded-lg space-y-4">
                     <h2 className="text-xl font-semibold text-white">1. Text einfügen</h2>
-                    <textarea
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        rows={15}
-                        className="w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Kopieren Sie hier einen Textausschnitt hinein..."
-                    />
+                    <div className="relative">
+                        <textarea
+                            ref={textareaRef}
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                            rows={15}
+                            className="w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
+                            placeholder="Kopieren Sie hier einen Textausschnitt hinein..."
+                        />
+                        <div className="absolute right-2 top-2">
+                             <MicrophoneButton isListening={isListening} error={speechError} />
+                        </div>
+                    </div>
                     <button
                         onClick={handleAnalyze}
                         disabled={isLoading || !inputText.trim()}

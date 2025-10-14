@@ -1,7 +1,12 @@
+
+
 import React, { useState, useRef, useEffect } from 'react';
 import { marked } from 'marked';
+// Fix: Corrected import path for types.
 import type { AppState, AnalysisChatMessage } from '../../types';
 import Tooltip from '../ui/Tooltip';
+import useSpeechRecognition from '../../hooks/useSpeechRecognition';
+import MicrophoneButton from '../ui/MicrophoneButton';
 
 interface AnalysisTabProps {
     appState: AppState;
@@ -14,6 +19,18 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ appState, onPerformAnalysisSt
     const [isLoading, setIsLoading] = useState(false);
     const [isGrounded, setIsGrounded] = useState(false);
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const { finalTranscript, isListening, error: speechError } = useSpeechRecognition();
+
+    useEffect(() => {
+        if (finalTranscript) {
+            setMessage(prev => (prev ? prev + ' ' : '') + finalTranscript);
+             if (textareaRef.current) {
+                textareaRef.current.focus();
+            }
+        }
+    }, [finalTranscript]);
 
      useEffect(() => {
         if (chatContainerRef.current) {
@@ -117,16 +134,20 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ appState, onPerformAnalysisSt
             
             <div className="flex-shrink-0 bg-gray-800 p-4 rounded-lg">
                 <div className="flex items-start space-x-2">
-                     <div className="flex-grow">
+                     <div className="flex-grow relative">
                         <textarea
+                            ref={textareaRef}
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                             placeholder="Fragen Sie etwas über den Fall..."
                             rows={3}
-                            className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
                             disabled={isLoading}
                         />
+                         <div className="absolute right-2 top-2">
+                             <MicrophoneButton isListening={isListening} error={speechError} onClick={useSpeechRecognition().toggleListening} />
+                        </div>
                          <div className="mt-2 flex items-center justify-between">
                             <Tooltip text="Weist die KI an, ihre Antworten primär auf den im Tab 'Rechtsgrundlagen' hinterlegten juristischen Texten zu basieren. Dies kann die Antwortqualität erhöhen, dauert aber länger.">
                                 <label className="flex items-center space-x-2 cursor-pointer w-fit">

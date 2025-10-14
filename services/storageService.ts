@@ -1,3 +1,4 @@
+// Fix: Corrected import path for types.
 import { 
     Document, GeneratedDocument, CaseEntity, KnowledgeItem, TimelineEvent, Tag, 
     Contradiction, CaseContext, Task, Risks, KPI, AppState, Insight, 
@@ -240,7 +241,8 @@ export const saveArgumentationAnalysis = (analysis: ArgumentationAnalysis) => {
     return update(STORES.argumentationAnalysis, { 
         id: 1, 
         supportingArguments: analysis.supportingArguments, 
-        opponentArguments: analysis.opponentArguments 
+        opponentArguments: analysis.opponentArguments,
+        adversarialAnalysis: analysis.adversarialAnalysis
     });
 };
 

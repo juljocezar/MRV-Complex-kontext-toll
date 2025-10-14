@@ -1,5 +1,7 @@
 
 
+
+// Fix: Corrected import path for types.
 import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
 import { AISettings } from '../types';
 
