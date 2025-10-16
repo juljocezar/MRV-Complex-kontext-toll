@@ -86,3 +86,16 @@ This will start the Vite development server, and you can view the application by
     -   `utils/`: Helper functions used across the application.
 -   `App.tsx`: The root component of the application.
 -   `index.tsx`: The main entry point that renders the React app.
+
+## Developer Experience (VS Code)
+
+This repository includes a `.vscode` directory to enhance the development experience in Visual Studio Code.
+
+-   **Recommended Extensions (`.vscode/extensions.json`):** This file suggests a list of VS Code extensions that are highly recommended for working on this project. When you open the project in VS Code, you will be prompted to install these extensions if you don't already have them. This helps ensure a consistent development environment with proper linting, formatting, and language support.
+
+-   **Launch & Debug Configuration (`.vscode/launch.json`):** This file provides a pre-configured launch profile for debugging the application. To use it:
+    1.  Go to the "Run and Debug" panel in VS Code (Ctrl+Shift+D).
+    2.  Select "Launch Chrome and Debug" from the dropdown menu.
+    3.  Press the green play button (F5).
+
+    This will automatically start the development server (`npm run dev`) and launch a new Chrome instance connected to the VS Code debugger, allowing you to set breakpoints, inspect variables, and step through the code in the browser.
