@@ -42,7 +42,7 @@ export const useAgentDispatcher = (
     }, [appState.caseDetails.description, appState.documents]);
 
     // 2. Implement the main dispatch function
-    const dispatchAgentTask = useCallback(async (userPrompt: string, capability: keyof AgentProfile['capabilities']) => {
+    const dispatchAgentTask = useCallback(async (userPrompt: string, capability: keyof AgentProfile['capabilities'], jsonSchema: object | null = null) => {
         setIsLoading(true);
         setError(null);
         setResult(null);
@@ -97,13 +97,12 @@ export const useAgentDispatcher = (
                 ${userPrompt}
             `;
 
-            const specialistResponse = await GeminiService.callAI(
-                specialistPrompt,
-                null,
-                aiSettings
-            );
+            const specialistResponse = jsonSchema
+                ? await GeminiService.callAIWithSchema(specialistPrompt, jsonSchema, aiSettings)
+                : await GeminiService.callAI(specialistPrompt, null, aiSettings);
 
             setResult(specialistResponse);
+            return specialistResponse;
             await addAgentActivity({
                 agentName: specialistAgent.name,
                 action: `Executed task: ${userPrompt.substring(0, 100)}...`,

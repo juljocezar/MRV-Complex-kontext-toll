@@ -223,7 +223,7 @@ const App: React.FC = () => {
             case 'graph':
                 return <GraphTab appState={state} />;
             case 'analysis':
-                return <AnalysisTab appState={state} />;
+                return <AnalysisTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
             case 'reports':
                 return <ReportsTab onGenerateReport={generateReport} appState={state} />;
             case 'generation':
