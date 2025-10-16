@@ -75,7 +75,6 @@ export interface GeneratedDocument {
     templateUsed?: string;
     sourceDocIds: string[];
     language?: 'de' | 'en';
-    translationParentId?: string;
     version: number;
     versionChainId: string;
 }
@@ -358,7 +357,6 @@ export interface ContentCreationParams {
     instructions: string;
     caseContext: string;
     language: 'de' | 'en';
-// Fix: Added missing 'isBilingual' property to support bilingual document generation.
     isBilingual?: boolean;
     template?: string;
     templateName?: string;

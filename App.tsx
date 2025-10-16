@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     AppState, Document, GeneratedDocument, CaseEntity, KnowledgeItem, TimelineEvent, Tag,
@@ -521,16 +522,21 @@ const App: React.FC = () => {
         try {
             const context = buildCaseContext(appState);
             const results = await EntityRelationshipService.analyzeRelationships(appState.caseEntities, context, appState.settings.ai);
-            const entitiesMap = new Map(appState.caseEntities.map(e => [e.id, e]));
+            
+            // Fix: Refactored to use an immutable update pattern, which resolves type inference issues.
+            // A map of entity IDs to their new relationships is created for efficient lookup.
+            const resultsMap = new Map(results.map(r => [r.entityId, r.relationships]));
 
-            results.forEach(result => {
-                const entity = entitiesMap.get(result.entityId);
-                if (entity) {
-                    entity.relationships = result.relationships;
+            // A new array of entities is created. For each entity, if new relationships are found,
+            // a new entity object is created with the updated relationships.
+            const updatedEntities = appState.caseEntities.map(entity => {
+                const newRelationships = resultsMap.get(entity.id);
+                if (newRelationships) {
+                    return { ...entity, relationships: newRelationships };
                 }
+                return entity;
             });
 
-            const updatedEntities = Array.from(entitiesMap.values());
             setAppState(prev => ({ ...prev, caseEntities: updatedEntities }));
             storageService.saveAllEntities(updatedEntities);
             addNotification('Beziehungsgeflecht analysiert.', 'success');

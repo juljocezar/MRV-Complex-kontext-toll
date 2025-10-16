@@ -65,7 +65,7 @@ Schreibe in professionellem, präzisem Deutsch.
 
   static async createContentStream(params: ContentCreationParams, settings: AISettings, onChunk: (chunk: string) => void): Promise<string> {
     const documentsContext = (params.sourceDocuments || []).map(doc => 
-        `--- DOCUMENT START: ${doc.name} ---\nCONTENT (Excerpt):\n${doc.content.substring(0, 2000)}...\n--- DOCUMENT END ---\n`
+        `--- DOCUMENT START: ${doc.name} ---\nCONTENT (Excerpt):\n${(doc.textContent || doc.content).substring(0, 2000)}...\n--- DOCUMENT END ---\n`
     ).join('\n');
     
     const argumentsContext = (params.selectedArguments && params.selectedArguments.length > 0)

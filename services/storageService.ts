@@ -278,7 +278,7 @@ export const exportStateToJSON = async (): Promise<string> => {
 
 export const importStateFromJSON = async (json: string): Promise<void> => {
     await clearDB();
-    let state: Partial<AppState> & { [key: string]: any };
+    let state: { [key: string]: any };
 
     try {
         state = JSON.parse(json);
@@ -286,7 +286,6 @@ export const importStateFromJSON = async (json: string): Promise<void> => {
         console.error("Failed to parse JSON:", error);
         throw new Error("Die Datei ist keine gültige JSON-Datei.");
     }
-
 
     const transaction = db.transaction(Object.values(STORES), 'readwrite');
     const allPromises: Promise<any>[] = [];
@@ -303,41 +302,50 @@ export const importStateFromJSON = async (json: string): Promise<void> => {
     for (const storeName of Object.values(STORES)) {
         let dataToImport = state[storeName];
 
-        if (!dataToImport) {
+        if (dataToImport === undefined || dataToImport === null) {
             continue;
         }
-        
+
+        // Special handling for legacy documentAnalysisResults format (object map)
         if (storeName === STORES.documentAnalysisResults && !Array.isArray(dataToImport) && typeof dataToImport === 'object') {
-            dataToImport = Object.entries(dataToImport).map(([docId, result]) => ({
-                docId: docId,
-                result: result as DocumentAnalysisResult
-            }));
+            dataToImport = Object.entries(dataToImport)
+                .filter(([, result]) => result != null) // Filter out null/undefined results
+                .map(([docId, result]) => ({
+                    docId: docId,
+                    result: result as DocumentAnalysisResult
+                }));
         }
 
         const store = transaction.objectStore(storeName);
 
         if (SINGLE_RECORD_STORES.has(storeName)) {
-            const record = Array.isArray(dataToImport) ? dataToImport[0] : dataToImport;
-            if (record && typeof record === 'object' && !Array.isArray(record)) {
-                const recordWithId = { ...record, id: 1 };
-                allPromises.push(promisifyRequest(store.put(recordWithId)));
+            // Expects an array with 0 or 1 item from export
+            if (Array.isArray(dataToImport) && dataToImport.length > 0) {
+                const record = dataToImport[0];
+                if (record && typeof record === 'object') {
+                    // Ensure the single record has the fixed ID of 1
+                    const recordWithId = { ...record, id: 1 };
+                    allPromises.push(promisifyRequest(store.put(recordWithId)));
+                }
             }
         } else {
-            if (!Array.isArray(dataToImport)) {
-                 console.warn(`Invalid data format for multi-record store "${storeName}" in import file: expected an array. Skipping.`);
-                 continue;
+            // Handle multi-record stores
+            if (Array.isArray(dataToImport)) {
+                dataToImport.forEach(item => {
+                    // Ensure item is a valid object before putting to prevent errors
+                    if (item && typeof item === 'object') {
+                        allPromises.push(promisifyRequest(store.put(item)));
+                    }
+                });
+            } else {
+                console.warn(`Invalid data format for multi-record store "${storeName}" in import file: expected an array. Skipping.`);
             }
-
-            dataToImport.forEach(item => {
-                // Using put() is more robust than add() as it overwrites, which is fine after clearing the store.
-                allPromises.push(promisifyRequest(store.put(item)));
-            });
         }
     }
 
     try {
         await Promise.all(allPromises);
-    } catch(error) {
+    } catch (error) {
         console.error("Error adding data during import transaction:", error);
         transaction.abort();
         throw new Error("Fehler beim Schreiben der Daten in die Datenbank.");

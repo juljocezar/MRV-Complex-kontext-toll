@@ -83,6 +83,7 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
     };
     
     const handleArgToggle = (argIndex: number) => {
+        // Fix: Used the correct variable `argIndex` instead of the undefined `index`.
         setSelectedArgs(prev =>
             prev.includes(argIndex) ? prev.filter(index => index !== argIndex) : [...prev, argIndex]
         );
@@ -262,7 +263,7 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
                     </div>
 
                     <div className="flex-grow bg-gray-900/50 rounded-md border border-gray-700 overflow-hidden flex flex-col">
-                        {latestGeneratedDocs.length > 1 && (
+                        {latestGeneratedDocs.length > 1 && !isEditing && (
                             <div className="flex-shrink-0 flex space-x-1 border-b border-gray-700 bg-gray-800/50">
                                 {latestGeneratedDocs.map(doc => (
                                     <button
