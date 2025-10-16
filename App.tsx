@@ -227,7 +227,7 @@ const App: React.FC = () => {
             case 'reports':
                 return <ReportsTab onGenerateReport={generateReport} appState={state} />;
             case 'generation':
-                return <GenerationTab onGenerateContent={generateContent} appState={state} setGeneratedDocuments={setProp('generatedDocuments')} isLoading={state.isLoading && state.loadingSection === 'generation'} />;
+                return <GenerationTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
             case 'library':
                 return <LibraryTab generatedDocuments={state.generatedDocuments} />;
             case 'dispatch':

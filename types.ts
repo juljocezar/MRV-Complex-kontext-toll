@@ -210,6 +210,7 @@ export interface Risks {
 export interface AISettings {
     temperature: number;
     topP: number;
+    apiKey?: string;
 }
 
 export interface ComplexitySettings {

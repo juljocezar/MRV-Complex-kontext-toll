@@ -28,99 +28,61 @@ export const useAgentDispatcher = (
 ) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<string | null>(null);
 
-    // 1. Implement buildCaseContext
     const buildCaseContext = useCallback(() => {
+        // Simplified context for now
         let context = `Case Description: ${appState.caseDetails.description}\n\n`;
         context += `Documents in Case:\n`;
         appState.documents.forEach(doc => {
-            context += `- ${doc.title} (Type: ${doc.type}, Status: ${doc.classificationStatus})\n`;
+            context += `- ${doc.name} (Type: ${doc.type || 'N/A'})\n`;
         });
-        // This can be expanded to include entities, timeline events, etc. as per the docs
         return context;
     }, [appState.caseDetails.description, appState.documents]);
 
-    // 2. Implement the main dispatch function
-    const dispatchAgentTask = useCallback(async (userPrompt: string, capability: keyof AgentProfile['capabilities'], jsonSchema: object | null = null) => {
+    const dispatchAgentTask = useCallback(async (userPrompt: string, capability: string, jsonSchema: object | null = null) => {
         setIsLoading(true);
         setError(null);
-        setResult(null);
 
-        const aiSettings = appState.settings.ai;
+        const apiKey = appState.settings.ai.apiKey;
+        if (!apiKey) {
+            const err = "Gemini API key is not set in Settings.";
+            setError(err);
+            setIsLoading(false);
+            throw new Error(err);
+        }
 
         try {
-            // --- STAGE 1: ORCHESTRATION ---
             const agentsWithCapability = Object.entries(MRV_AGENTS)
-                .filter(([_, agent]) => agent.capabilities.includes(capability as any))
-                .map(([id, agent]) => ({ id, name: agent.name, description: agent.description, capabilities: agent.capabilities }));
+                .filter(([_, agent]) => agent.capabilities.includes(capability))
+                .map(([id, agent]) => ({ id, name: agent.name, description: agent.description }));
 
-            if (agentsWithCapability.length === 0) {
-                throw new Error(`No agent found with capability: ${capability}`);
-            }
+            if (agentsWithCapability.length === 0) throw new Error(`No agent found with capability: ${capability}`);
 
-            const orchestratorPrompt = `
-                User Prompt: "${userPrompt}"
-                Available Agents for capability "${capability}":
-                ${JSON.stringify(agentsWithCapability, null, 2)}
-            `;
-
-            const orchestratorResponse = await GeminiService.callAIWithSchema<OrchestratorResponse>(
-                [bossOrchestrator.systemPrompt, orchestratorPrompt],
-                ORCHESTRATOR_SCHEMA,
-                aiSettings
-            );
+            const orchestratorPrompt = `User Prompt: "${userPrompt}"\nAvailable Agents for capability "${capability}":\n${JSON.stringify(agentsWithCapability, null, 2)}`;
+            const orchestratorResponse = await GeminiService.callAI<OrchestratorResponse>(apiKey, [bossOrchestrator.systemPrompt, orchestratorPrompt], ORCHESTRATOR_SCHEMA, appState.settings.ai);
 
             const chosenAgentId = orchestratorResponse.chosenAgentIds?.[0];
-            if (!chosenAgentId || !MRV_AGENTS[chosenAgentId]) {
-                throw new Error('Orchestrator failed to select a valid agent.');
-            }
+            if (!chosenAgentId || !MRV_AGENTS[chosenAgentId]) throw new Error('Orchestrator failed to select a valid agent.');
 
             const specialistAgent = MRV_AGENTS[chosenAgentId];
+            await addAgentActivity({ agentName: 'Boss Orchestrator', action: `Delegated task to ${specialistAgent.name}`, result: 'erfolg', details: `Prompt: ${userPrompt.substring(0, 50)}...` });
 
-            await addAgentActivity({
-                agentName: 'Boss Orchestrator',
-                action: `Delegated task to ${specialistAgent.name}`,
-                result: 'erfolg',
-                details: `User prompt: ${userPrompt.substring(0, 100)}...`,
-            });
-
-            // --- STAGE 2: EXECUTION ---
             const caseContext = buildCaseContext();
-            const specialistPrompt = `
-                ${specialistAgent.systemPrompt}
+            const specialistPrompt = `${specialistAgent.systemPrompt}\n\n**Case Context:**\n${caseContext}\n\n**User's Request:**\n${userPrompt}`;
 
-                **Case Context:**
-                ${caseContext}
+            const specialistResponse = await GeminiService.callAI(apiKey, specialistPrompt, jsonSchema, appState.settings.ai);
 
-                **User's Request:**
-                ${userPrompt}
-            `;
+            await addAgentActivity({ agentName: specialistAgent.name, action: `Executed task: ${userPrompt.substring(0, 50)}...`, result: 'erfolg', details: `Response received.` });
 
-            const specialistResponse = jsonSchema
-                ? await GeminiService.callAIWithSchema(specialistPrompt, jsonSchema, aiSettings)
-                : await GeminiService.callAI(specialistPrompt, null, aiSettings);
-
-            setResult(specialistResponse);
+            setIsLoading(false);
             return specialistResponse;
-            await addAgentActivity({
-                agentName: specialistAgent.name,
-                action: `Executed task: ${userPrompt.substring(0, 100)}...`,
-                result: 'erfolg',
-                details: `Response length: ${specialistResponse.length}`
-            });
 
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
             setError(errorMessage);
-            await addAgentActivity({
-                agentName: 'System',
-                action: 'Agent dispatch failed',
-                result: 'fehler',
-                details: errorMessage,
-            });
-        } finally {
+            await addAgentActivity({ agentName: 'System', action: 'Agent dispatch failed', result: 'fehler', details: errorMessage });
             setIsLoading(false);
+            throw e;
         }
     }, [appState, addAgentActivity, buildCaseContext]);
 
