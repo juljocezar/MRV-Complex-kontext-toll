@@ -45,12 +45,66 @@ async function processQueue() {
     if (isProcessing || callQueue.length === 0) return;
     isProcessing = true;
     const { task, resolve, reject } = callQueue.shift()!;
+    
+    const queueItem = callQueue.shift()!;
+    const { task, resolve, reject, retries } = queueItem;
+    
     try {
         const result = await task();
         resolve(result);
-    } catch (error) {
+        
+        // On success, wait for the standard delay before processing the next item
+        setTimeout(() => {
+            isProcessing = false;
+            processQueue();
+        }, THROTTLE_DELAY);
+
+    } catch (error: any) {
         console.error("Gemini API Task failed:", error);
-        reject(error);
+
+        const isRateLimitError = (e: any): boolean => {
+            // Check common places for rate limit indicators
+            const errorMessage = (typeof e?.message === 'string') ? e.message : '';
+            if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+                return true;
+            }
+            // Fallback for unknown error structures by stringifying
+            try {
+                const errorString = JSON.stringify(e);
+                return errorString.includes('"code":429') || errorString.includes('RESOURCE_EXHAUSTED');
+            } catch {
+                return false;
+            }
+        };
+
+        if (isRateLimitError(error) && retries < MAX_RETRIES) {
+            // It's a rate limit error, re-queue the task with backoff.
+            // Increased the base backoff delay to be more patient.
+            const backoffDelay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
+            console.warn(`Rate limit hit. Retrying in ${Math.round(backoffDelay / 1000)}s... (Attempt ${retries + 1}/${MAX_RETRIES})`);
+            
+            // Re-queue the task at the front with an increased retry count
+            callQueue.unshift({ ...queueItem, retries: retries + 1 });
+
+            setTimeout(() => {
+                isProcessing = false;
+                processQueue();
+            }, backoffDelay);
+        } else {
+             // It's a different error or max retries reached, reject the promise
+            if (isRateLimitError(error)) {
+                console.error(`Max retries reached. Failing task.`);
+                reject(new Error("API rate limit exceeded after multiple retries."));
+            } else {
+                reject(error);
+            }
+            
+            // Move to the next task after the standard delay
+            setTimeout(() => {
+                isProcessing = false;
+                processQueue();
+            }, THROTTLE_DELAY);
+        }
     }
     setTimeout(() => {
         isProcessing = false;

@@ -6,7 +6,7 @@ export class EthicsService {
     private static readonly SCHEMA = {
         type: 'object',
         properties: {
-            biasAssessment: { type: 'string', description: "Eine Einschätzung potenzieller Voreingenommenheit (Bias) in den vorliegenden Daten oder der Fallbeschreibung." },
+            ethicalViolationsAssessment: { type: 'string', description: "Eine Analyse der im Fallkontext beschriebenen Handlungen der gegnerischen Parteien auf potenzielle ethische Verstöße." },
             privacyConcerns: {
                 type: 'array',
                 description: "Eine Liste spezifischer Datenschutzbedenken bezüglich der gesammelten Informationen.",
@@ -18,15 +18,14 @@ export class EthicsService {
                 items: { type: 'string' }
             }
         },
-        required: ['biasAssessment', 'privacyConcerns', 'recommendations']
+        required: ['ethicalViolationsAssessment', 'privacyConcerns', 'recommendations']
     };
 
     static async performAnalysis(appState: AppState): Promise<EthicsAnalysis> {
         const context = buildCaseContext(appState);
 
         const prompt = `
-Du bist ein Ethik-Berater mit Spezialisierung auf Menschenrechtsarbeit und Datensicherheit.
-Analysiere den folgenden Fallkontext auf ethische Bedenken.
+Du bist ein Ethik-Berater, der einen Menschenrechtsverteidiger unterstützt. Deine Aufgabe ist es, die Handlungen der gegnerischen Parteien (in diesem Fall staatliche Akteure) auf der Grundlage der vom Kläger bereitgestellten Informationen ethisch zu bewerten. Nimm die Perspektive des Klägers als gegeben an.
 
 Fallkontext:
 ---
@@ -34,9 +33,9 @@ ${context}
 ---
 
 Deine Aufgaben:
-1.  **Bias Assessment:** Bewerte die vorliegenden Informationen auf mögliche Voreingenommenheit (z.B. in der Sprache, Auswahl der Fakten).
-2.  **Privacy Concerns:** Identifiziere potenzielle Datenschutzrisiken für die beteiligten Personen.
-3.  **Recommendations:** Gib klare Handlungsempfehlungen, um die ethische Integrität zu wahren und "Do-No-Harm"-Prinzipien zu folgen.
+1.  **Ethical Violations Assessment:** Analysiere die im Kontext beschriebenen Handlungen der staatlichen Akteure. Identifiziere und beschreibe potenzielle Verstöße gegen ethische Prinzipien der Menschenrechtsarbeit (z.B. Fairness, Transparenz, Recht auf Anhörung, Nicht-Diskriminierung).
+2.  **Privacy Concerns:** Identifiziere potenzielle Datenschutzrisiken, die durch die Handlungen der gegnerischen Parteien für die beteiligten Personen entstanden sind oder entstehen könnten.
+3.  **'Do-No-Harm' Recommendations:** Gib klare Handlungsempfehlungen für den Kläger und seine Unterstützer, wie sie in ihrer weiteren Vorgehensweise "Do-No-Harm"-Prinzipien wahren können, insbesondere im Schutz sensibler Daten und der Vermeidung von Retraumatisierung.
 
 Gib das Ergebnis im geforderten JSON-Format zurück.
         `;

@@ -1,31 +1,11 @@
 import { useState, useCallback } from 'react';
-import { AppState, AgentActivity, AgentProfile, AISettings } from '../types';
+import { AppState, AgentActivity } from '../types';
+import { selectAgentForTask } from '../utils/agentSelection';
 import { GeminiService } from '../services/geminiService';
-import { bossOrchestrator, MRV_AGENTS } from '../constants';
 
-// Define the structure of the JSON response from the orchestrator
-interface OrchestratorResponse {
-    chosenAgentIds: string[];
-}
+type TaskType = 'summarization' | 'risk_assessment' | 'strategy_development' | 'report_generation';
 
-// Schema for the orchestrator's JSON response
-const ORCHESTRATOR_SCHEMA = {
-    type: "OBJECT",
-    properties: {
-        chosenAgentIds: {
-            type: "ARRAY",
-            items: {
-                type: "STRING",
-            },
-        },
-    },
-    required: ["chosenAgentIds"],
-};
-
-export const useAgentDispatcher = (
-    appState: AppState,
-    addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>
-) => {
+export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => string) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +64,7 @@ export const useAgentDispatcher = (
             setIsLoading(false);
             throw e;
         }
-    }, [appState, addAgentActivity, buildCaseContext]);
+    }, [appState.settings.ai, addAgentActivity]);
 
-    return { dispatchAgentTask, isLoading, error, result };
+    return { dispatch, isLoading, error, result };
 };

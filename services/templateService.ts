@@ -10,6 +10,128 @@ export interface DocumentTemplate {
 export class TemplateService {
     private static templates: DocumentTemplate[] = [
         {
+            id: 'international_criminal_complaint_v1',
+            name: 'Internationale Strafanzeige (Vorlage)',
+            description: 'Eine Vorlage für eine Strafanzeige bei internationalen Instanzen (z.B. IStGH-Anklagebehörde) gemäß Rom-Statut.',
+            content: `
+# ANZEIGE GEMÄSS ARTIKEL 15 DES RÖMISCHEN STATUTS
+
+**AN:**
+Die Anklagebehörde des Internationalen Strafgerichtshofs
+Postfach 19519
+2500 CM Den Haag
+Niederlande
+
+**DATUM:** {{current_date}}
+
+**BETREFF: ANZEIGE VON VERBRECHEN IM ZUSTÄNDIGKEITSBEREICH DES GERICHTSHOFS**
+
+---
+
+## I. IDENTITÄT DES/DER ANZEIGESTELLERS/IN
+
+- **Name:** [Ihr Name/Name Ihrer Organisation]
+- **Kontakt:** [Ihre Kontaktdaten]
+- **Beziehung zum Fall:** [z.B. Rechtsvertretung, NGO]
+
+## II. IDENTITÄT DER OPFER
+
+- **Name(n):** {{victim_name}}
+- **Status:** [z.B. Zivilist, geschützte Person]
+- **Demografische Daten:** [Alter, Geschlecht, Nationalität etc.]
+
+## III. IDENTITÄT DER MUTMASSLICHEN TÄTER
+
+- **Name(n):** {{perpetrator_name}}
+- **Position/Rang:**
+- **Organisation/Einheit:** [z.B. Militäreinheit, Regierungsorgan]
+- **Befehlskette (falls bekannt):**
+
+## IV. BESCHREIBUNG DER MUTMASSLICHEN VERBRECHEN
+
+### A. Zeitlicher und örtlicher Rahmen
+- **Zeitraum:** [Start- und Enddatum der Verbrechen]
+- **Ort(e):** [Genaue Ortsangaben der Tatorte]
+
+### B. Sachverhalt
+[Beschreiben Sie hier detailliert, chronologisch und faktenbasiert die Ereignisse. Führen Sie alle bekannten Handlungen auf, die die Verbrechen darstellen.]
+
+### C. Juristische Einordnung der Verbrechen
+[Ordnen Sie die beschriebenen Taten den Verbrechen des Römischen Statuts zu.]
+
+- **Völkermord (Artikel 6):** [Begründung, falls zutreffend]
+- **Verbrechen gegen die Menschlichkeit (Artikel 7):** [Begründung, z.B. Mord, Folter, Verfolgung im Rahmen eines ausgedehnten oder systematischen Angriffs gegen eine Zivilbevölkerung]
+- **Kriegsverbrechen (Artikel 8):** [Begründung, falls zutreffend]
+
+## V. ZUSTÄNDIGKEIT DES GERICHTSHOFS (Jurisdiktion)
+
+- **Territoriale Zuständigkeit:** [Die Taten fanden auf dem Gebiet des Vertragsstaates [Staat] statt.]
+- **Personale Zuständigkeit:** [Die mutmaßlichen Täter sind Staatsangehörige des Vertragsstaates [Staat].]
+- **Zeitliche Zuständigkeit:** [Die Taten fanden nach dem Inkrafttreten des Römischen Statuts für den betreffenden Staat statt.]
+
+## VI. BEWEISMITTEL
+[Listen Sie alle verfügbaren Beweismittel auf und referenzieren Sie diese.]
+- Zeugenaussagen
+- Dokumente (z.B. {{source_document_names}})
+- Fotos/Videos
+- Berichte
+
+## VII. ABSCHLIESSENDE BEMERKUNGEN
+[Fassen Sie kurz zusammen und bekräftigen Sie die Bitte um Einleitung einer Vorprüfung.]
+
+Mit freundlichen Grüßen,
+
+[Ihr Name/Name Ihrer Organisation]
+`
+        },
+        {
+            id: 'formal_notice_inaction_de_v1',
+            name: 'Mahnung bei Untätigkeit an Behörden (DE)',
+            description: 'Eine formelle Mitteilung an nationale Behörden über die Eskalation eines Falles an eine internationale Instanz und die Einleitung eines Wiedergutmachungsprozesses.',
+            content: `
+[Ihr Vor- und Nachname/Name der Organisation]
+[Ihre Straße und Hausnummer]
+[Ihre PLZ und Ort]
+
+<br>
+
+[Name der Behörde, z.B. Staatsanwaltschaft]
+[Abteilung/Ansprechpartner]
+[Straße und Hausnummer]
+[PLZ und Ort]
+
+<br>
+<br>
+
+<p align="right">[Ort], den {{current_date}}</p>
+
+<br>
+
+**Betreff: Einleitung eines Wiedergutmachungsprozesses wegen Verletzungen der Menschenrechte im Fall [Fallname/Aktenzeichen]; Mitteilung über Einreichung bei [Internationale Instanz eintragen]**
+
+<br>
+
+Sehr geehrte Damen und Herren,
+
+hiermit nehmen wir Bezug auf unsere bisherige Korrespondenz vom [Datum der letzten Korrespondenz eintragen] bezüglich des oben genannten Falles. Wir müssen mit Bedauern feststellen, dass bis zum heutigen Tage keine substantielle Reaktion oder Bearbeitung Ihrerseits erfolgt ist, welche der Schwere der vorliegenden Menschenrechtsverletzungen gerecht wird.
+
+Aufgrund Ihrer anhaltenden Untätigkeit sehen wir uns gezwungen, den notwendigen **Wiedergutmachungsprozess** auf internationaler Ebene einzuleiten. Wir informieren Sie hiermit, dass eine formelle Eingabe bei [z.B. dem UN-Sonderberichterstatter für Folter] eingereicht wurde, um die Rechte der Betroffenen zu wahren und eine Wiedergutmachung für die erlittenen Verletzungen zu erwirken.
+
+Wir möchten Sie bei dieser Gelegenheit nachdrücklich an Ihre aus nationalem und internationalem Recht resultierende Rechenschaftspflicht und Ihre Ermittlungspflicht erinnern. Diese Pflichten dienen nicht nur der Aufklärung des Sachverhalts, sondern sind fundamental auf die **Wiedergutmachung für die erlittenen Menschenrechtsverletzungen** ausgerichtet. Die Einleitung des internationalen Verfahrens entbindet Sie nicht von Ihrer Verpflichtung, diesen Prozess auf nationaler Ebene aktiv zu betreiben. Im Gegenteil, es wird erwartet, dass Sie nun unverzüglich zur Untersuchung beitragen, mit den internationalen Gremien kooperieren und alle notwendigen Schritte einleiten, um eine umfassende Wiedergutmachung zu gewährleisten.
+
+Wir fordern Sie auf, uns umgehend, spätestens jedoch innerhalb von [Frist setzen, z.B. 14 Tagen], über die von Ihnen nun eingeleiteten Schritte im Rahmen des Wiedergutmachungsprozesses zu informieren.
+
+Eine Kopie dieses Schreibens geht den betroffenen Parteien zu.
+
+Mit freundlichen Grüßen
+
+<br>
+<br>
+
+[Ihr Name/Name der Organisation]
+`
+        },
+        {
             id: 'un_allegation_letter_v1',
             name: 'UN Allegation Letter (Vorlage)',
             description: 'Eine Standardvorlage für ein Anschuldigungsschreiben an UN-Sonderverfahren.',

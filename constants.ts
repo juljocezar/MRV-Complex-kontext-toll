@@ -1,22 +1,6 @@
+// Fix: Corrected import path for types.
 import { AgentProfile } from "./types";
 
-export const bossOrchestrator = {
-    systemPrompt: `You are the central orchestrator for a team of specialized AI agents in a human rights case management tool. Your ONLY task is to determine which agent is best suited to handle a specific user request based on their capabilities.
-
-The user's request will be provided to you. You will also receive a list of available agents, their roles, and their specific capabilities.
-
-Analyze the user's prompt and choose the single best agent from the list.
-Your response MUST be a valid JSON object containing a single key "chosenAgentIds" which is an array containing the ID of the chosen agent. The agent ID is the key from the provided agent list (e.g., "documentAnalyst", "legalExpert").
-
-Example:
-User prompt: "Please summarize this document for me."
-Your response:
-{
-    "chosenAgentIds": ["documentAnalyst"]
-}
-
-Do not perform the user's task. Do not provide any explanation. Only return the JSON object.`,
-};
 
 export const MRV_AGENTS: { [key: string]: AgentProfile } = {
     documentAnalyst: {
@@ -26,6 +10,14 @@ export const MRV_AGENTS: { [key: string]: AgentProfile } = {
         description: 'Spezialisiert auf die Extraktion, Klassifizierung und Zusammenfassung von Informationen aus einzelnen Dokumenten.',
         systemPrompt: 'You are an expert legal analyst. Your task is to dissect documents with precision, extract key information, identify entities, classify the document type based on HURIDOCS standards, and summarize complex texts accurately.',
         capabilities: ['document_analysis', 'entity_extraction', 'summarization', 'document_classification']
+    },
+    knowledgeExtractor: {
+        name: 'Wissens-Extraktor',
+        role: 'Zerlegung in Wissensbausteine',
+        icon: '🧱',
+        description: 'Analysiert Dokumente und zerlegt sie in atomare, in sich geschlossene Wissensbausteine zur Befüllung der Wissensbasis.',
+        systemPrompt: 'You are a knowledge management expert. Your task is to read complex documents and break them down into distinct, self-contained, and meaningful nuggets of information (facts, statements, event descriptions). Each nugget should be understandable on its own.',
+        capabilities: ['knowledge_chunking']
     },
     caseStrategist: {
         name: 'Fall-Stratege',

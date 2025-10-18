@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 // Fix: Corrected import path for types.
 import type { CaseEntity, SuggestedEntity, Document, Entity } from '../../types';
+import Tooltip from '../ui/Tooltip';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import { ExportService } from '../../services/exportService';
 
 interface EntitiesTabProps {
     entities: CaseEntity[];
-    setEntities: React.Dispatch<React.SetStateAction<CaseEntity[]>>;
+    onUpdateEntities: (entities: CaseEntity[]) => void;
     documents: Document[];
     suggestedEntities: SuggestedEntity[];
     onAcceptSuggestedEntity: (id: string) => void;
@@ -14,7 +17,7 @@ interface EntitiesTabProps {
     loadingSection: string;
 }
 
-const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, setEntities, documents, suggestedEntities, onAcceptSuggestedEntity, onDismissSuggestedEntity, onAnalyzeRelationships, isLoading, loadingSection }) => {
+const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, onUpdateEntities, documents, suggestedEntities, onAcceptSuggestedEntity, onDismissSuggestedEntity, onAnalyzeRelationships, isLoading, loadingSection }) => {
     const [newEntity, setNewEntity] = useState({ name: '', type: 'Person', description: '' });
 
     const handleAddEntity = (e: React.FormEvent) => {
@@ -25,7 +28,7 @@ const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, setEntities, docume
                 ...newEntity,
                 type: newEntity.type as 'Person' | 'Organisation' | 'Standort' | 'Unbekannt',
             };
-            setEntities(prev => [...prev, entityToAdd]);
+            onUpdateEntities([...entities, entityToAdd]);
             setNewEntity({ name: '', type: 'Person', description: '' });
         }
     };
@@ -35,14 +38,27 @@ const EntitiesTab: React.FC<EntitiesTabProps> = ({ entities, setEntities, docume
             <div className="lg:col-span-2 space-y-6">
                 <div className="flex justify-between items-center">
                     <h1 className="text-3xl font-bold text-white">Entitäten-Verwaltung</h1>
-                    <button
-                        onClick={onAnalyzeRelationships}
-                        disabled={isLoading && loadingSection === 'relationships' || entities.length < 2}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm disabled:bg-gray-500 disabled:cursor-not-allowed"
-                        title={entities.length < 2 ? "Mindestens zwei Entitäten benötigt" : "Beziehungsgeflecht analysieren"}
-                    >
-                        {isLoading && loadingSection === 'relationships' ? 'Analysiere...' : 'Beziehungen analysieren'}
-                    </button>
+                    <div className="flex items-center space-x-2">
+                        <Tooltip text="Analysiert alle Dokumente, um Beziehungen zwischen den erfassten Entitäten zu identifizieren. Benötigt mindestens 2 Entitäten.">
+                            <button
+                                onClick={onAnalyzeRelationships}
+                                disabled={isLoading || entities.length < 2}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm disabled:bg-gray-500 disabled:cursor-not-allowed flex items-center justify-center"
+                                title={entities.length < 2 ? "Mindestens zwei Entitäten benötigt" : "Beziehungsgeflecht analysieren"}
+                            >
+                                {isLoading && loadingSection === 'relationships' && <LoadingSpinner className="h-4 w-4 mr-2" />}
+                                {isLoading && loadingSection === 'relationships' ? 'Analysiere...' : 'Beziehungen analysieren'}
+                            </button>
+                        </Tooltip>
+                        <button
+                            onClick={() => ExportService.exportEntitiesToCSV(entities)}
+                            disabled={entities.length === 0}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md text-sm disabled:bg-gray-500 disabled:cursor-not-allowed"
+                            title={entities.length === 0 ? "Keine Entitäten zum Exportieren" : "Entitäten als CSV exportieren"}
+                        >
+                            Exportieren (CSV)
+                        </button>
+                    </div>
                 </div>
 
 

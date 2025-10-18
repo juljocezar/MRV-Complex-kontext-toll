@@ -1,19 +1,37 @@
+// Fix: Corrected import path for types.
 import { AppState, CaseSummary, Risks } from '../types';
 
 export const buildCaseContext = (appState: AppState): string => {
-    // FIX: `caseDescription` is nested inside `caseContext`. Adjusted destructuring.
     const { caseContext, documents, caseEntities, knowledgeItems, timelineEvents, risks, kpis, caseSummary } = appState;
     const { caseDescription } = caseContext;
 
     let context = `**Fallbeschreibung:**\n${caseDescription || 'Keine Beschreibung verfügbar.'}\n\n`;
 
     if (documents.length > 0) {
-        context += `**Zentrale Dokumente (${documents.length}):**\n`;
-        documents.slice(0, 5).forEach(doc => {
-            // FIX: Property 'type' does not exist on type 'Document'. Changed to 'mimeType'.
-            context += `- ${doc.name} (Typ: ${doc.workCategory || doc.mimeType}, Status: ${doc.classificationStatus})\n`;
-        });
-        context += '\n';
+        const caseSpecificDocs = documents.filter(d => d.contentType === 'case-specific' && d.summary);
+        const contextualDocs = documents.filter(d => d.contentType === 'contextual-report');
+        const otherDocs = documents.filter(d => !d.contentType || (d.contentType !== 'case-specific' && d.contentType !== 'contextual-report'));
+
+        if (caseSpecificDocs.length > 0) {
+            context += `**Zentrale fallbezogene Dokumente (Beweismittel):**\n`;
+            caseSpecificDocs.slice(0, 5).forEach(doc => {
+                context += `- ${doc.name}: ${doc.summary}\n`;
+            });
+            context += '\n';
+        }
+        
+        if (contextualDocs.length > 0) {
+            context += `**Kontext-Dokumente (Berichte, Studien):**\n`;
+            context += `- ${contextualDocs.map(d => d.name).slice(0, 10).join(', ')}\n\n`;
+        }
+
+        if (otherDocs.length > 0 && (caseSpecificDocs.length + contextualDocs.length) < 5) {
+             context += `**Weitere Dokumente:**\n`;
+             otherDocs.slice(0, 3).forEach(doc => {
+                context += `- ${doc.name} (Typ: ${doc.workCategory || doc.mimeType})\n`;
+            });
+             context += '\n';
+        }
     }
     
     if (caseEntities.length > 0) {
