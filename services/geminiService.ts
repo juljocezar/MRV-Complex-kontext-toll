@@ -1,32 +1,50 @@
-import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
+import { GoogleGenerativeAI, GenerativeModel, Content } from "@google/generative-ai";
 import { AISettings } from '../types';
 
-const API_KEY = process.env.API_KEY;
+// Store AI instances in a map, one per API key.
+const aiInstances = new Map<string, GoogleGenerativeAI>();
+const modelInstances = new Map<string, GenerativeModel>();
 
-if (!API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
+const getAiInstance = (apiKey: string): GoogleGenerativeAI => {
+    if (!apiKey) {
+        throw new Error("Gemini API key is not provided.");
+    }
+    if (!aiInstances.has(apiKey)) {
+        const newInstance = new GoogleGenerativeAI(apiKey);
+        aiInstances.set(apiKey, newInstance);
+    }
+    return aiInstances.get(apiKey)!;
+};
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const getModelInstance = (apiKey: string, settings: AISettings, jsonSchema: object | null): GenerativeModel => {
+    const key = `${apiKey}-${settings.temperature}-${settings.topP}-${jsonSchema ? 'json' : 'text'}`;
+    if (!modelInstances.has(key)) {
+        const ai = getAiInstance(apiKey);
+        const model = ai.getGenerativeModel({
+            model: 'gemini-1.5-flash',
+            generationConfig: {
+                temperature: settings.temperature,
+                topP: settings.topP,
+                ...(jsonSchema && {
+                    responseMimeType: "application/json",
+                    responseSchema: jsonSchema as any,
+                }),
+            }
+        });
+        modelInstances.set(key, model);
+    }
+    return modelInstances.get(key)!;
+};
 
-// A more robust queue that handles tasks and their corresponding promises
-const callQueue: {
-    task: () => Promise<any>;
-    resolve: (value: any) => void;
-    reject: (reason?: any) => void;
-}[] = [];
-
+// A simple queue to throttle API calls.
+const callQueue: { task: () => Promise<any>; resolve: (value: any) => void; reject: (reason?: any) => void; }[] = [];
 let isProcessing = false;
-const THROTTLE_DELAY = 2000; // Increased delay to 2 seconds to be safer with the free tier limits
+const THROTTLE_DELAY = 1000; // 1 call per second
 
 async function processQueue() {
-    if (isProcessing || callQueue.length === 0) {
-        return;
-    }
+    if (isProcessing || callQueue.length === 0) return;
     isProcessing = true;
-    
     const { task, resolve, reject } = callQueue.shift()!;
-    
     try {
         const result = await task();
         resolve(result);
@@ -34,83 +52,51 @@ async function processQueue() {
         console.error("Gemini API Task failed:", error);
         reject(error);
     }
-    
-    // Wait for the throttle delay before processing the next item
     setTimeout(() => {
         isProcessing = false;
         processQueue();
     }, THROTTLE_DELAY);
 }
 
-
 const callGeminiAPIThrottled = <T>(
-    contents: string | (string | Part)[],
-    jsonSchema: Schema | null,
+    apiKey: string,
+    contents: Content,
+    jsonSchema: object | null,
     settings: AISettings
 ): Promise<T> => {
     return new Promise((resolve, reject) => {
         const task = async () => {
-            const response: GenerateContentResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: contents as any,
-                config: {
-                    temperature: settings.temperature,
-                    topP: settings.topP,
-                    ...(jsonSchema && {
-                        responseMimeType: "application/json",
-                        responseSchema: jsonSchema,
-                    }),
-                }
-            });
-            
-            const text = response.text;
-            if (!text) {
-                // Return an empty object/string for JSON/text to prevent downstream crashes
-                if (jsonSchema) return JSON.parse('{}') as T;
-                return "" as T;
-            }
+            const model = getModelInstance(apiKey, settings, jsonSchema);
+            const result = await model.generateContent(contents);
+            const response = result.response;
+            const text = response.text();
 
+            if (!text) {
+                return (jsonSchema ? JSON.parse('{}') : "") as T;
+            }
             if (jsonSchema) {
                 try {
-                    // Sanitize response before parsing
                     const sanitizedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
                     return JSON.parse(sanitizedText) as T;
                 } catch (e) {
                     console.error('Failed to parse JSON response from AI:', text);
-                    // Return a valid empty object on parse failure
                     return {} as T;
                 }
             }
             return text as T;
         };
-
-        callQueue.push({ task: task as any, resolve, reject });
-        
-        if (!isProcessing) {
-            processQueue();
-        }
+        callQueue.push({ task, resolve, reject });
+        if (!isProcessing) processQueue();
     });
 };
 
-
 export class GeminiService {
-  static async callAI(
-    contents: string | (string | Part)[],
-    jsonSchema: Schema | null,
-    settings: AISettings
-  ): Promise<string> {
-    return callGeminiAPIThrottled<string>(contents, jsonSchema, settings);
-  }
-
-  static async callAIWithSchema<T>(
-    contents: string | (string | Part)[],
-    jsonSchema: object,
+  static async callAI<T>(
+    apiKey: string,
+    contents: Content,
+    jsonSchema: object | null,
     settings: AISettings
   ): Promise<T> {
-    return callGeminiAPIThrottled<T>(
-      contents,
-      jsonSchema as Schema,
-      settings
-    );
+    return callGeminiAPIThrottled<T>(apiKey, contents, jsonSchema, settings);
   }
 }

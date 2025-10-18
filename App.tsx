@@ -41,6 +41,15 @@ import { buildCaseContext } from './utils/contextUtils';
 const App: React.FC = () => {
     const [state, setState] = useState<AppState | null>(null);
 
+    const addAgentActivity = useCallback(async (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => {
+        const newActivity: AgentActivity = {
+            ...activity,
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+        };
+        setState(s => s ? { ...s, agentActivity: [newActivity, ...s.agentActivity] } : null);
+    }, []);
+
     const setActiveTab = (tab: ActiveTab) => {
         setState(prevState => prevState ? { ...prevState, activeTab: tab } : null);
     };
@@ -194,7 +203,7 @@ const App: React.FC = () => {
                     loadingSection={state.loadingSection}
                  />;
             case 'documents':
-                return <DocumentsTab appState={state} setAppState={setState} />;
+                return <DocumentsTab appState={state} setAppState={setState} addAgentActivity={addAgentActivity} />;
             case 'entities':
                 return <EntitiesTab 
                     entities={state.caseEntities}
@@ -214,11 +223,11 @@ const App: React.FC = () => {
             case 'graph':
                 return <GraphTab appState={state} />;
             case 'analysis':
-                return <AnalysisTab appState={state} />;
+                return <AnalysisTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
             case 'reports':
                 return <ReportsTab onGenerateReport={generateReport} appState={state} />;
             case 'generation':
-                return <GenerationTab onGenerateContent={generateContent} appState={state} setGeneratedDocuments={setProp('generatedDocuments')} isLoading={state.isLoading && state.loadingSection === 'generation'} />;
+                return <GenerationTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
             case 'library':
                 return <LibraryTab generatedDocuments={state.generatedDocuments} />;
             case 'dispatch':
