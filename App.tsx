@@ -573,10 +573,11 @@ const App: React.FC = () => {
             case 'graph':
                 return <GraphTab appState={appState} />;
             case 'analysis':
-                return <AnalysisTab appState={appState} onPerformAnalysisStream={handlePerformAnalysisStream} />;
+                return <AnalysisTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
             case 'reports':
                 return <ReportsTab appState={appState} onGenerateReport={async (prompt, schema) => { setAppState(prev => ({...prev, isLoading: true, loadingSection: 'reports'})); const report = await CaseAnalyzerService.runFreeformQueryStream(prompt, appState, false, () => [], () => {}); setAppState(prev => ({...prev, isLoading: false, loadingSection: ''})); return report; }}/>;
             case 'generation':
+                return <GenerationTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
                 return <GenerationTab onGenerateContentStream={handleGenerateContentStream} appState={appState} onUpdateGeneratedDocuments={(docs) => { setAppState(prev => ({...prev, generatedDocuments: docs})); storageService.saveAllGeneratedDocuments(docs);}} isLoading={appState.isLoading && appState.loadingSection === 'generation'} onPrepareDispatch={(doc) => { setAppState(prev => ({...prev, dispatchDocument: doc})); setActiveTab('dispatch'); }}/>;
             case 'library':
                 return <LibraryTab generatedDocuments={appState.generatedDocuments} documents={appState.documents} onViewDocument={setViewingDocId} />;

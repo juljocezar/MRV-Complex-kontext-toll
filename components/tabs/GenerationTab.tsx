@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from 'react';
-// Fix: Corrected import path for types.
-import type { GeneratedDocument, Document, AppState, ArgumentationPoint, ContentCreationParams } from '../../types';
+import { useAgentDispatcher } from '../../hooks/useAgentDispatcher';
+import type { GeneratedDocument, Document, AppState, AgentActivity } from '../../types';
 import { TemplateService, DocumentTemplate } from '../../services/templateService';
-import LoadingSpinner from '../ui/LoadingSpinner';
 import { marked } from 'marked';
-import { ExportService } from '../../services/exportService';
-import { ContentCreatorService } from '../../services/contentCreator';
-
 
 interface GenerationTabProps {
-    onGenerateContentStream: (params: ContentCreationParams) => Promise<GeneratedDocument[] | null>;
     appState: AppState;
-    onUpdateGeneratedDocuments: (docs: GeneratedDocument[]) => void;
-    isLoading: boolean;
-    onPrepareDispatch: (doc: GeneratedDocument) => void;
+    addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>;
+    setAppState: React.Dispatch<React.SetStateAction<AppState | null>>;
 }
 
-const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, appState, onUpdateGeneratedDocuments, isLoading, onPrepareDispatch }) => {
+const GenerationTab: React.FC<GenerationTabProps> = ({ appState, addAgentActivity, setAppState }) => {
+    const { dispatchAgentTask, isLoading } = useAgentDispatcher(appState, addAgentActivity);
     const [instructions, setInstructions] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -49,30 +44,54 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
         }
     };
 
-    const handleGenerate = async (options?: { versionChainId?: string }) => {
-        setLatestGeneratedDocs([]);
-        setIsEditing(false);
+    const [isSaved, setIsSaved] = useState(false);
+
+    const handleGenerate = async () => {
+        setLatestGeneratedDoc(null);
+        setIsSaved(false);
+
         const sourceDocuments = appState.documents.filter(doc => selectedDocs.includes(doc.id));
         const template = selectedTemplateId ? TemplateService.getTemplateById(selectedTemplateId) : null;
-        const selectedArguments = selectedArgs.map(index => supportingArguments[index]);
-        
-        const params: ContentCreationParams = {
-            instructions,
-            template: template?.content,
-            templateName: template?.name,
-            sourceDocuments: sourceDocuments,
-            selectedArguments: selectedArguments,
-            isBilingual,
-            language: 'de', // base language, service will handle bilingual
-            caseContext: '', // App.tsx will inject this
-            versionChainId: options?.versionChainId,
-        };
 
-        const results = await onGenerateContentStream(params);
+        let fullInstructions = instructions;
+        if (template) {
+            fullInstructions = `Using the following template as a structural guide, ${instructions}\n\nTemplate:\n"""${template.content}"""`;
+        }
+        if (sourceDocuments.length > 0) {
+            fullInstructions += `\n\nBase your response on the following source documents:\n` + sourceDocuments.map(d => `--- DOC: ${d.name} ---\n${d.content}\n`).join('\n');
+        }
 
-        if (results) {
-            setLatestGeneratedDocs(results);
-            setActivePreviewLang(results.find(d => d.language === 'de') ? 'de' : 'en');
+        const result = await dispatchAgentTask(fullInstructions, 'content_creation');
+
+        if (result) {
+            const htmlContent = await marked.parse(result);
+            const newDoc: GeneratedDocument = {
+                id: crypto.randomUUID(),
+                title: `Generated Document - ${new Date().toLocaleDateString()}`,
+                content: result,
+                htmlContent: htmlContent,
+                createdAt: new Date().toISOString(),
+                templateUsed: selectedTemplateId || undefined,
+                sourceDocIds: selectedDocs,
+            };
+            setLatestGeneratedDoc(newDoc);
+        }
+    };
+
+    const handleSaveDocument = () => {
+        if (latestGeneratedDoc) {
+            setAppState(s => {
+                if (!s) return null;
+                // Avoid duplicates
+                if (s.generatedDocuments.some(d => d.id === latestGeneratedDoc.id)) {
+                    return s;
+                }
+                return {
+                    ...s,
+                    generatedDocuments: [...s.generatedDocuments, latestGeneratedDoc]
+                };
+            });
+            setIsSaved(true);
         }
     };
 
@@ -228,36 +247,27 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContentStream, 
 
                 {/* --- Right Column: Output --- */}
                 <div className="lg:col-span-2 bg-gray-800 p-6 rounded-lg min-h-[600px] flex flex-col">
-                    <div className="flex-shrink-0 flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-white">
-                            {isEditing ? 'Dokument bearbeiten' : 'Vorschau'}
-                        </h2>
-                        {activeDoc && (
-                            <div className="flex flex-wrap items-center gap-2">
-                                <button 
-                                    onClick={handleToggleEdit} 
-                                    className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs"
-                                >
-                                    {isEditing ? 'Änderungen übernehmen' : 'Bearbeiten'}
-                                </button>
-                                {!isEditing && (
-                                    <>
-                                        <button onClick={() => handleGenerate({ versionChainId: activeDoc.versionChainId })} className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded-md text-xs">
-                                            Neue Version erstellen
-                                        </button>
-                                        <button onClick={handleDownloadMd} className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs">
-                                            Download (.md)
-                                        </button>
-                                        <button onClick={handleDownloadDoc} className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded-md text-xs">
-                                            Download (.doc)
-                                        </button>
-                                        {activeDoc.id !== 'temp-streaming-id' && (
-                                            <button onClick={() => onPrepareDispatch(activeDoc)} className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded-md text-xs">
-                                                Für Versand vorbereiten
-                                            </button>
-                                        )}
-                                    </>
-                                )}
+                     <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold text-white">Vorschau</h2>
+                        {latestGeneratedDoc && !isSaved && (
+                            <button
+                                onClick={handleSaveDocument}
+                                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-md"
+                            >
+                                Im Fall speichern
+                            </button>
+                        )}
+                        {latestGeneratedDoc && isSaved && (
+                            <p className="text-green-400">Dokument wurde gespeichert.</p>
+                        )}
+                     </div>
+                     <div className="flex-grow bg-gray-900/50 p-4 rounded-md border border-gray-700 overflow-y-auto">
+                        {isLoading && <p className="text-gray-400">Dokument wird generiert...</p>}
+                        {latestGeneratedDoc ? (
+                            <div 
+                                className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap"
+                                dangerouslySetInnerHTML={{ __html: latestGeneratedDoc.htmlContent || '' }}
+                            >
                             </div>
                         )}
                     </div>

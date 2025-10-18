@@ -1,38 +1,50 @@
-
-
-
-// Fix: Corrected import path for types.
-import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
+import { GoogleGenerativeAI, GenerativeModel, Content } from "@google/generative-ai";
 import { AISettings } from '../types';
 
-const API_KEY = process.env.API_KEY;
+// Store AI instances in a map, one per API key.
+const aiInstances = new Map<string, GoogleGenerativeAI>();
+const modelInstances = new Map<string, GenerativeModel>();
 
-let ai: GoogleGenAI | null = null;
-if (API_KEY) {
-    ai = new GoogleGenAI({ apiKey: API_KEY });
-} else {
-    console.error("API_KEY environment variable not set. AI features will not work.");
-}
+const getAiInstance = (apiKey: string): GoogleGenerativeAI => {
+    if (!apiKey) {
+        throw new Error("Gemini API key is not provided.");
+    }
+    if (!aiInstances.has(apiKey)) {
+        const newInstance = new GoogleGenerativeAI(apiKey);
+        aiInstances.set(apiKey, newInstance);
+    }
+    return aiInstances.get(apiKey)!;
+};
 
+const getModelInstance = (apiKey: string, settings: AISettings, jsonSchema: object | null): GenerativeModel => {
+    const key = `${apiKey}-${settings.temperature}-${settings.topP}-${jsonSchema ? 'json' : 'text'}`;
+    if (!modelInstances.has(key)) {
+        const ai = getAiInstance(apiKey);
+        const model = ai.getGenerativeModel({
+            model: 'gemini-1.5-flash',
+            generationConfig: {
+                temperature: settings.temperature,
+                topP: settings.topP,
+                ...(jsonSchema && {
+                    responseMimeType: "application/json",
+                    responseSchema: jsonSchema as any,
+                }),
+            }
+        });
+        modelInstances.set(key, model);
+    }
+    return modelInstances.get(key)!;
+};
 
-// A more robust queue that handles tasks, retries, and their corresponding promises
-const callQueue: {
-    task: () => Promise<any>;
-    resolve: (value: any) => void;
-    reject: (reason?: any) => void;
-    retries: number;
-}[] = [];
-
+// A simple queue to throttle API calls.
+const callQueue: { task: () => Promise<any>; resolve: (value: any) => void; reject: (reason?: any) => void; }[] = [];
 let isProcessing = false;
-// Increased delay to > 4 seconds to stay safely within a 15 RPM limit.
-const THROTTLE_DELAY = 4100;
-const MAX_RETRIES = 3;
+const THROTTLE_DELAY = 1000; // 1 call per second
 
 async function processQueue() {
-    if (isProcessing || callQueue.length === 0) {
-        return;
-    }
+    if (isProcessing || callQueue.length === 0) return;
     isProcessing = true;
+    const { task, resolve, reject } = callQueue.shift()!;
     
     const queueItem = callQueue.shift()!;
     const { task, resolve, reject, retries } = queueItem;
@@ -94,126 +106,51 @@ async function processQueue() {
             }, THROTTLE_DELAY);
         }
     }
+    setTimeout(() => {
+        isProcessing = false;
+        processQueue();
+    }, THROTTLE_DELAY);
 }
 
-
 const callGeminiAPIThrottled = <T>(
-    contents: string | (string | Part)[],
-    jsonSchema: Schema | null,
+    apiKey: string,
+    contents: Content,
+    jsonSchema: object | null,
     settings: AISettings
 ): Promise<T> => {
     return new Promise((resolve, reject) => {
         const task = async () => {
-            if (!ai) {
-                throw new Error("Gemini AI client is not initialized. Please check if the API_KEY is correctly set.");
-            }
-            const response: GenerateContentResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: contents as any,
-                config: {
-                    temperature: settings.temperature,
-                    topP: settings.topP,
-                    ...(jsonSchema && {
-                        responseMimeType: "application/json",
-                        responseSchema: jsonSchema,
-                    }),
-                }
-            });
-            
-            const text = response.text;
-            if (!text) {
-                // Return an empty object/string for JSON/text to prevent downstream crashes
-                if (jsonSchema) return JSON.parse('{}') as T;
-                return "" as T;
-            }
+            const model = getModelInstance(apiKey, settings, jsonSchema);
+            const result = await model.generateContent(contents);
+            const response = result.response;
+            const text = response.text();
 
+            if (!text) {
+                return (jsonSchema ? JSON.parse('{}') : "") as T;
+            }
             if (jsonSchema) {
                 try {
-                    // Sanitize response before parsing
                     const sanitizedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
                     return JSON.parse(sanitizedText) as T;
                 } catch (e) {
                     console.error('Failed to parse JSON response from AI:', text);
-                    // Return a valid empty object on parse failure
                     return {} as T;
                 }
             }
             return text as T;
         };
-
-        callQueue.push({ task: task as any, resolve, reject, retries: 0 });
-        
-        if (!isProcessing) {
-            processQueue();
-        }
+        callQueue.push({ task, resolve, reject });
+        if (!isProcessing) processQueue();
     });
 };
-
-const streamGeminiAPIThrottled = (
-    contents: string | (string | Part)[],
-    settings: AISettings,
-    onChunk: (chunk: string) => void
-): Promise<string> => { // Returns the full text on completion
-    return new Promise((resolve, reject) => {
-        const task = async () => {
-            if (!ai) {
-                throw new Error("Gemini AI client is not initialized.");
-            }
-            const response = await ai.models.generateContentStream({
-                model: 'gemini-2.5-flash',
-                contents: contents as any,
-                config: {
-                    temperature: settings.temperature,
-                    topP: settings.topP,
-                }
-            });
-
-            let fullText = "";
-            for await (const chunk of response) {
-                const chunkText = chunk.text;
-                if (chunkText) {
-                    fullText += chunkText;
-                    onChunk(chunkText);
-                }
-            }
-            return fullText;
-        };
-
-        callQueue.push({ task: task as any, resolve, reject, retries: 0 });
-
-        if (!isProcessing) {
-            processQueue();
-        }
-    });
-};
-
 
 export class GeminiService {
-  static async callAI(
-    contents: string | (string | Part)[],
-    jsonSchema: Schema | null,
-    settings: AISettings
-  ): Promise<string> {
-    return callGeminiAPIThrottled<string>(contents, jsonSchema, settings);
-  }
-
-  static async callAIWithSchema<T>(
-    contents: string | (string | Part)[],
-    jsonSchema: object,
+  static async callAI<T>(
+    apiKey: string,
+    contents: Content,
+    jsonSchema: object | null,
     settings: AISettings
   ): Promise<T> {
-    return callGeminiAPIThrottled<T>(
-      contents,
-      jsonSchema as Schema,
-      settings
-    );
-  }
-
-  static async generateContentStream(
-    contents: string | (string | Part)[],
-    settings: AISettings,
-    onChunk: (chunk: string) => void
-  ): Promise<string> {
-    return streamGeminiAPIThrottled(contents, settings, onChunk);
+    return callGeminiAPIThrottled<T>(apiKey, contents, jsonSchema, settings);
   }
 }

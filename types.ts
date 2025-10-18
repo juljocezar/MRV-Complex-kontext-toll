@@ -241,10 +241,10 @@ export interface Risks {
     psychologicalBurden: boolean;
 }
 
-export interface Task {
-    id: string;
-    text: string;
-    completed: boolean;
+export interface AISettings {
+    temperature: number;
+    topP: number;
+    apiKey?: string;
 }
 
 export interface ChecklistItem {
