@@ -47,6 +47,9 @@ const App: React.FC = () => {
             id: crypto.randomUUID(),
             timestamp: new Date().toISOString(),
         };
+        setState(s => s ? { ...s, agentActivity: [newActivity, ...s.agentActivity] } : null);
+    }, []);
+
     const handleAddTask = useCallback((description: string, priority: 'low' | 'medium' | 'high') => {
         const newTask: Task = {
             id: crypto.randomUUID(),
@@ -266,7 +269,7 @@ const App: React.FC = () => {
             case 'ethics':
                 return <EthicsAnalysisTab analysisResult={state.ethicsAnalysis} onPerformAnalysis={performEthicsAnalysis} isLoading={state.isLoading && state.loadingSection === 'ethics'} />;
             case 'contradictions':
-                return <ContradictionsTab contradictions={state.contradictions} documents={state.documents} onFindContradictions={findContradictions} isLoading={state.isLoading && state.loadingSection === 'contradictions'} />;
+                return <ContradictionsTab appState={state} setAppState={setState} addAgentActivity={addAgentActivity} />;
             case 'agents':
                 return <AgentManagementTab agentActivityLog={state.agentActivity} />;
             case 'audit':
