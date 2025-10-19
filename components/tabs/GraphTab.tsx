@@ -1,12 +1,14 @@
-import React, { useMemo, useRef, useCallback } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
+import React, { useMemo, useRef, useCallback, useState, useEffect, Suspense, lazy } from 'react';
 import type { AppState } from '../../types';
+
+// Dynamically import the ForceGraph2D component to ensure it only runs on the client side
+const ForceGraph2D = lazy(() => import('react-force-graph-2d'));
 
 interface GraphTabProps {
     appState: AppState;
 }
 
-const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
+const GraphCanvas: React.FC<{ appState: AppState }> = ({ appState }) => {
     const fgRef = useRef();
 
     const graphData = useMemo(() => {
@@ -38,13 +40,15 @@ const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
         if (node.type === 'Organisation') color = '#A78BFA'; // violet-400
         if (node.type === 'Standort') color = '#6EE7B7'; // emerald-300
 
-        ctx.fillStyle = 'rgba(17, 24, 39, 0.8)'; // gray-900 with opacity
-        ctx.fillRect(node.x - 6, node.y - 6, 12, 12);
+        ctx.fillStyle = 'rgba(17, 24, 39, 0.8)';
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 5 / globalScale, 0, 2 * Math.PI, false);
+        ctx.fill();
 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = color;
-        ctx.fillText(label, node.x, node.y + 10);
+        ctx.fillText(label, node.x, node.y + 10 / globalScale);
     }, []);
 
     const handleLinkPaint = useCallback((link, ctx, globalScale) => {
@@ -53,7 +57,7 @@ const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
 
         const label = link.description;
         const fontSize = 8 / globalScale;
-        ctx.font = `${fontSize}px Sans-Serif`;
+        ctx.font = `italic ${fontSize}px Sans-Serif`;
 
         const x = source.x + (target.x - source.x) / 2;
         const y = source.y + (target.y - source.y) / 2;
@@ -64,6 +68,28 @@ const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
         ctx.fillText(label, x, y);
     }, []);
 
+    return (
+        <ForceGraph2D
+            ref={fgRef}
+            graphData={graphData}
+            nodeLabel="name"
+            linkDirectionalArrowLength={3.5}
+            linkDirectionalArrowRelPos={1}
+            linkCurvature={0.1}
+            nodeCanvasObject={handleNodePaint}
+            linkCanvasObject={handleLinkPaint}
+            cooldownTicks={100}
+            onEngineStop={() => fgRef.current.zoomToFit(400, 100)}
+        />
+    );
+};
+
+const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -72,18 +98,12 @@ const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
                 Visualisierung der Beziehungen zwischen Entitäten. Starten Sie die "Beziehungen analysieren"-Aktion im Entitäten-Tab, um den Graphen zu füllen.
             </p>
             <div className="w-full h-[70vh] bg-gray-900/50 rounded-lg border border-gray-700 overflow-hidden">
-                {graphData.nodes.length > 0 ? (
-                    <ForceGraph2D
-                        ref={fgRef}
-                        graphData={graphData}
-                        nodeLabel="name"
-                        nodeAutoColorBy="type"
-                        linkDirectionalArrowLength={3.5}
-                        linkDirectionalArrowRelPos={1}
-                        linkCurvature={0.25}
-                        nodeCanvasObject={handleNodePaint}
-                        linkCanvasObject={handleLinkPaint}
-                    />
+                {appState.caseEntities.length > 0 ? (
+                    isClient && (
+                        <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400">Lade Graphen...</div>}>
+                            <GraphCanvas appState={appState} />
+                        </Suspense>
+                    )
                 ) : (
                     <div className="flex items-center justify-center h-full">
                         <div className="text-center text-gray-500">
