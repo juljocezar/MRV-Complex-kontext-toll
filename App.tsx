@@ -41,26 +41,6 @@ import { buildCaseContext } from './utils/contextUtils';
 const App: React.FC = () => {
     const [state, setState] = useState<AppState | null>(null);
 
-    const addAgentActivity = useCallback(async (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => {
-        const newActivity: AgentActivity = {
-            ...activity,
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-        };
-        setState(s => s ? { ...s, agentActivity: [newActivity, ...s.agentActivity] } : null);
-    }, []);
-
-    const handleAddTask = useCallback((description: string, priority: 'low' | 'medium' | 'high') => {
-        const newTask: Task = {
-            id: crypto.randomUUID(),
-            description,
-            priority,
-            completed: false,
-            createdAt: new Date().toISOString(),
-        };
-        setState(s => s ? { ...s, tasks: [...s.tasks, newTask] } : null);
-    }, []);
-
     const setActiveTab = (tab: ActiveTab) => {
         setState(prevState => prevState ? { ...prevState, activeTab: tab } : null);
     };
@@ -214,18 +194,12 @@ const App: React.FC = () => {
                     loadingSection={state.loadingSection}
                  />;
             case 'documents':
-                return <DocumentsTab appState={state} setAppState={setState} addAgentActivity={addAgentActivity} />;
+                return <DocumentsTab appState={state} setAppState={setState} />;
             case 'entities':
                 return <EntitiesTab 
-                    entities={state.caseEntities}
-                    setEntities={setProp('caseEntities')}
-                    documents={state.documents}
-                    suggestedEntities={state.suggestedEntities}
-                    onAcceptSuggestedEntity={(id) => {}}
-                    onDismissSuggestedEntity={(id) => {}}
-                    onAnalyzeRelationships={() => {}}
-                    isLoading={state.isLoading}
-                    loadingSection={state.loadingSection}
+                    appState={state}
+                    setAppState={setState}
+                    addAgentActivity={addAgentActivity}
                 />;
             case 'chronology':
                 return <ChronologyTab timelineEvents={state.timelineEvents} setTimelineEvents={setProp('timelineEvents')} documents={state.documents} />;
@@ -234,11 +208,11 @@ const App: React.FC = () => {
             case 'graph':
                 return <GraphTab appState={state} />;
             case 'analysis':
-                return <AnalysisTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
+                return <AnalysisTab appState={state} />;
             case 'reports':
                 return <ReportsTab onGenerateReport={generateReport} appState={state} />;
             case 'generation':
-                return <GenerationTab appState={state} addAgentActivity={addAgentActivity} setAppState={setState} />;
+                return <GenerationTab onGenerateContent={generateContent} appState={state} setGeneratedDocuments={setProp('generatedDocuments')} isLoading={state.isLoading && state.loadingSection === 'generation'} />;
             case 'library':
                 return <LibraryTab generatedDocuments={state.generatedDocuments} />;
             case 'dispatch':
@@ -269,7 +243,7 @@ const App: React.FC = () => {
             case 'ethics':
                 return <EthicsAnalysisTab analysisResult={state.ethicsAnalysis} onPerformAnalysis={performEthicsAnalysis} isLoading={state.isLoading && state.loadingSection === 'ethics'} />;
             case 'contradictions':
-                return <ContradictionsTab appState={state} setAppState={setState} addAgentActivity={addAgentActivity} />;
+                return <ContradictionsTab contradictions={state.contradictions} documents={state.documents} onFindContradictions={findContradictions} isLoading={state.isLoading && state.loadingSection === 'contradictions'} />;
             case 'agents':
                 return <AgentManagementTab agentActivityLog={state.agentActivity} />;
             case 'audit':
@@ -290,6 +264,7 @@ const App: React.FC = () => {
                 documents: await storage.getAllDocuments(),
                 generatedDocuments: await storage.getAllGeneratedDocuments(),
                 caseEntities: await storage.getAllEntities(),
+                caseEntityLinks: await storage.getAllCaseEntityLinks(),
                 knowledgeItems: await storage.getAllKnowledgeItems(),
                 timelineEvents: await storage.getAllTimelineEvents(),
                 tags: await storage.getAllTags(),
@@ -325,6 +300,7 @@ const App: React.FC = () => {
             storage.saveAllDocuments(state.documents);
             storage.saveAllGeneratedDocuments(state.generatedDocuments);
             storage.saveAllEntities(state.caseEntities);
+            storage.saveAllCaseEntityLinks(state.caseEntityLinks);
             storage.saveAllKnowledgeItems(state.knowledgeItems);
             storage.saveAllTimelineEvents(state.timelineEvents);
             storage.saveAllTags(state.tags);
@@ -358,11 +334,11 @@ const App: React.FC = () => {
             </main>
             {!state.isFocusMode && (
                 <AssistantSidebar 
-                    appState={state}
                     agentActivityLog={state.agentActivity} 
                     insights={state.insights}
                     onGenerateInsights={generateInsights}
-                    onAddTask={handleAddTask}
+                    isLoading={state.isLoading && state.loadingSection === 'insights'}
+                    loadingSection={state.loadingSection}
                 />
             )}
         </div>

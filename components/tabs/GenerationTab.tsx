@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useAgentDispatcher } from '../../hooks/useAgentDispatcher';
-import type { GeneratedDocument, Document, AppState, AgentActivity } from '../../types';
+import type { GeneratedDocument, Document, AppState } from '../../types';
 import { TemplateService, DocumentTemplate } from '../../services/templateService';
-import { marked } from 'marked';
 
 interface GenerationTabProps {
+    onGenerateContent: (params: { instructions: string; templateId?: string; sourceDocuments?: Document[] }) => Promise<GeneratedDocument | null>;
     appState: AppState;
-    addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>;
-    setAppState: React.Dispatch<React.SetStateAction<AppState | null>>;
+    setGeneratedDocuments: React.Dispatch<React.SetStateAction<GeneratedDocument[]>>;
+    isLoading: boolean;
 }
 
-const GenerationTab: React.FC<GenerationTabProps> = ({ appState, addAgentActivity, setAppState }) => {
-    const { dispatchAgentTask, isLoading } = useAgentDispatcher(appState, addAgentActivity);
+const GenerationTab: React.FC<GenerationTabProps> = ({ onGenerateContent, appState, setGeneratedDocuments, isLoading }) => {
     const [instructions, setInstructions] = useState('');
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -34,54 +32,18 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ appState, addAgentActivit
         }
     };
 
-    const [isSaved, setIsSaved] = useState(false);
-
     const handleGenerate = async () => {
         setLatestGeneratedDoc(null);
-        setIsSaved(false);
-
         const sourceDocuments = appState.documents.filter(doc => selectedDocs.includes(doc.id));
-        const template = selectedTemplateId ? TemplateService.getTemplateById(selectedTemplateId) : null;
 
-        let fullInstructions = instructions;
-        if (template) {
-            fullInstructions = `Using the following template as a structural guide, ${instructions}\n\nTemplate:\n"""${template.content}"""`;
-        }
-        if (sourceDocuments.length > 0) {
-            fullInstructions += `\n\nBase your response on the following source documents:\n` + sourceDocuments.map(d => `--- DOC: ${d.name} ---\n${d.content}\n`).join('\n');
-        }
-
-        const result = await dispatchAgentTask(fullInstructions, 'content_creation');
+        const result = await onGenerateContent({
+            instructions,
+            templateId: selectedTemplateId,
+            sourceDocuments: sourceDocuments,
+        });
 
         if (result) {
-            const htmlContent = await marked.parse(result);
-            const newDoc: GeneratedDocument = {
-                id: crypto.randomUUID(),
-                title: `Generated Document - ${new Date().toLocaleDateString()}`,
-                content: result,
-                htmlContent: htmlContent,
-                createdAt: new Date().toISOString(),
-                templateUsed: selectedTemplateId || undefined,
-                sourceDocIds: selectedDocs,
-            };
-            setLatestGeneratedDoc(newDoc);
-        }
-    };
-
-    const handleSaveDocument = () => {
-        if (latestGeneratedDoc) {
-            setAppState(s => {
-                if (!s) return null;
-                // Avoid duplicates
-                if (s.generatedDocuments.some(d => d.id === latestGeneratedDoc.id)) {
-                    return s;
-                }
-                return {
-                    ...s,
-                    generatedDocuments: [...s.generatedDocuments, latestGeneratedDoc]
-                };
-            });
-            setIsSaved(true);
+            setLatestGeneratedDoc(result);
         }
     };
 
@@ -148,26 +110,13 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ appState, addAgentActivit
 
                 {/* --- Right Column: Output --- */}
                 <div className="lg:col-span-2 bg-gray-800 p-6 rounded-lg min-h-[600px] flex flex-col">
-                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-white">Vorschau</h2>
-                        {latestGeneratedDoc && !isSaved && (
-                            <button
-                                onClick={handleSaveDocument}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-md"
-                            >
-                                Im Fall speichern
-                            </button>
-                        )}
-                        {latestGeneratedDoc && isSaved && (
-                            <p className="text-green-400">Dokument wurde gespeichert.</p>
-                        )}
-                     </div>
+                     <h2 className="text-xl font-semibold text-white mb-4">Vorschau</h2>
                      <div className="flex-grow bg-gray-900/50 p-4 rounded-md border border-gray-700 overflow-y-auto">
                         {isLoading && <p className="text-gray-400">Dokument wird generiert...</p>}
                         {latestGeneratedDoc ? (
                             <div 
                                 className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap"
-                                dangerouslySetInnerHTML={{ __html: latestGeneratedDoc.htmlContent || '' }}
+                                dangerouslySetInnerHTML={{ __html: latestGeneratedDoc.htmlContent || latestGeneratedDoc.content.replace(/\n/g, '<br />') }}
                             >
                             </div>
                         ) : !isLoading && (

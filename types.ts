@@ -210,7 +210,6 @@ export interface Risks {
 export interface AISettings {
     temperature: number;
     topP: number;
-    apiKey?: string;
 }
 
 export interface ComplexitySettings {
@@ -223,11 +222,18 @@ export interface AppSettings {
     complexity: ComplexitySettings;
 }
 
+export interface CaseEntityLink {
+    source: string; // CaseEntity ID
+    target: string; // CaseEntity ID
+    description: string;
+}
+
 export interface AppState {
     activeTab: ActiveTab;
     documents: Document[];
     generatedDocuments: GeneratedDocument[];
     caseEntities: CaseEntity[];
+    caseEntityLinks: CaseEntityLink[];
     knowledgeItems: KnowledgeItem[];
     timelineEvents: TimelineEvent[];
     tags: Tag[];

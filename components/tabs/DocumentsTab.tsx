@@ -5,23 +5,19 @@ import { hashText } from '../../utils/cryptoUtils';
 import DocumentDetailModal from '../modals/DocumentDetailModal';
 import TagManagementModal from '../modals/TagManagementModal';
 import AnalysisChatModal from '../modals/AnalysisChatModal';
-import { useAgentDispatcher } from '../../hooks/useAgentDispatcher';
-import { AgentActivity } from '../../types';
+import { DocumentAnalystService } from '../../services/documentAnalyst';
 
 interface DocumentsTabProps {
     appState: AppState;
     setAppState: React.Dispatch<React.SetStateAction<AppState | null>>;
-    addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => Promise<void>;
 }
 
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addAgentActivity }) => {
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [chatHistory, setChatHistory] = useState<any[]>([]);
-
-    const { dispatchAgentTask, isLoading: isDispatcherLoading, error: dispatcherError, result: dispatcherResult } = useAgentDispatcher(appState, addAgentActivity);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -47,39 +43,37 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
         }
     };
 
-    const [classifyingDocId, setClassifyingDocId] = useState<string | null>(null);
+    const handleAnalyzeDocument = useCallback(async (docId: string) => {
+        if (!appState) return;
+        const doc = appState.documents.find(d => d.id === docId);
+        if (!doc) return;
 
-    const handleClassifyDocument = useCallback(async (doc: Document) => {
-        if (!doc.content) {
-            alert("Document has no content to classify.");
-            return;
-        }
-        setClassifyingDocId(doc.id);
+        setAppState(s => s ? { ...s, isLoading: true, loadingSection: `doc-${docId}` } : null);
         try {
-            const prompt = `Please classify the following document content according to HURIDOCS standards. Return only the single, most appropriate category name. Document content: """${doc.content.substring(0, 4000)}"""`;
-            const result = await dispatchAgentTask(prompt, 'document_classification');
-
-            if (typeof result === 'string' && result.trim() !== '') {
-                setAppState(s => {
-                    if (!s) return null;
-                    const newDocs = s.documents.map((d): Document => {
-                        if (d.id === doc.id) {
-                            return { ...d, classificationStatus: 'classified', type: result.trim() };
-                        }
-                        return d;
-                    });
-                    return { ...s, documents: newDocs };
+            const result = await DocumentAnalystService.analyzeDocument(doc, appState.settings.ai);
+            setAppState(s => {
+                if (!s) return null;
+                // FIX: Explicitly type the updated document object to prevent type inference issues with AppState.
+                const newDocs = s.documents.map((d): Document => {
+                    if (d.id === docId) {
+                        return {
+                            ...d,
+                            summary: result.summary,
+                            classificationStatus: 'classified',
+                            workCategory: result.classification
+                        };
+                    }
+                    return d;
                 });
-            } else {
-                throw new Error("Received an invalid classification from the AI.");
-            }
-        } catch (error) {
-            console.error("Classification failed for doc:", doc.name, error);
-            alert(`Classification failed for document ${doc.name}.`);
+                const newResults = { ...s.documentAnalysisResults, [docId]: result };
+                return { ...s, documents: newDocs, documentAnalysisResults: newResults };
+            });
+        } catch (e) {
+            console.error(e);
         } finally {
-            setClassifyingDocId(null);
+            setAppState(s => s ? { ...s, isLoading: false, loadingSection: '' } : null);
         }
-    }, [dispatchAgentTask, setAppState]);
+    }, [appState, setAppState]);
 
     const handleSaveTags = (newTags: string[]) => {
         if (selectedDoc) {
@@ -126,13 +120,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
                                 <td className="px-6 py-4 space-x-2">
                                     <button onClick={() => setSelectedDoc(doc)} className="text-blue-400 hover:underline">Details</button>
                                     <button onClick={() => { setSelectedDoc(doc); setIsTagModalOpen(true); }} className="text-green-400 hover:underline">Tags</button>
-                                    <button
-                                        onClick={() => handleClassifyDocument(doc)}
-                                        disabled={isDispatcherLoading && classifyingDocId === doc.id}
-                                        className="text-purple-400 hover:underline disabled:text-gray-500 disabled:cursor-not-allowed"
-                                    >
-                                        {isDispatcherLoading && classifyingDocId === doc.id ? 'Klassifiziere...' : 'Klassifizieren'}
-                                    </button>
+                                    <button onClick={() => handleAnalyzeDocument(doc.id)} disabled={appState.isLoading && appState.loadingSection === `doc-${doc.id}`} className="text-purple-400 hover:underline disabled:text-gray-500">Analysieren</button>
                                     <button onClick={() => { setSelectedDoc(doc); setChatHistory([]); setIsChatModalOpen(true); }} className="text-yellow-400 hover:underline">Chat</button>
                                 </td>
                             </tr>

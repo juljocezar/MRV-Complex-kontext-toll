@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
+import ForceGraph2D from 'react-force-graph-2d';
 import type { AppState } from '../../types';
 
 interface GraphTabProps {
@@ -6,49 +7,91 @@ interface GraphTabProps {
 }
 
 const GraphTab: React.FC<GraphTabProps> = ({ appState }) => {
-    // This is a placeholder for a graph visualization library like D3, Vis.js, or React Flow.
-    // For now, it will just list the entities and their relationships.
+    const fgRef = useRef();
+
+    const graphData = useMemo(() => {
+        if (!appState.caseEntities || !appState.caseEntityLinks) {
+            return { nodes: [], links: [] };
+        }
+        const nodes = appState.caseEntities.map(entity => ({
+            id: entity.id,
+            name: entity.name,
+            type: entity.type,
+        }));
+
+        const links = appState.caseEntityLinks.map(link => ({
+            source: link.source,
+            target: link.target,
+            description: link.description,
+        }));
+
+        return { nodes, links };
+    }, [appState.caseEntities, appState.caseEntityLinks]);
+
+    const handleNodePaint = useCallback((node, ctx, globalScale) => {
+        const label = node.name;
+        const fontSize = 12 / globalScale;
+        ctx.font = `${fontSize}px Sans-Serif`;
+
+        let color = '#CBD5E1'; // gray-300
+        if (node.type === 'Person') color = '#93C5FD'; // blue-300
+        if (node.type === 'Organisation') color = '#A78BFA'; // violet-400
+        if (node.type === 'Standort') color = '#6EE7B7'; // emerald-300
+
+        ctx.fillStyle = 'rgba(17, 24, 39, 0.8)'; // gray-900 with opacity
+        ctx.fillRect(node.x - 6, node.y - 6, 12, 12);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = color;
+        ctx.fillText(label, node.x, node.y + 10);
+    }, []);
+
+    const handleLinkPaint = useCallback((link, ctx, globalScale) => {
+        const { source, target } = link;
+        if (typeof source !== 'object' || typeof target !== 'object') return;
+
+        const label = link.description;
+        const fontSize = 8 / globalScale;
+        ctx.font = `${fontSize}px Sans-Serif`;
+
+        const x = source.x + (target.x - source.x) / 2;
+        const y = source.y + (target.y - source.y) / 2;
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(156, 163, 175, 0.7)'; // gray-400
+        ctx.fillText(label, x, y);
+    }, []);
+
 
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-white">Beziehungs-Graph</h1>
             <p className="text-gray-400">
-                Dieser Bereich visualisiert die Beziehungen zwischen den verschiedenen Entitäten (Personen, Organisationen, Orte) im Fall.
-                Die Analyse der Beziehungen muss auf dem "Entitäten"-Tab gestartet werden.
+                Visualisierung der Beziehungen zwischen Entitäten. Starten Sie die "Beziehungen analysieren"-Aktion im Entitäten-Tab, um den Graphen zu füllen.
             </p>
-
-            <div className="bg-gray-800 p-6 rounded-lg">
-                <h2 className="text-xl font-semibold text-white mb-4">Beziehungs-Daten (Text-Repräsentation)</h2>
-                {appState.caseEntities.length > 0 ? (
-                    <div className="space-y-4">
-                        {appState.caseEntities.map(entity => (
-                            <div key={entity.id}>
-                                <h3 className="font-bold text-lg text-blue-400">{entity.name} <span className="text-sm font-normal text-gray-400">({entity.type})</span></h3>
-                                {entity.relationships && entity.relationships.length > 0 ? (
-                                    <ul className="list-disc list-inside ml-4 text-gray-300">
-                                        {entity.relationships.map(rel => (
-                                            <li key={rel.targetEntityId}>
-                                                {rel.description} <span className="font-semibold text-indigo-300">{rel.targetEntityName}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-gray-500 ml-4">Keine analysierten Beziehungen.</p>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+            <div className="w-full h-[70vh] bg-gray-900/50 rounded-lg border border-gray-700 overflow-hidden">
+                {graphData.nodes.length > 0 ? (
+                    <ForceGraph2D
+                        ref={fgRef}
+                        graphData={graphData}
+                        nodeLabel="name"
+                        nodeAutoColorBy="type"
+                        linkDirectionalArrowLength={3.5}
+                        linkDirectionalArrowRelPos={1}
+                        linkCurvature={0.25}
+                        nodeCanvasObject={handleNodePaint}
+                        linkCanvasObject={handleLinkPaint}
+                    />
                 ) : (
-                    <p className="text-center text-gray-500 py-8">
-                        Keine Entitäten vorhanden, um einen Graphen zu erstellen.
-                    </p>
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-center text-gray-500">
+                            <h2 className="text-2xl font-semibold">Keine Daten für den Graphen</h2>
+                            <p>Führen Sie zuerst eine Tiefenanalyse und dann eine Beziehungs-Analyse durch.</p>
+                        </div>
+                    </div>
                 )}
-            </div>
-             <div className="flex items-center justify-center h-64 bg-gray-800 rounded-lg border-2 border-dashed border-gray-700">
-                <div className="text-center text-gray-500">
-                    <h2 className="text-2xl font-semibold">Visualisierung in Entwicklung</h2>
-                    <p>Eine grafische Darstellung der Beziehungen wird in einer zukünftigen Version verfügbar sein.</p>
-                </div>
             </div>
         </div>
     );

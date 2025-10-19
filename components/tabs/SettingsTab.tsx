@@ -12,13 +12,11 @@ interface SettingsTabProps {
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, onCreateTag, onDeleteTag }) => {
     const [newTagName, setNewTagName] = useState('');
     
-    const handleAIChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleAIChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        // Check if the value is a number before parsing
-        const isNumeric = name === 'temperature' || name === 'topP';
         setSettings({
             ...settings,
-            ai: { ...settings.ai, [name]: isNumeric ? parseFloat(value) : value }
+            ai: { ...settings.ai, [name]: parseFloat(value) }
         });
     };
 
@@ -45,21 +43,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, 
             <div className="bg-gray-800 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold text-white mb-4">KI-Einstellungen</h2>
                 <div className="space-y-4">
-                     <div>
-                        <label htmlFor="apiKey" className="block text-sm font-medium text-gray-300">
-                            Gemini API Schlüssel
-                        </label>
-                        <input
-                            type="password"
-                            id="apiKey"
-                            name="apiKey"
-                            value={settings.ai.apiKey || ''}
-                            onChange={handleAIChange}
-                            placeholder="Ihren API-Schlüssel hier einfügen"
-                            className="mt-1 w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
-                        />
-                         <p className="text-xs text-gray-500 mt-1">Ihr Schlüssel wird nur lokal in Ihrem Browser gespeichert und niemals geteilt.</p>
-                    </div>
                     <div>
                         <label htmlFor="temperature" className="block text-sm font-medium text-gray-300">
                             Temperatur (Kreativität): {settings.ai.temperature}
