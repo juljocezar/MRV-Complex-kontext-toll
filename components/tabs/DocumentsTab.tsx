@@ -55,30 +55,31 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ appState, setAppState, addA
             return;
         }
         setClassifyingDocId(doc.id);
-        const prompt = `Please classify the following document content. The classification should be a single category from the official HURIDOCS standards. Return only the name of the category, nothing else. Document content: """${doc.content.substring(0, 4000)}"""`;
-        await dispatchAgentTask(prompt, 'document_classification');
-    }, [dispatchAgentTask]);
+        try {
+            const prompt = `Please classify the following document content according to HURIDOCS standards. Return only the single, most appropriate category name. Document content: """${doc.content.substring(0, 4000)}"""`;
+            const result = await dispatchAgentTask(prompt, 'document_classification');
 
-    // Effect to update state when dispatcher finishes
-    React.useEffect(() => {
-        if (dispatcherResult && classifyingDocId) {
-            setAppState(s => {
-                if (!s) return null;
-                const newDocs = s.documents.map((d): Document => {
-                    if (d.id === classifyingDocId) {
-                        return { 
-                            ...d, 
-                            classificationStatus: 'classified', 
-                            type: dispatcherResult
-                        };
-                    }
-                    return d;
+            if (typeof result === 'string' && result.trim() !== '') {
+                setAppState(s => {
+                    if (!s) return null;
+                    const newDocs = s.documents.map((d): Document => {
+                        if (d.id === doc.id) {
+                            return { ...d, classificationStatus: 'classified', type: result.trim() };
+                        }
+                        return d;
+                    });
+                    return { ...s, documents: newDocs };
                 });
-                return { ...s, documents: newDocs };
-            });
-            setClassifyingDocId(null); // Reset after processing
+            } else {
+                throw new Error("Received an invalid classification from the AI.");
+            }
+        } catch (error) {
+            console.error("Classification failed for doc:", doc.name, error);
+            alert(`Classification failed for document ${doc.name}.`);
+        } finally {
+            setClassifyingDocId(null);
         }
-    }, [dispatcherResult, classifyingDocId, setAppState]);
+    }, [dispatchAgentTask, setAppState]);
 
     const handleSaveTags = (newTags: string[]) => {
         if (selectedDoc) {

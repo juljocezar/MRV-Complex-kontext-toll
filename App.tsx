@@ -47,7 +47,15 @@ const App: React.FC = () => {
             id: crypto.randomUUID(),
             timestamp: new Date().toISOString(),
         };
-        setState(s => s ? { ...s, agentActivity: [newActivity, ...s.agentActivity] } : null);
+    const handleAddTask = useCallback((description: string, priority: 'low' | 'medium' | 'high') => {
+        const newTask: Task = {
+            id: crypto.randomUUID(),
+            description,
+            priority,
+            completed: false,
+            createdAt: new Date().toISOString(),
+        };
+        setState(s => s ? { ...s, tasks: [...s.tasks, newTask] } : null);
     }, []);
 
     const setActiveTab = (tab: ActiveTab) => {
@@ -347,11 +355,11 @@ const App: React.FC = () => {
             </main>
             {!state.isFocusMode && (
                 <AssistantSidebar 
+                    appState={state}
                     agentActivityLog={state.agentActivity} 
                     insights={state.insights}
                     onGenerateInsights={generateInsights}
-                    isLoading={state.isLoading && state.loadingSection === 'insights'}
-                    loadingSection={state.loadingSection}
+                    onAddTask={handleAddTask}
                 />
             )}
         </div>
