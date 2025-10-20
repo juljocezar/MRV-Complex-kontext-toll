@@ -81,6 +81,6 @@ export const MRV_AGENTS: { [key: string]: AgentProfile } = {
         icon: '🕸️',
         description: 'Extrahiert Entitäten und deren Beziehungen aus Dokumenten, um das interaktive Wissensnetz des Falles aufzubauen.',
         systemPrompt: 'You are an expert in knowledge management and graph theory. You identify entities and their relationships within documents to construct a comprehensive knowledge graph.',
-        capabilities: ['template_based_extraction']
+        capabilities: ['template_based_extraction', 'relationship_analysis']
     },
 };

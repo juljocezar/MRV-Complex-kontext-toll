@@ -2,9 +2,7 @@
 import { 
     Document, GeneratedDocument, CaseEntity, KnowledgeItem, TimelineEvent, Tag, 
     Contradiction, CaseContext, Task, Risks, KPI, AppState, Insight, 
-    AgentActivity, AuditLogEntry, AppSettings, EthicsAnalysis, CaseSummary, DocumentAnalysisResult,
-    ArgumentationAnalysis,
-    SuggestedEntity
+    AgentActivity, AuditLogEntry, AppSettings, EthicsAnalysis, CaseSummary, DocumentAnalysisResult, CaseEntityLink
 } from '../types';
 
 const DB_NAME = 'MRVAssistantDB';
@@ -15,6 +13,7 @@ export const STORES = {
     documents: 'documents',
     generatedDocuments: 'generatedDocuments',
     entities: 'entities',
+    caseEntityLinks: 'caseEntityLinks',
     knowledgeItems: 'knowledgeItems',
     timelineEvents: 'timelineEvents',
     tags: 'tags',
@@ -163,7 +162,9 @@ export const addEntity = (entity: CaseEntity) => add(STORES.entities, entity);
 export const getAllEntities = () => getAll<CaseEntity>(STORES.entities);
 export const addMultipleEntities = (items: CaseEntity[]) => addMultiple(STORES.entities, items);
 
-export const addKnowledgeItem = (item: KnowledgeItem) => add(STORES.knowledgeItems, item);
+export const getAllCaseEntityLinks = () => getAll<CaseEntityLink>(STORES.caseEntityLinks);
+export const saveAllCaseEntityLinks = async (items: CaseEntityLink[]) => { await clearStore(STORES.caseEntityLinks); await addMultiple(STORES.caseEntityLinks, items); };
+
 export const getAllKnowledgeItems = () => getAll<KnowledgeItem>(STORES.knowledgeItems);
 export const addMultipleKnowledgeItems = (items: KnowledgeItem[]) => addMultiple(STORES.knowledgeItems, items);
 export const updateKnowledgeItem = (item: KnowledgeItem) => update(STORES.knowledgeItems, item);

@@ -49,7 +49,7 @@ const AssistantSidebar: React.FC<AssistantSidebarProps> = ({ agentActivityLog, i
                 <div className="mb-6">
                     <div className="flex justify-between items-center mb-2">
                         <h4 className="text-sm font-semibold text-gray-300">Strategische Einblicke</h4>
-                        <button 
+                        <button
                             onClick={onGenerateInsights}
                             disabled={isLoading && loadingSection === 'insights'}
                             className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs disabled:bg-gray-500"

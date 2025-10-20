@@ -565,7 +565,11 @@ const App: React.FC = () => {
             case 'documents':
                 return <DocumentsTab appState={appState} onAddNewDocument={handleAddNewDocument} onQueueDocumentsForAnalysis={handleQueueDocumentsForAnalysis} onDecomposeDocument={handleDecomposeDocument} onUpdateDocument={(doc) => { setAppState(prev => ({...prev, documents: prev.documents.map(d => d.id === doc.id ? doc : d)})); storageService.updateDocument(doc); }} onUpdateTags={(tags) => { setAppState(prev => ({...prev, tags})); storageService.saveAllTags(tags); }} addKnowledgeItem={(item) => { const newItem = {...item, id: crypto.randomUUID(), createdAt: new Date().toISOString()}; setAppState(prev => ({...prev, knowledgeItems: [...prev.knowledgeItems, newItem]})); storageService.addKnowledgeItem(newItem); }} setActiveTab={setActiveTab} addNotification={addNotification} onViewDocumentDetails={setViewingDocId} />;
             case 'entities':
-                return <EntitiesTab appState={appState} entities={appState.caseEntities} onUpdateEntities={(entities) => {setAppState(prev => ({...prev, caseEntities: entities})); storageService.saveAllEntities(entities); }} documents={appState.documents} suggestedEntities={appState.suggestedEntities} onAcceptSuggestedEntity={(id) => { const entity = appState.suggestedEntities.find(e => e.id === id); if(entity) { const newEntity: CaseEntity = { ...entity, id: crypto.randomUUID() }; setAppState(prev => ({...prev, caseEntities: [...prev.caseEntities, newEntity], suggestedEntities: prev.suggestedEntities.filter(e => e.id !== id) })); storageService.addEntity(newEntity); storageService.deleteSuggestedEntity(id); } }} onDismissSuggestedEntity={(id) => { setAppState(prev => ({...prev, suggestedEntities: prev.suggestedEntities.filter(e => e.id !== id)})); storageService.deleteSuggestedEntity(id); }} onAnalyzeRelationships={handleAnalyzeRelationships} isLoading={appState.isLoading} loadingSection={appState.loadingSection}/>;
+                return <EntitiesTab 
+                    appState={state}
+                    setAppState={setState}
+                    addAgentActivity={addAgentActivity}
+                />;
             case 'chronology':
                 return <ChronologyTab appState={appState} onUpdateTimelineEvents={(events) => { setAppState(prev => ({...prev, timelineEvents: events})); storageService.saveAllTimelineEvents(events); }} onViewDocument={setViewingDocId} />;
             case 'knowledge':
@@ -615,6 +619,68 @@ const App: React.FC = () => {
                 return <PlaceholderTab />;
         }
     };
+    
+    // Load initial state
+    useEffect(() => {
+        const load = async () => {
+            await storage.initDB();
+            const initialAppState: AppState = {
+                activeTab: 'dashboard',
+                documents: await storage.getAllDocuments(),
+                generatedDocuments: await storage.getAllGeneratedDocuments(),
+                caseEntities: await storage.getAllEntities(),
+                caseEntityLinks: await storage.getAllCaseEntityLinks(),
+                knowledgeItems: await storage.getAllKnowledgeItems(),
+                timelineEvents: await storage.getAllTimelineEvents(),
+                tags: await storage.getAllTags(),
+                contradictions: await storage.getAllContradictions(),
+                caseContext: await storage.getCaseContext() || { caseDescription: '' },
+                tasks: await storage.getAllTasks(),
+                kpis: await storage.getAllKpis(),
+                risks: await storage.getRisks() || { physical: false, legal: false, digital: false, intimidation: false, evidenceManipulation: false, secondaryTrauma: false, burnout: false, psychologicalBurden: false },
+                caseSummary: await storage.getCaseSummary() || null,
+                insights: await storage.getAllInsights(),
+                agentActivity: await storage.getAllAgentActivities(),
+                auditLog: await storage.getAllAuditLogEntries(),
+                settings: await storage.getSettings() || { ai: { temperature: 0.7, topP: 0.95 }, complexity: { low: 5, medium: 15 } },
+                ethicsAnalysis: await storage.getEthicsAnalysis() || null,
+                documentAnalysisResults: (await storage.getAllDocumentAnalysisResults()).reduce((acc, curr) => ({...acc, [curr.docId]: curr.result}), {}),
+                mitigationStrategies: (await storage.getMitigationStrategies())?.content || '',
+                isFocusMode: false,
+                isLoading: false,
+                loadingSection: '',
+                suggestedEntities: [],
+                dispatchDocument: null,
+                checklist: [],
+                coverLetter: '',
+            };
+            setState(initialAppState);
+        }
+        load();
+    }, []);
+    
+    // Save state whenever it changes
+    useEffect(() => {
+        if (state) {
+            storage.saveAllDocuments(state.documents);
+            storage.saveAllGeneratedDocuments(state.generatedDocuments);
+            storage.saveAllEntities(state.caseEntities);
+            storage.saveAllCaseEntityLinks(state.caseEntityLinks);
+            storage.saveAllKnowledgeItems(state.knowledgeItems);
+            storage.saveAllTimelineEvents(state.timelineEvents);
+            storage.saveAllTags(state.tags);
+            storage.saveAllContradictions(state.contradictions);
+            storage.saveCaseContext(state.caseContext);
+            // storage.saveAllTasks(state.tasks);
+            storage.saveAllKpis(state.kpis);
+            storage.saveRisks(state.risks);
+            if (state.caseSummary) storage.saveCaseSummary(state.caseSummary);
+            storage.saveAllInsights(state.insights);
+            if(state.settings) storage.saveSettings(state.settings);
+            if(state.ethicsAnalysis) storage.saveEthicsAnalysis(state.ethicsAnalysis);
+            if(state.mitigationStrategies) storage.saveMitigationStrategies(state.mitigationStrategies);
+        }
+    }, [state]);
 
     if (appState.isLoading && appState.loadingSection === 'Initialisierung') {
         return <div className="h-screen w-screen bg-gray-900 flex items-center justify-center text-white">Lade Anwendung...</div>;

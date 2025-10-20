@@ -57,6 +57,19 @@ export const useAgentDispatcher = (appState: AppState, addAgentActivity: (activi
             setIsLoading(false);
             return specialistResponse;
 
+            **Output:**
+            Provide a clear and concise response to the task based on the context.
+        `;
+
+        try {
+            const response = await GeminiService.callAI(prompt, null, appState.settings.ai);
+            setResult(response);
+            await addAgentActivity({
+                agentName: agent.name,
+                action: `Executed task: ${task}`,
+                result: 'erfolg',
+                details: `Prompt length: ${prompt.length}, Response length: ${response.length}`
+            });
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
             setError(errorMessage);

@@ -65,38 +65,20 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
         setIsChatLoading(true);
 
         try {
-            const conversationContext = newHistory.map(m => `${m.role}: ${m.text}`).join('\n');
-            const docContent = chatDoc.textContent || chatDoc.content;
-
-            const prompt = `
-                Du bist ein KI-Assistent, der Fragen zu einem spezifischen Dokument beantwortet.
-                Sei präzise und beziehe dich nur auf die Informationen im Dokument.
-
-                **Dokumenteninhalt (Auszug):**
-                ---
-                ${docContent.substring(0, 15000)}
-                ---
-
-                **Bisherige Konversation:**
-                ---
-                ${conversationContext}
-                ---
-
-                **Neue Frage vom Benutzer:**
-                ${message}
-
-                **Deine Antwort:**
-            `;
-            
-            setChatHistory(h => [...h, { role: 'assistant', text: '' }]);
-            
-            let accumulatedText = "";
-            await GeminiService.generateContentStream(prompt, appState.settings.ai, (chunk) => {
-                accumulatedText += chunk;
-                setChatHistory(h => {
-                    const newH = [...h];
-                    newH[newH.length - 1] = { role: 'assistant', text: accumulatedText };
-                    return newH;
+            const result = await DocumentAnalystService.analyzeDocument(doc, appState.settings.ai);
+            setAppState(s => {
+                if (!s) return null;
+                // FIX: Explicitly type the updated document object to prevent type inference issues with AppState.
+                const newDocs = s.documents.map((d): Document => {
+                    if (d.id === docId) {
+                        return {
+                            ...d,
+                            summary: result.summary,
+                            classificationStatus: 'classified',
+                            workCategory: result.classification
+                        };
+                    }
+                    return d;
                 });
             });
 

@@ -8,11 +8,18 @@ export type ActiveTab =
     | 'hrd-support' | 'legal-basis' | 'ethics' | 'contradictions' | 'agents' 
     | 'audit' | 'settings' | 'schnellerfassung' | 'architecture-analysis' | 'status';
 
+export interface CaseEntityLink {
+    source: string; // CaseEntity ID
+    target: string; // CaseEntity ID
+    description: string;
+}
+
 export interface AppState {
     activeTab: ActiveTab;
     documents: Document[];
     generatedDocuments: GeneratedDocument[];
     caseEntities: CaseEntity[];
+    caseEntityLinks: CaseEntityLink[];
     knowledgeItems: KnowledgeItem[];
     timelineEvents: TimelineEvent[];
     tags: Tag[];

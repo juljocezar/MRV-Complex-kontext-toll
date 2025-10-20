@@ -44,11 +44,9 @@ const THROTTLE_DELAY = 1000; // 1 call per second
 async function processQueue() {
     if (isProcessing || callQueue.length === 0) return;
     isProcessing = true;
+
     const { task, resolve, reject } = callQueue.shift()!;
-    
-    const queueItem = callQueue.shift()!;
-    const { task, resolve, reject, retries } = queueItem;
-    
+
     try {
         const result = await task();
         resolve(result);
@@ -106,6 +104,8 @@ async function processQueue() {
             }, THROTTLE_DELAY);
         }
     }
+
+    // Wait for the throttle delay before processing the next item
     setTimeout(() => {
         isProcessing = false;
         processQueue();
@@ -120,11 +120,20 @@ const callGeminiAPIThrottled = <T>(
 ): Promise<T> => {
     return new Promise((resolve, reject) => {
         const task = async () => {
-            const model = getModelInstance(apiKey, settings, jsonSchema);
-            const result = await model.generateContent(contents);
-            const response = result.response;
-            const text = response.text();
+            const response: GenerateContentResponse = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: contents as any,
+                config: {
+                    temperature: settings.temperature,
+                    topP: settings.topP,
+                    ...(jsonSchema && {
+                        responseMimeType: "application/json",
+                        responseSchema: jsonSchema,
+                    }),
+                }
+            });
 
+            const text = response.text;
             if (!text) {
                 return (jsonSchema ? JSON.parse('{}') : "") as T;
             }
@@ -139,8 +148,12 @@ const callGeminiAPIThrottled = <T>(
             }
             return text as T;
         };
-        callQueue.push({ task, resolve, reject });
-        if (!isProcessing) processQueue();
+
+        callQueue.push({ task: task as any, resolve, reject });
+
+        if (!isProcessing) {
+            processQueue();
+        }
     });
 };
 

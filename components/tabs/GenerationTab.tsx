@@ -51,17 +51,12 @@ const GenerationTab: React.FC<GenerationTabProps> = ({ appState, addAgentActivit
         setIsSaved(false);
 
         const sourceDocuments = appState.documents.filter(doc => selectedDocs.includes(doc.id));
-        const template = selectedTemplateId ? TemplateService.getTemplateById(selectedTemplateId) : null;
 
-        let fullInstructions = instructions;
-        if (template) {
-            fullInstructions = `Using the following template as a structural guide, ${instructions}\n\nTemplate:\n"""${template.content}"""`;
-        }
-        if (sourceDocuments.length > 0) {
-            fullInstructions += `\n\nBase your response on the following source documents:\n` + sourceDocuments.map(d => `--- DOC: ${d.name} ---\n${d.content}\n`).join('\n');
-        }
-
-        const result = await dispatchAgentTask(fullInstructions, 'content_creation');
+        const result = await onGenerateContent({
+            instructions,
+            templateId: selectedTemplateId,
+            sourceDocuments: sourceDocuments,
+        });
 
         if (result) {
             const htmlContent = await marked.parse(result);
