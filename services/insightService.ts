@@ -1,3 +1,4 @@
+
 import { GeminiService } from './geminiService';
 import { Insight, AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
@@ -8,31 +9,44 @@ export class InsightService {
         items: {
             type: 'object',
             properties: {
-                id: { type: 'string' },
                 text: { type: 'string', description: "Der Text der Einsicht." },
                 type: { type: 'string', enum: ['recommendation', 'risk', 'observation'], description: "Die Art der Einsicht." }
             },
-            required: ['id', 'text', 'type']
+            required: ['text', 'type']
         }
     };
 
-    static async generateInsights(appState: AppState): Promise<Insight[]> {
+    static async generateInsights(appState: AppState, newInfoContext?: string): Promise<Insight[]> {
         const context = buildCaseContext(appState);
+
+        const activeRisks = Object.entries(appState.risks)
+            .filter(([, isActive]) => isActive)
+            .map(([risk]) => risk)
+            .join(', ');
+
+        const contradictionsSummary = appState.contradictions.slice(0, 3).map(c => 
+            `- Zwischen Dokument ${c.source1DocId} und ${c.source2DocId}: "${c.statement1}" vs "${c.statement2}"`
+        ).join('\n');
 
         const prompt = `
 Du bist ein hochintelligenter strategischer Analyst für Menschenrechtsfälle.
-Analysiere den folgenden Fallkontext und generiere 3 bis 5 prägnante, strategische Einblicke.
+Analysiere den folgenden Fallkontext und generiere 2-3 prägnante, strategische Einblicke.
+${newInfoContext ? `Konzentriere dich dabei besonders auf die Implikationen der folgenden neuen Information:\n${newInfoContext}` : ''}
 
 Fallkontext:
 ---
 ${context}
 ---
 
+Berücksichtige insbesondere die folgenden zusätzlichen strategischen Informationen:
+- Aktive Risiken: ${activeRisks || 'Keine'}
+- Jüngste Widersprüche: ${contradictionsSummary || 'Keine'}
+
 Deine Aufgaben:
-1.  Identifiziere kritische Risiken, ungenutzte Chancen oder wichtige Beobachtungen.
-2.  Formuliere jeden Einblick als klaren, umsetzbaren Satz.
+1.  Identifiziere kritische Risiken, ungenutzte Chancen oder wichtige Beobachtungen, die sich aus dem Gesamtkontext ergeben. Welche strategischen Implikationen ergeben sich aus den Risiken und Widersprüchen?
+2.  Formuliere jeden Einblick als eine konkrete, handlungsorientierte Empfehlung, eine spezifische Risiko-Warnung oder eine signifikante Beobachtung, die eine strategische Neubewertung erfordert. Vermeide Banalitäten.
 3.  Klassifiziere jeden Einblick als 'recommendation' (Empfehlung), 'risk' (Risiko) oder 'observation' (Beobachtung).
-4.  Generiere für jeden Einblick eine eindeutige ID mit crypto.randomUUID().
+4.  Wenn keine signifikanten neuen Einblicke gefunden werden, gib ein leeres Array zurück.
 
 Gib das Ergebnis als JSON-Array zurück, das dem Schema entspricht.
         `;

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // This is a placeholder. A real implementation would use SVG icons.
@@ -19,9 +20,11 @@ const Icon: React.FC<IconProps> = ({ name, className }) => {
             case 'analysis': return '🔬';
             case 'reports': return '📈';
             case 'generation': return '✍️';
+            case 'capture': return '✒️';
             case 'library': return '📚';
             case 'dispatch': return '📤';
             case 'strategy': return '♟️';
+            case 'argumentation': return '🗣️';
             case 'kpis': return '🎯';
             case 'un': return '🇺🇳';
             case 'hrd': return '🛡️';
@@ -31,6 +34,7 @@ const Icon: React.FC<IconProps> = ({ name, className }) => {
             case 'agents': return '🤖';
             case 'audit': return '📋';
             case 'settings': return '⚙️';
+            case 'microphone': return '🎤';
             default: return '❓';
         }
     }

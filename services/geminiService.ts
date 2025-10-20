@@ -1,28 +1,48 @@
-import { GoogleGenAI, GenerateContentResponse, Schema, Part } from "@google/genai";
+import { GoogleGenerativeAI, GenerativeModel, Content } from "@google/generative-ai";
 import { AISettings } from '../types';
 
-const API_KEY = process.env.API_KEY;
+// Store AI instances in a map, one per API key.
+const aiInstances = new Map<string, GoogleGenerativeAI>();
+const modelInstances = new Map<string, GenerativeModel>();
 
-if (!API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
+const getAiInstance = (apiKey: string): GoogleGenerativeAI => {
+    if (!apiKey) {
+        throw new Error("Gemini API key is not provided.");
+    }
+    if (!aiInstances.has(apiKey)) {
+        const newInstance = new GoogleGenerativeAI(apiKey);
+        aiInstances.set(apiKey, newInstance);
+    }
+    return aiInstances.get(apiKey)!;
+};
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const getModelInstance = (apiKey: string, settings: AISettings, jsonSchema: object | null): GenerativeModel => {
+    const key = `${apiKey}-${settings.temperature}-${settings.topP}-${jsonSchema ? 'json' : 'text'}`;
+    if (!modelInstances.has(key)) {
+        const ai = getAiInstance(apiKey);
+        const model = ai.getGenerativeModel({
+            model: 'gemini-1.5-flash',
+            generationConfig: {
+                temperature: settings.temperature,
+                topP: settings.topP,
+                ...(jsonSchema && {
+                    responseMimeType: "application/json",
+                    responseSchema: jsonSchema as any,
+                }),
+            }
+        });
+        modelInstances.set(key, model);
+    }
+    return modelInstances.get(key)!;
+};
 
-// A more robust queue that handles tasks and their corresponding promises
-const callQueue: {
-    task: () => Promise<any>;
-    resolve: (value: any) => void;
-    reject: (reason?: any) => void;
-}[] = [];
-
+// A simple queue to throttle API calls.
+const callQueue: { task: () => Promise<any>; resolve: (value: any) => void; reject: (reason?: any) => void; }[] = [];
 let isProcessing = false;
-const THROTTLE_DELAY = 2000; // Increased delay to 2 seconds to be safer with the free tier limits
+const THROTTLE_DELAY = 1000; // 1 call per second
 
 async function processQueue() {
-    if (isProcessing || callQueue.length === 0) {
-        return;
-    }
+    if (isProcessing || callQueue.length === 0) return;
     isProcessing = true;
 
     const { task, resolve, reject } = callQueue.shift()!;
@@ -30,9 +50,59 @@ async function processQueue() {
     try {
         const result = await task();
         resolve(result);
-    } catch (error) {
+        
+        // On success, wait for the standard delay before processing the next item
+        setTimeout(() => {
+            isProcessing = false;
+            processQueue();
+        }, THROTTLE_DELAY);
+
+    } catch (error: any) {
         console.error("Gemini API Task failed:", error);
-        reject(error);
+
+        const isRateLimitError = (e: any): boolean => {
+            // Check common places for rate limit indicators
+            const errorMessage = (typeof e?.message === 'string') ? e.message : '';
+            if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+                return true;
+            }
+            // Fallback for unknown error structures by stringifying
+            try {
+                const errorString = JSON.stringify(e);
+                return errorString.includes('"code":429') || errorString.includes('RESOURCE_EXHAUSTED');
+            } catch {
+                return false;
+            }
+        };
+
+        if (isRateLimitError(error) && retries < MAX_RETRIES) {
+            // It's a rate limit error, re-queue the task with backoff.
+            // Increased the base backoff delay to be more patient.
+            const backoffDelay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
+            console.warn(`Rate limit hit. Retrying in ${Math.round(backoffDelay / 1000)}s... (Attempt ${retries + 1}/${MAX_RETRIES})`);
+            
+            // Re-queue the task at the front with an increased retry count
+            callQueue.unshift({ ...queueItem, retries: retries + 1 });
+
+            setTimeout(() => {
+                isProcessing = false;
+                processQueue();
+            }, backoffDelay);
+        } else {
+             // It's a different error or max retries reached, reject the promise
+            if (isRateLimitError(error)) {
+                console.error(`Max retries reached. Failing task.`);
+                reject(new Error("API rate limit exceeded after multiple retries."));
+            } else {
+                reject(error);
+            }
+            
+            // Move to the next task after the standard delay
+            setTimeout(() => {
+                isProcessing = false;
+                processQueue();
+            }, THROTTLE_DELAY);
+        }
     }
 
     // Wait for the throttle delay before processing the next item
@@ -42,10 +112,10 @@ async function processQueue() {
     }, THROTTLE_DELAY);
 }
 
-
 const callGeminiAPIThrottled = <T>(
-    contents: string | (string | Part)[],
-    jsonSchema: Schema | null,
+    apiKey: string,
+    contents: Content,
+    jsonSchema: object | null,
     settings: AISettings
 ): Promise<T> => {
     return new Promise((resolve, reject) => {
@@ -65,19 +135,14 @@ const callGeminiAPIThrottled = <T>(
 
             const text = response.text;
             if (!text) {
-                // Return an empty object/string for JSON/text to prevent downstream crashes
-                if (jsonSchema) return JSON.parse('{}') as T;
-                return "" as T;
+                return (jsonSchema ? JSON.parse('{}') : "") as T;
             }
-
             if (jsonSchema) {
                 try {
-                    // Sanitize response before parsing
                     const sanitizedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
                     return JSON.parse(sanitizedText) as T;
                 } catch (e) {
                     console.error('Failed to parse JSON response from AI:', text);
-                    // Return a valid empty object on parse failure
                     return {} as T;
                 }
             }
@@ -92,25 +157,13 @@ const callGeminiAPIThrottled = <T>(
     });
 };
 
-
 export class GeminiService {
-  static async callAI(
-    contents: string | (string | Part)[],
-    jsonSchema: Schema | null,
-    settings: AISettings
-  ): Promise<string> {
-    return callGeminiAPIThrottled<string>(contents, jsonSchema, settings);
-  }
-
-  static async callAIWithSchema<T>(
-    contents: string | (string | Part)[],
-    jsonSchema: object,
+  static async callAI<T>(
+    apiKey: string,
+    contents: Content,
+    jsonSchema: object | null,
     settings: AISettings
   ): Promise<T> {
-    return callGeminiAPIThrottled<T>(
-      contents,
-      jsonSchema as Schema,
-      settings
-    );
+    return callGeminiAPIThrottled<T>(apiKey, contents, jsonSchema, settings);
   }
 }
