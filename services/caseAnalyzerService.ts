@@ -1,174 +1,145 @@
+
 import { GeminiService } from './geminiService';
-import { AppState, CaseSummary, AISettings, SuggestedEntity, SnippetAnalysisResult, SearchResult } from '../types';
+import { CaseSummary, AppState, SearchResult } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
+import { legalResources } from '../legalResources';
+import { VectorSearchService } from './vectorSearchService';
 
 export class CaseAnalyzerService {
-    private static readonly SUMMARY_SCHEMA = {
+    private static readonly SCHEMA = {
         type: 'object',
         properties: {
-            summary: { type: 'string', description: "Eine umfassende Zusammenfassung des gesamten Falles in 3-5 Absätzen." },
+            summary: { type: 'string', description: "Eine prägnante Zusammenfassung des gesamten Falles in 2-3 Sätzen." },
             identifiedRisks: {
                 type: 'array',
-                description: "Eine Liste der 3-5 wichtigsten identifizierten Risiken.",
+                description: "Eine Liste der 3-5 dringendsten Risiken für den Mandanten oder den Fall.",
                 items: {
                     type: 'object',
                     properties: {
-                        risk: { type: 'string', description: "Eine kurze Beschreibung des Risikos." },
-                        description: { type: 'string', description: "Eine detailliertere Erklärung des Risikos und seiner potenziellen Auswirkungen." }
+                        risk: { type: 'string', description: "Kurze Beschreibung des Risikos." },
+                        description: { type: 'string', description: "Detailliertere Erläuterung des Risikos." }
                     },
                     required: ['risk', 'description']
                 }
             },
             suggestedNextSteps: {
                 type: 'array',
-                description: "Eine Liste von 3-5 konkreten, umsetzbaren nächsten Schritten.",
+                description: "Eine Liste der 3-5 wichtigsten nächsten Schritte zur Fallbearbeitung.",
                 items: {
                     type: 'object',
                     properties: {
-                        step: { type: 'string', description: "Der vorgeschlagene nächste Schritt." },
-                        justification: { type: 'string', description: "Eine Begründung, warum dieser Schritt wichtig ist." }
+                        step: { type: 'string', description: "Kurze Beschreibung des Schrittes." },
+                        justification: { type: 'string', description: "Begründung, warum dieser Schritt wichtig ist." }
                     },
                     required: ['step', 'justification']
                 }
-            }
-        },
-        required: ['summary', 'identifiedRisks', 'suggestedNextSteps']
-    };
-
-    private static readonly ENTITY_SCHEMA = {
-        type: 'array',
-        items: {
-            type: 'object',
-            properties: {
-                name: { type: 'string' },
-                type: { type: 'string', enum: ['Person', 'Organisation', 'Standort', 'Unbekannt'] },
-                description: { type: 'string' }
             },
-            required: ['name', 'type', 'description']
-        }
-    };
-    
-    private static readonly SNIPPET_SCHEMA = {
-        type: 'object',
-        properties: {
-            suggestedTitle: { type: 'string', description: "Ein prägnanter, aussagekräftiger Titel für den Textschnipsel." },
-            suggestedTags: { type: 'array', items: { type: 'string' }, description: "Eine Liste von 2-4 relevanten Tags." },
-            suggestedEntities: {
-                type: 'array',
-                items: {
-                    type: 'object',
-                    properties: {
-                        name: { type: 'string' },
-                        type: { type: 'string', enum: ['Person', 'Organisation', 'Standort', 'Unbekannt'] },
-                        description: { type: 'string', description: "Eine kurze Beschreibung der Entität basierend auf dem Schnipsel." }
-                    },
-                    required: ['name', 'type', 'description']
-                },
-                 description: "Eine Liste neu identifizierter Entitäten aus dem Schnipsel."
-            }
+            generatedAt: { type: 'string', description: "Aktuelles Datum im ISO 8601 Format." }
         },
-        required: ['suggestedTitle', 'suggestedTags', 'suggestedEntities']
+        required: ['summary', 'identifiedRisks', 'suggestedNextSteps', 'generatedAt']
     };
 
     static async performOverallAnalysis(appState: AppState): Promise<CaseSummary> {
         const context = buildCaseContext(appState);
         const prompt = `
-            Du bist ein leitender strategischer Analyst für Menschenrechtsfälle.
-            Führe eine umfassende Gesamtanalyse des folgenden Falles durch.
+Du bist ein erfahrener Menschenrechtsanwalt und Fallanalyst, der den Kläger unterstützt. Nimm die Perspektive des Klägers als gegeben an.
+Basierend auf dem folgenden Fallkontext, führe eine übergeordnete Analyse durch, die dem Kläger hilft, seinen Fall zu stärken.
 
-            Fallkontext:
-            ---
-            ${context}
-            ---
+Fallkontext:
+---
+${context.substring(0, 15000)}
+---
 
-            Deine Aufgaben:
-            1. Erstelle eine detaillierte Zusammenfassung des gesamten Falles.
-            2. Identifiziere die wichtigsten Risiken für den Mandanten und den Fall.
-            3. Schlage die dringendsten und strategisch sinnvollsten nächsten Schritte vor.
+Deine Aufgaben:
+1.  **Zusammenfassung:** Fasse den Kern des Falles prägnant zusammen. Gehe über die reine Wiederholung von Fakten hinaus und identifiziere die zentralen strategischen Konfliktlinien.
+2.  **Risikoidentifikation:** Identifiziere die dringendsten Risiken für den Mandanten und den Fall.
+3.  **Nächste Schritte:** Schlage die wichtigsten nächsten Schritte vor, um den Fall voranzutreiben.
 
-            Gib das Ergebnis im geforderten JSON-Format zurück.
-        `;
-
-        const result = await GeminiService.callAIWithSchema<Omit<CaseSummary, 'generatedAt'>>(prompt, this.SUMMARY_SCHEMA, appState.settings.ai);
-        return { ...result, generatedAt: new Date().toISOString() };
-    }
-
-    static async extractEntitiesFromText(text: string, sourceName: string, settings: AISettings): Promise<Omit<SuggestedEntity, 'id' | 'sourceDocumentId' | 'sourceDocumentName'>[]> {
-        const prompt = `
-            Du bist ein Experte für die Extraktion von Entitäten (Named Entity Recognition).
-            Analysiere den folgenden Text und extrahiere alle relevanten Entitäten (Personen, Organisationen, Standorte).
-            
-            Text:
-            ---
-            ${text.substring(0, 20000)}
-            ---
-
-            Gib das Ergebnis als JSON-Array zurück.
+Gib das Ergebnis im geforderten JSON-Format zurück. Setze das 'generatedAt' Feld auf die aktuelle ISO 8601 Zeit.
         `;
 
         try {
-            return await GeminiService.callAIWithSchema<Omit<SuggestedEntity, 'id' | 'sourceDocumentId' | 'sourceDocumentName'>[]>(prompt, this.ENTITY_SCHEMA, settings);
+            return await GeminiService.callAIWithSchema<CaseSummary>(prompt, this.SCHEMA, appState.settings.ai, 'gemini-3-pro-preview');
         } catch (error) {
-            console.error(`Entity extraction from ${sourceName} failed:`, error);
-            return []; // Return empty array on failure
+            console.error('Overall case analysis failed:', error);
+            throw new Error('Case analysis failed.');
         }
-    }
-
-    static async analyzeTextSnippet(text: string, settings: AISettings): Promise<SnippetAnalysisResult> {
-        const prompt = `
-            Du bist ein intelligenter Assistent für Wissensmanagement.
-            Analysiere den folgenden Textschnipsel, der von einem Benutzer erfasst wurde.
-
-            Text:
-            ---
-            ${text}
-            ---
-
-            Deine Aufgaben:
-            1.  **suggestedTitle:** Formuliere einen kurzen, prägnanten Titel, der den Inhalt des Schnipsels zusammenfasst.
-            2.  **suggestedTags:** Schlage 2-4 relevante Tags vor, um diesen Schnipsel zu kategorisieren.
-            3.  **suggestedEntities:** Extrahiere alle wichtigen Entitäten (Personen, Organisationen, Standorte) aus dem Text.
-
-            Gib das Ergebnis im geforderten JSON-Format zurück.
-        `;
-        return await GeminiService.callAIWithSchema<SnippetAnalysisResult>(prompt, this.SNIPPET_SCHEMA, settings);
     }
     
-    static async runFreeformQueryStream(
-        prompt: string,
-        appState: AppState,
-        isGrounded: boolean,
-        searchFunction: (query: string) => SearchResult[],
-        onChunk: (chunk: string) => void
-    ): Promise<string> {
-        
-        let context = buildCaseContext(appState);
-        
-        // Use internal search to find relevant context
-        const searchResults = searchFunction(prompt);
-        if (searchResults.length > 0) {
-            const searchContext = searchResults.slice(0, 5).map(r => 
-                `--- RELEVANTER AUSZUG (${r.type}: ${r.title}) ---\n${r.preview}\n--- ENDE ---`
-            ).join('\n\n');
-            context = `**TOP-SUCHERGEBNISSE FÜR DIE ANFRAGE:**\n${searchContext}\n\n**ALLGEMEINER FALLKONTEXT:**\n${context}`;
+    static async runFreeformQuery(prompt: string, appState: AppState, isGrounded: boolean): Promise<string> {
+        // --- RAG IMPLEMENTATION START ---
+        // Try to construct a relevant context using embeddings first.
+        let ragContext = "";
+        let usedRAG = false;
+
+        const hasEmbeddings = appState.documents.some(d => d.embedding) || appState.caseEntities.some(e => e.embedding);
+
+        if (hasEmbeddings) {
+            try {
+                const queryEmbedding = await GeminiService.getEmbedding(prompt, 'RETRIEVAL_QUERY');
+                if (queryEmbedding) {
+                    const docMatches = VectorSearchService.search(queryEmbedding, appState.documents, 'Document');
+                    const entityMatches = VectorSearchService.search(queryEmbedding, appState.caseEntities, 'Entity');
+                    const knowledgeMatches = VectorSearchService.search(queryEmbedding, appState.knowledgeItems, 'Knowledge');
+
+                    // Combine and take top 10 most relevant results across all types
+                    const allMatches = [...docMatches, ...entityMatches, ...knowledgeMatches]
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 10);
+
+                    if (allMatches.length > 0 && allMatches[0].score > 0.6) { // Only use RAG if relevance is decent
+                        ragContext = "**RELEVANTER KONTEXT (RAG):**\n" + allMatches.map(m => 
+                            `[${m.type}] ${m.title} (Relevanz: ${(m.score * 100).toFixed(0)}%):\n${m.preview}`
+                        ).join('\n---\n');
+                        usedRAG = true;
+                    }
+                }
+            } catch (e) {
+                console.warn("RAG retrieval failed, falling back to standard context", e);
+            }
         }
 
-        const finalPrompt = `
-            Du bist ein hochintelligenter Analyse-Assistent. Beantworte die folgende Frage des Benutzers präzise und umfassend.
-            Nutze den bereitgestellten Kontext, um deine Antwort zu formulieren.
-            ${isGrounded ? 'Stütze deine Antwort primär auf die im Kontext enthaltenen Rechtsgrundlagen und zitiere diese, wo passend.' : ''}
+        // If RAG yielded no strong results or failed, use the standard summary context
+        if (!usedRAG) {
+            ragContext = buildCaseContext(appState);
+        }
+        // --- RAG IMPLEMENTATION END ---
 
-            **Kontext:**
-            ---
-            ${context}
-            ---
+        const legalGroundingContext = isGrounded 
+            ? `
+HINWEIS: Stütze deine Antwort PRIMÄR auf die folgenden rechtlichen Ressourcen und zitiere sie, wo immer möglich.
+--- RECHTSGRUNDLAGEN START ---
+${JSON.stringify(legalResources, null, 2)}
+--- RECHTSGRUNDLAGEN ENDE ---
+`
+            : '';
 
-            **Frage des Benutzers:**
-            ${prompt}
+        const fullPrompt = `
+Du bist ein hochintelligenter KI-Analyse-Assistent, der einen Kläger in einem Menschenrechtsfall unterstützt. Deine Aufgabe ist es, Analysen zu liefern, die seine Position stärken. Antworte präzise, faktenbasiert und strukturiert in Markdown.
 
-            **Deine Antwort (in Markdown formatiert):**
+${legalGroundingContext}
+
+${usedRAG ? `HINWEIS: Der folgende Kontext wurde basierend auf semantischer Ähnlichkeit zur Frage ausgewählt (RAG).` : ''}
+
+Kontext:
+---
+${ragContext}
+---
+
+Benutzeranfrage: "${prompt}"
+
+Deine Analyse:
         `;
 
-        return GeminiService.generateContentStream(finalPrompt, appState.settings.ai, onChunk);
+        try {
+            let result = await GeminiService.callAI(fullPrompt, null, appState.settings.ai, 'gemini-3-pro-preview');
+            if (usedRAG) {
+                result += "\n\n*(Antwort generiert mittels semantischer Suche/RAG)*";
+            }
+            return result;
+        } catch (error) {
+            console.error('Freeform query failed:', error);
+            throw new Error('Die Analyse-Anfrage ist fehlgeschlagen.');
+        }
     }
 }

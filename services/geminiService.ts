@@ -1,52 +1,52 @@
-import { GoogleGenerativeAI, GenerativeModel, Content } from "@google/generative-ai";
+
+import { GoogleGenAI, GenerateContentResponse, Schema, Part, Tool } from "@google/genai";
 import { AISettings } from '../types';
 
-// Store AI instances in a map, one per API key.
-const aiInstances = new Map<string, GoogleGenerativeAI>();
-const modelInstances = new Map<string, GenerativeModel>();
-
-const getAiInstance = (apiKey: string): GoogleGenerativeAI => {
-    if (!apiKey) {
-        throw new Error("Gemini API key is not provided.");
+// Robust API Key Retrieval for both Node/AI Studio (process.env) and Vite/Browser (import.meta.env)
+const getApiKey = (): string | undefined => {
+    // Check if process is defined (Node-like environment or AI Studio injection)
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+        return process.env.API_KEY;
     }
-    if (!aiInstances.has(apiKey)) {
-        const newInstance = new GoogleGenerativeAI(apiKey);
-        aiInstances.set(apiKey, newInstance);
+    // Check for Vite environment variable
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_API_KEY) {
+        return (import.meta as any).env.VITE_API_KEY;
     }
-    return aiInstances.get(apiKey)!;
+    return undefined;
 };
 
-const getModelInstance = (apiKey: string, settings: AISettings, jsonSchema: object | null): GenerativeModel => {
-    const key = `${apiKey}-${settings.temperature}-${settings.topP}-${jsonSchema ? 'json' : 'text'}`;
-    if (!modelInstances.has(key)) {
-        const ai = getAiInstance(apiKey);
-        const model = ai.getGenerativeModel({
-            model: 'gemini-1.5-flash',
-            generationConfig: {
-                temperature: settings.temperature,
-                topP: settings.topP,
-                ...(jsonSchema && {
-                    responseMimeType: "application/json",
-                    responseSchema: jsonSchema as any,
-                }),
-            }
-        });
-        modelInstances.set(key, model);
-    }
-    return modelInstances.get(key)!;
-};
+const API_KEY = getApiKey();
 
-// A simple queue to throttle API calls.
-const callQueue: { task: () => Promise<any>; resolve: (value: any) => void; reject: (reason?: any) => void; }[] = [];
+let ai: GoogleGenAI | null = null;
+if (API_KEY) {
+    ai = new GoogleGenAI({ apiKey: API_KEY });
+} else {
+    console.error("API_KEY environment variable not set. AI features will not work. Please check .env file.");
+}
+
+
+// A more robust queue that handles tasks, retries, and their corresponding promises
+const callQueue: {
+    task: () => Promise<any>;
+    resolve: (value: any) => void;
+    reject: (reason?: any) => void;
+    retries: number;
+}[] = [];
+
 let isProcessing = false;
-const THROTTLE_DELAY = 1000; // 1 call per second
+// Increased delay to > 4 seconds to stay safely within a 15 RPM limit.
+const THROTTLE_DELAY = 4100;
+const MAX_RETRIES = 3;
 
 async function processQueue() {
-    if (isProcessing || callQueue.length === 0) return;
+    if (isProcessing || callQueue.length === 0) {
+        return;
+    }
     isProcessing = true;
-
-    const { task, resolve, reject } = callQueue.shift()!;
-
+    
+    const queueItem = callQueue.shift()!;
+    const { task, resolve, reject, retries } = queueItem;
+    
     try {
         const result = await task();
         resolve(result);
@@ -104,66 +104,174 @@ async function processQueue() {
             }, THROTTLE_DELAY);
         }
     }
-
-    // Wait for the throttle delay before processing the next item
-    setTimeout(() => {
-        isProcessing = false;
-        processQueue();
-    }, THROTTLE_DELAY);
 }
 
+
 const callGeminiAPIThrottled = <T>(
-    apiKey: string,
-    contents: Content,
-    jsonSchema: object | null,
-    settings: AISettings
-): Promise<T> => {
+    contents: string | (string | Part)[],
+    jsonSchema: Schema | null,
+    settings: AISettings,
+    model: string,
+    tools?: Tool[], // New: Support for Tools
+    systemInstruction?: string // New: Support for System Instruction override
+): Promise<T | GenerateContentResponse> => {
     return new Promise((resolve, reject) => {
         const task = async () => {
+            if (!ai) {
+                throw new Error("Gemini AI client is not initialized. Please check if the API_KEY is correctly set.");
+            }
+            
+            // Configure thinking budget for gemini-3-pro-preview
+            // Increased logic to only apply if no tools are used or if explicitly required
+            let thinkingConfig = undefined;
+            if (model === 'gemini-3-pro-preview') {
+                thinkingConfig = { thinkingBudget: 32768 };
+            }
+
             const response: GenerateContentResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: model,
                 contents: contents as any,
                 config: {
                     temperature: settings.temperature,
                     topP: settings.topP,
+                    thinkingConfig: thinkingConfig,
+                    systemInstruction: systemInstruction,
                     ...(jsonSchema && {
                         responseMimeType: "application/json",
                         responseSchema: jsonSchema,
                     }),
+                    tools: tools // Pass tools if present
                 }
             });
+            
+            // If tools are used, we might need the full response object to handle function calls
+            if (tools && tools.length > 0) {
+                return response as unknown as T;
+            }
 
             const text = response.text;
             if (!text) {
-                return (jsonSchema ? JSON.parse('{}') : "") as T;
+                // Return an empty object/string for JSON/text to prevent downstream crashes
+                if (jsonSchema) return JSON.parse('{}') as T;
+                return "" as T;
             }
+
             if (jsonSchema) {
                 try {
+                    // Sanitize response before parsing
                     const sanitizedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
                     return JSON.parse(sanitizedText) as T;
                 } catch (e) {
                     console.error('Failed to parse JSON response from AI:', text);
+                    // Return a valid empty object on parse failure
                     return {} as T;
                 }
             }
             return text as T;
         };
 
-        callQueue.push({ task: task as any, resolve, reject });
-
+        callQueue.push({ task: task as any, resolve, reject, retries: 0 });
+        
         if (!isProcessing) {
             processQueue();
         }
     });
 };
 
+
 export class GeminiService {
-  static async callAI<T>(
-    apiKey: string,
-    contents: Content,
-    jsonSchema: object | null,
-    settings: AISettings
+  static async callAI(
+    contents: string | (string | Part)[],
+    jsonSchema: Schema | null,
+    settings: AISettings,
+    model: string = 'gemini-3-flash-preview',
+    tools?: Tool[],
+    systemInstruction?: string
+  ): Promise<string> {
+    return callGeminiAPIThrottled<string>(contents, jsonSchema, settings, model, tools, systemInstruction) as Promise<string>;
+  }
+
+  static async callAIWithSchema<T>(
+    contents: string | (string | Part)[],
+    jsonSchema: object,
+    settings: AISettings,
+    model: string = 'gemini-3-flash-preview'
   ): Promise<T> {
-    return callGeminiAPIThrottled<T>(apiKey, contents, jsonSchema, settings);
+    return callGeminiAPIThrottled<T>(
+      contents,
+      jsonSchema as Schema,
+      settings,
+      model
+    );
+  }
+
+  // New: Method to call AI specifically for Agentic workflows expecting full response (Function Calls)
+  static async callAgent(
+      contents: (string | Part)[],
+      settings: AISettings,
+      tools: Tool[],
+      systemInstruction?: string
+  ): Promise<GenerateContentResponse> {
+      return callGeminiAPIThrottled<GenerateContentResponse>(
+          contents,
+          null,
+          settings,
+          'gemini-3-pro-preview', // Force Pro for better tool use
+          tools,
+          systemInstruction
+      ) as Promise<GenerateContentResponse>;
+  }
+
+  // Embed a single text
+  static async getEmbedding(
+    text: string, 
+    taskType: 'RETRIEVAL_QUERY' | 'RETRIEVAL_DOCUMENT' | 'SEMANTIC_SIMILARITY' | 'CLASSIFICATION' | 'CLUSTERING' = 'RETRIEVAL_DOCUMENT'
+  ): Promise<number[] | undefined> {
+      if (!ai) return undefined;
+      
+      try {
+          const response = await ai.models.embedContent({
+              model: 'text-embedding-004',
+              contents: text,
+              config: {
+                  taskType: taskType,
+              }
+          });
+          return response.embedding?.values;
+      } catch (e) {
+          console.error("Embedding failed", e);
+          return undefined;
+      }
+  }
+
+  // Batch embed multiple texts
+  static async batchGetEmbeddings(
+      texts: string[],
+      taskType: 'RETRIEVAL_QUERY' | 'RETRIEVAL_DOCUMENT' | 'SEMANTIC_SIMILARITY' | 'CLASSIFICATION' | 'CLUSTERING' = 'RETRIEVAL_DOCUMENT'
+  ): Promise<(number[] | undefined)[]> {
+      if (!ai || texts.length === 0) return [];
+
+      const embeddings: (number[] | undefined)[] = [];
+      
+      // Fallback: Sequential processing because batchEmbedContents is not available in this SDK version
+      for (const text of texts) {
+          try {
+              // Ensure we don't send empty strings which might cause API errors
+              if (!text || text.trim() === "") {
+                  embeddings.push(undefined);
+                  continue;
+              }
+              
+              const result = await this.getEmbedding(text, taskType);
+              embeddings.push(result);
+              
+              // Small delay to mitigate rate limits (approx 5 requests per second max)
+              await new Promise(resolve => setTimeout(resolve, 200)); 
+          } catch (e) {
+              console.error("Single embedding in batch failed", e);
+              embeddings.push(undefined);
+          }
+      }
+      return embeddings;
   }
 }

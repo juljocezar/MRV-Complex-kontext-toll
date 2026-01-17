@@ -1,36 +1,29 @@
 
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { marked } from 'marked';
-// Fix: Corrected import path for types.
 import type { AppState, AnalysisChatMessage } from '../../types';
 import Tooltip from '../ui/Tooltip';
-import useSpeechRecognition from '../../hooks/useSpeechRecognition';
-import MicrophoneButton from '../ui/MicrophoneButton';
+import { SearchService } from '../../services/searchService';
+import { AgentLoopService } from '../../services/agent/agentLoop';
 
 interface AnalysisTabProps {
     appState: AppState;
-    onPerformAnalysisStream: (prompt: string, isGrounded: boolean, onChunk: (chunk: string) => void) => Promise<string>;
+    onPerformAnalysis: (prompt: string, isGrounded: boolean) => Promise<string>;
 }
 
-const AnalysisTab: React.FC<AnalysisTabProps> = ({ appState, onPerformAnalysisStream }) => {
+const AnalysisTab: React.FC<AnalysisTabProps> = ({ appState, onPerformAnalysis }) => {
     const [chatHistory, setChatHistory] = useState<AnalysisChatMessage[]>([]);
     const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isGrounded, setIsGrounded] = useState(false);
+    const [useAgent, setUseAgent] = useState(true);
+    const [useGrounding, setUseGrounding] = useState(false);
+    
     const chatContainerRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const { finalTranscript, isListening, error: speechError } = useSpeechRecognition();
-
-    useEffect(() => {
-        if (finalTranscript) {
-            setMessage(prev => (prev ? prev + ' ' : '') + finalTranscript);
-             if (textareaRef.current) {
-                textareaRef.current.focus();
-            }
-        }
-    }, [finalTranscript]);
+    const searchService = useMemo(() => {
+        const s = new SearchService();
+        s.buildIndex(appState);
+        return s;
+    }, [appState.documents, appState.caseEntities]);
 
      useEffect(() => {
         if (chatContainerRef.current) {
@@ -41,139 +34,124 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ appState, onPerformAnalysisSt
     const handleSendMessage = async () => {
         if (!message.trim() || isLoading) return;
 
-        const userMessageText = message;
-        // User message is kept as plain text, will be parsed to HTML for display
-        const userMessageHtml = await marked.parse(userMessageText);
-        
-        setChatHistory(prev => [...prev, 
-            { role: 'user', text: userMessageHtml },
-            { role: 'assistant', text: '' } // Add empty assistant message
-        ]);
+        const newHistory: AnalysisChatMessage[] = [...chatHistory, { role: 'user', text: message }];
+        setChatHistory(newHistory);
         setMessage('');
         setIsLoading(true);
 
-        let accumulatedMd = "";
-        const onChunk = async (chunk: string) => {
-            accumulatedMd += chunk;
-            // Parse the accumulated markdown to HTML for rendering
-            const html = await marked.parse(accumulatedMd);
-            setChatHistory(prev => {
-                const updatedHistory = [...prev];
-                const lastMessage = updatedHistory[updatedHistory.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                    updatedHistory[updatedHistory.length - 1] = { ...lastMessage, text: html };
-                }
-                return updatedHistory;
-            });
-        };
-        
         try {
-            // The promise resolves when the stream is done. We can use the final text for any post-processing.
-            const fullResponse = await onPerformAnalysisStream(userMessageText, isGrounded, onChunk);
-            // Final update just to be sure it's consistent
-            const finalHtml = await marked.parse(fullResponse);
-            setChatHistory(prev => {
-                 const updatedHistory = [...prev];
-                const lastMessage = updatedHistory[updatedHistory.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                    updatedHistory[updatedHistory.length - 1] = { ...lastMessage, text: finalHtml };
-                }
-                return updatedHistory;
-            });
+            let responseText = "";
+            
+            if (useAgent) {
+                // Use the new Agent Loop
+                responseText = await AgentLoopService.runAgent(
+                    message,
+                    appState,
+                    searchService,
+                    useGrounding
+                );
+            } else {
+                // Legacy simple analysis
+                responseText = await onPerformAnalysis(message, false); // isGrounded logic handled inside legacy service
+            }
 
+            const htmlResponse = await marked.parse(responseText);
+            setChatHistory(h => [...h, { role: 'assistant', text: htmlResponse }]);
         } catch (error) {
             console.error("Analysis API call failed:", error);
             const errorMessage = "Entschuldigung, bei der Analyse ist ein Fehler aufgetreten.";
-            // Replace the last (empty) assistant message with the error message
-            setChatHistory(h => [...h.slice(0, -1), { role: 'assistant', text: errorMessage }]);
+            setChatHistory(h => [...h, { role: 'assistant', text: errorMessage }]);
         } finally {
             setIsLoading(false);
         }
     };
-    
-    const handleQuickAction = (promptTemplate: string) => {
-        setMessage(promptTemplate);
-    };
 
     return (
         <div className="h-full flex flex-col space-y-4">
-            <div className="flex-shrink-0">
-                <h1 className="text-3xl font-bold text-white">Analyse-Zentrum</h1>
-                <p className="text-gray-400 mt-1">
-                    Stellen Sie komplexe Fragen an den gesamten Fallkontext. Die KI nutzt eine interne Suche, um die relevantesten Informationen für eine präzise Antwort zu finden.
-                </p>
+            <div className="flex-shrink-0 flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold text-white">Analyse-Zentrum (Agent V2)</h1>
+                    <p className="text-gray-400 mt-1">
+                        Interaktive Fallanalyse. Aktivieren Sie den Agenten-Modus, damit die KI aktiv in Ihrer Datenbank suchen kann.
+                    </p>
+                </div>
             </div>
 
-            <div ref={chatContainerRef} className="flex-grow bg-gray-800 rounded-lg p-4 overflow-y-auto space-y-4">
+            <div ref={chatContainerRef} className="flex-grow bg-gray-800 rounded-lg p-4 overflow-y-auto space-y-4 border border-gray-700">
                 {chatHistory.length === 0 && (
                     <div className="text-center text-gray-500 pt-16">
                         Beginnen Sie die Analyse, indem Sie eine Frage stellen.
                         <br/>
-                        z.B. "Welche Verbindungen gibt es zwischen Person A und Organisation B?"
+                        z.B. "Gibt es Verbindungen zwischen den Vorfällen im Mai und den Polizeiberichten?"
                     </div>
                 )}
                 {chatHistory.map((chat, index) => (
                     <div key={index} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-3xl px-4 py-2 rounded-lg ${chat.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+                        <div className={`max-w-3xl px-4 py-2 rounded-lg ${chat.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200 border border-gray-600'}`}>
                             <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: chat.text }}></div>
                         </div>
                     </div>
                 ))}
-                 {isLoading && chatHistory[chatHistory.length -1]?.role === 'assistant' && !chatHistory[chatHistory.length -1]?.text && (
+                 {isLoading && (
                      <div className="flex justify-start">
-                         <div className="max-w-xl px-4 py-2 rounded-lg bg-gray-700 text-gray-200">
+                         <div className="max-w-xl px-4 py-2 rounded-lg bg-gray-700 text-gray-200 border border-gray-600">
                              <div className="flex items-center space-x-2">
-                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-75"></div>
-                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-150"></div>
+                                 <span className="text-xs text-gray-400 mr-2">Agent denkt & sucht...</span>
+                                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+                                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-75"></div>
+                                 <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-150"></div>
                              </div>
                          </div>
                      </div>
                 )}
             </div>
             
-            <div className="flex-shrink-0 bg-gray-800 p-4 rounded-lg">
-                <div className="flex items-start space-x-2">
-                     <div className="flex-grow relative">
-                        <textarea
-                            ref={textareaRef}
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
-                            placeholder="Fragen Sie etwas über den Fall..."
-                            rows={3}
-                            className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
-                            disabled={isLoading}
-                        />
-                         <div className="absolute right-2 top-2">
-                             <MicrophoneButton isListening={isListening} error={speechError} onClick={useSpeechRecognition().toggleListening} />
-                        </div>
-                         <div className="mt-2 flex items-center justify-between">
-                            <Tooltip text="Weist die KI an, ihre Antworten primär auf den im Tab 'Rechtsgrundlagen' hinterlegten juristischen Texten zu basieren. Dies kann die Antwortqualität erhöhen, dauert aber länger.">
-                                <label className="flex items-center space-x-2 cursor-pointer w-fit">
-                                    <input
-                                        type="checkbox"
-                                        checked={isGrounded}
-                                        onChange={(e) => setIsGrounded(e.target.checked)}
-                                        className="h-4 w-4 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-500"
-                                    />
-                                    <span className="text-xs text-gray-400">Antwort auf Rechtsgrundlagen stützen</span>
-                                </label>
-                            </Tooltip>
-                             <button 
-                                onClick={() => handleQuickAction("Basierend auf den vorhandenen Dokumenten, erkläre mir die Kriterien für die Klassifizierung 'Fallbezogen' vs. 'Kontextbezogen'. Gib mir Beispiele aus den Dokumenten und hilf mir zu entscheiden, wie ich ein neues Dokument über [THEMA HIER EINFÜGEN] einordnen sollte.")}
-                                className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
-                                disabled={isLoading}
-                            >
-                                Schnellaktion: Hilfe bei Klassifizierung
-                            </button>
-                        </div>
-                    </div>
-                    <button onClick={handleSendMessage} disabled={isLoading || !message.trim()} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-500 self-stretch">
+            <div className="flex-shrink-0 bg-gray-800 p-4 rounded-lg border border-gray-700">
+                <div className="flex items-center space-x-2">
+                    <input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder="Fragen Sie etwas über den Fall..."
+                        className="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        disabled={isLoading}
+                    />
+                    <button onClick={handleSendMessage} disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-md disabled:bg-gray-600 disabled:text-gray-400">
                         {isLoading ? '...' : 'Senden'}
                     </button>
                 </div>
+                 <div className="mt-3 flex gap-6">
+                    <Tooltip text="Aktiviert den autonomen Agenten-Modus. Die KI kann selbstständig entscheiden, die Datenbank zu durchsuchen (Tool-Call).">
+                        <label className="flex items-center space-x-2 cursor-pointer w-fit">
+                            <div className="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="agent-toggle" checked={useAgent} onChange={(e) => setUseAgent(e.target.checked)} className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 checked:border-indigo-600"/>
+                                <label htmlFor="agent-toggle" className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${useAgent ? 'bg-indigo-600' : 'bg-gray-600'}`}></label>
+                            </div>
+                            <span className={`text-xs font-bold ${useAgent ? 'text-indigo-400' : 'text-gray-400'}`}>Agenten-Modus (Auto-Suche)</span>
+                        </label>
+                    </Tooltip>
+
+                    <Tooltip text="Verbindet die Analyse mit aktueller Google-Suche für externe Fakten (News, Gesetze).">
+                        <label className="flex items-center space-x-2 cursor-pointer w-fit">
+                             <div className="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="grounding-toggle" checked={useGrounding} onChange={(e) => setUseGrounding(e.target.checked)} className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 checked:border-blue-500"/>
+                                <label htmlFor="grounding-toggle" className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${useGrounding ? 'bg-blue-500' : 'bg-gray-600'}`}></label>
+                            </div>
+                            <span className={`text-xs font-bold ${useGrounding ? 'text-blue-400' : 'text-gray-400'}`}>Google Search Grounding</span>
+                        </label>
+                    </Tooltip>
+                </div>
             </div>
+             <style>{`
+                .toggle-checkbox:checked {
+                    right: 0;
+                    border-color: #68D391;
+                }
+                .toggle-checkbox:checked + .toggle-label {
+                    background-color: #68D391;
+                }
+            `}</style>
         </div>
     );
 };

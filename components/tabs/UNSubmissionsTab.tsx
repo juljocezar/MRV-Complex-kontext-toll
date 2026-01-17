@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { UN_SUBMISSION_TEMPLATES, UN_SUBMISSION_CHECKLIST } from '../../constants/unProcedures';
-// Fix: Corrected import path for types.
 import { AppState } from '../../types';
 import { UNProceduresService } from '../../services/unProceduresService';
 
@@ -82,14 +81,14 @@ const UNSubmissionsTab: React.FC<UNSubmissionsTabProps> = ({ appState, isLoading
                 <div className="lg:col-span-2 space-y-4">
                     <div className="bg-gray-800 p-4 rounded-lg">
                         <h3 className="text-lg font-semibold text-white mb-2">Entwurf</h3>
-                        <div className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap bg-gray-700 p-3 rounded-md min-h-[200px]">
-                           {isLoading && !draftContent ? 'Generiere Entwurf...' : draftContent || 'Hier erscheint der Entwurf.'}
+                        <div className="w-full bg-gray-700 p-3 rounded-md min-h-[200px] max-h-96 overflow-y-auto text-sm text-gray-200 whitespace-pre-wrap">
+                            {isLoading && !draftContent ? 'Generiere Entwurf...' : draftContent || 'Hier erscheint der KI-generierte Entwurf.'}
                         </div>
                     </div>
                     <div className="bg-gray-800 p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold text-white mb-2">Finalisierte Version</h3>
-                        <div className="prose prose-invert max-w-none text-gray-300 whitespace-pre-wrap bg-gray-700 p-3 rounded-md min-h-[200px]">
-                           {isLoading && !finalContent && draftContent ? 'Finalisiere Entwurf...' : finalContent || 'Hier erscheint die finalisierte Version.'}
+                        <h3 className="text-lg font-semibold text-white mb-2">Finale Version</h3>
+                        <div className="w-full bg-gray-700 p-3 rounded-md min-h-[200px] max-h-96 overflow-y-auto text-sm text-gray-200 whitespace-pre-wrap">
+                            {isLoading && draftContent ? 'Finalisiere Version...' : finalContent || 'Hier erscheint die finalisierte Version.'}
                         </div>
                     </div>
                 </div>

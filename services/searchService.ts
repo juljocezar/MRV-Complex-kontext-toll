@@ -1,17 +1,19 @@
 
 import lunr from 'lunr';
 import { AppState, Document, CaseEntity, KnowledgeItem, SearchResult } from '../types';
+import { GeminiService } from './geminiService';
+import { VectorSearchService } from './vectorSearchService';
 
 export class SearchService {
     private idx: lunr.Index | null = null;
-    private documents: { [id: string]: Document } = {};
-    private entities: { [id: string]: CaseEntity } = {};
-    private knowledgeItems: { [id: string]: KnowledgeItem } = {};
+    private documents: Document[] = [];
+    private entities: CaseEntity[] = [];
+    private knowledgeItems: KnowledgeItem[] = [];
 
     public buildIndex(appState: AppState): void {
-        this.documents = appState.documents.reduce((acc, doc) => ({ ...acc, [doc.id]: doc }), {});
-        this.entities = appState.caseEntities.reduce((acc, entity) => ({ ...acc, [entity.id]: entity }), {});
-        this.knowledgeItems = appState.knowledgeItems.reduce((acc, item) => ({ ...acc, [item.id]: item }), {});
+        this.documents = appState.documents;
+        this.entities = appState.caseEntities;
+        this.knowledgeItems = appState.knowledgeItems;
         
         this.idx = lunr(function () {
             this.ref('id');
@@ -48,47 +50,97 @@ export class SearchService {
         });
     }
 
-    public search(query: string): SearchResult[] {
-        if (!this.idx || !query) {
-            return [];
+    public async search(query: string): Promise<SearchResult[]> {
+        if (!query) return [];
+
+        // 1. Keyword Search (Lunr)
+        const keywordResults = this.searchKeywords(query);
+        
+        // 2. Semantic Search (Vector)
+        let vectorResults: SearchResult[] = [];
+        try {
+            const queryEmbedding = await GeminiService.getEmbedding(query, 'RETRIEVAL_QUERY');
+            
+            if (queryEmbedding) {
+                const docMatches = VectorSearchService.search(queryEmbedding, this.documents, 'Document', 0.60);
+                const entityMatches = VectorSearchService.search(queryEmbedding, this.entities, 'Entity', 0.65);
+                const knowledgeMatches = VectorSearchService.search(queryEmbedding, this.knowledgeItems, 'Knowledge', 0.65);
+                
+                vectorResults = [...docMatches, ...entityMatches, ...knowledgeMatches];
+            }
+        } catch (e) {
+            console.warn("Semantic search failed, falling back to keywords only", e);
         }
 
+        // 3. Hybrid Merge (Weighted)
+        return this.mergeResults(keywordResults, vectorResults);
+    }
+
+    private searchKeywords(query: string): SearchResult[] {
+        if (!this.idx) return [];
         try {
-            const results = this.idx.search(query);
+            // Fuzzy search allowing 1 edit distance
+            const results = this.idx.search(`${query}~1`);
             return results.map(result => {
                 const [type, id] = result.ref.split('_');
-                if (type === 'doc') {
-                    const doc = this.documents[id];
-                    return {
-                        id,
-                        type: 'Document',
-                        title: doc.name,
-                        preview: (doc.summary || doc.textContent || '').substring(0, 100) + '...',
-                    };
-                }
-                if (type === 'entity') {
-                    const entity = this.entities[id];
-                    return {
-                        id,
-                        type: 'Entity',
-                        title: entity.name,
-                        preview: entity.description.substring(0, 100) + '...',
-                    };
-                }
-                if (type === 'knowledge') {
-                    const item = this.knowledgeItems[id];
-                    return {
-                        id,
-                        type: 'Knowledge',
-                        title: item.title,
-                        preview: item.summary.substring(0, 100) + '...',
-                    };
-                }
-                return null;
+                const score = result.score; // Lunr score (arbitrary positive number)
+
+                let item: any;
+                if (type === 'doc') item = this.documents.find(d => d.id === id);
+                else if (type === 'entity') item = this.entities.find(e => e.id === id);
+                else if (type === 'knowledge') item = this.knowledgeItems.find(k => k.id === id);
+
+                if (!item) return null;
+
+                return {
+                    id: id,
+                    type: type === 'doc' ? 'Document' : type === 'entity' ? 'Entity' : 'Knowledge',
+                    title: item.name || item.title || 'Unbenannt',
+                    preview: (item.summary || item.description || item.textContent || '').substring(0, 150) + '...',
+                    score: score,
+                    isSemantic: false
+                } as SearchResult;
             }).filter((r): r is SearchResult => r !== null);
         } catch (e) {
-            console.error("Search failed", e);
             return [];
         }
+    }
+
+    private mergeResults(keywordResults: SearchResult[], vectorResults: SearchResult[]): SearchResult[] {
+        const merged = new Map<string, SearchResult>();
+        
+        // Scaling Factor: Lunr scores can be 10-20+. Cosine similarity is 0-1.
+        // We multiply semantic score to make it comparable.
+        const SEMANTIC_WEIGHT = 15; 
+
+        // 1. Process Semantic Results
+        vectorResults.forEach(res => {
+            const key = `${res.type}_${res.id}`;
+            merged.set(key, { 
+                ...res, 
+                score: res.score * SEMANTIC_WEIGHT, // Boost score for standalone semantic match
+                title: res.title 
+            });
+        });
+
+        // 2. Process/Merge Keyword Results
+        keywordResults.forEach(res => {
+            const key = `${res.type}_${res.id}`;
+            if (merged.has(key)) {
+                // HYBRID BOOST: Found in both Keyword AND Vector search.
+                // This is a very high confidence result.
+                const existing = merged.get(key)!;
+                existing.score += (res.score * 2); // Add Keyword score
+                existing.score *= 1.5; // Multiplier boost for dual-match
+                existing.isSemantic = true; // Keep semantic flag for UI
+            } else {
+                merged.set(key, res);
+            }
+        });
+
+        // Sort by score descending and return top results
+        return Array.from(merged.values())
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 25);
     }
 }

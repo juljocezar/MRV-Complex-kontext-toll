@@ -44,16 +44,15 @@ Berücksichtige insbesondere die folgenden zusätzlichen strategischen Informati
 
 Deine Aufgaben:
 1.  Identifiziere kritische Risiken, ungenutzte Chancen oder wichtige Beobachtungen, die sich aus dem Gesamtkontext ergeben. Welche strategischen Implikationen ergeben sich aus den Risiken und Widersprüchen?
-2.  Formuliere jeden Einblick als eine konkrete, handlungsorientierte Empfehlung, eine spezifische Risiko-Warnung oder eine signifikante Beobachtung, die eine strategische Neubewertung erfordert. Vermeide Banalitäten.
-3.  Klassifiziere jeden Einblick als 'recommendation' (Empfehlung), 'risk' (Risiko) oder 'observation' (Beobachtung).
-4.  Wenn keine signifikanten neuen Einblicke gefunden werden, gib ein leeres Array zurück.
+2.  Formuliere jeden Einblick als eine konkrete, handlungsorientierte Aussage oder eine scharfsinnige Beobachtung.
+3.  Kategorisiere jeden Einblick als 'recommendation' (Empfehlung), 'risk' (Risiko) oder 'observation' (Beobachtung).
 
-Gib das Ergebnis als JSON-Array zurück, das dem Schema entspricht.
+Gib das Ergebnis im geforderten JSON-Format zurück.
         `;
-        
+
         try {
-            const result = await GeminiService.callAIWithSchema<Omit<Insight, 'id'>[]>(prompt, this.SCHEMA, appState.settings.ai);
-             return result.map(insight => ({...insight, id: crypto.randomUUID()}));
+            const results = await GeminiService.callAIWithSchema<Omit<Insight, 'id'>[]>(prompt, this.SCHEMA, appState.settings.ai, 'gemini-3-pro-preview');
+            return results.map(i => ({ ...i, id: crypto.randomUUID() }));
         } catch (error) {
             console.error('Insight generation failed:', error);
             throw new Error('Insight generation failed.');

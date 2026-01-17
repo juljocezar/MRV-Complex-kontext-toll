@@ -1,3 +1,4 @@
+
 import { GeminiService } from './geminiService';
 import { EthicsAnalysis, AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
@@ -41,7 +42,7 @@ Gib das Ergebnis im geforderten JSON-Format zurück.
         `;
 
         try {
-            return await GeminiService.callAIWithSchema<EthicsAnalysis>(prompt, this.SCHEMA, appState.settings.ai);
+            return await GeminiService.callAIWithSchema<EthicsAnalysis>(prompt, this.SCHEMA, appState.settings.ai, 'gemini-3-pro-preview');
         } catch (error) {
             console.error('Ethics analysis failed:', error);
             throw new Error('Ethics analysis failed.');

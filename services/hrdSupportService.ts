@@ -1,3 +1,4 @@
+
 // This service provides AI-driven support functions for Human Rights Defenders (HRDs).
 
 import { AppState } from '../types';
@@ -51,7 +52,8 @@ Provide the analysis in the specified JSON format.
       return await GeminiService.callAIWithSchema<HRDRiskAssessment>(
         prompt,
         schema,
-        appState.settings.ai
+        appState.settings.ai,
+        'gemini-3-pro-preview'
       );
     } catch (error) {
       console.error('Failed to perform HRD risk assessment:', error);
@@ -104,7 +106,8 @@ Provide the plan in the specified JSON format.
       return await GeminiService.callAIWithSchema<SecureCommunicationPlan>(
         prompt,
         schema,
-        appState.settings.ai
+        appState.settings.ai,
+        'gemini-3-pro-preview'
       );
     } catch (error) {
       console.error('Failed to generate secure communication plan:', error);

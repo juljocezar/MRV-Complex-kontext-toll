@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 // Fix: Corrected import path for types.
 import { KPI } from '../../types';

@@ -1,3 +1,4 @@
+
 import { GeminiService } from './geminiService';
 import { WorkloadAnalysis, CostAnalysis, DocumentAnalysisResult, AISettings } from '../types';
 import { HOURLY_RATES_EUR } from '../constants/legalBillingRates';
@@ -84,7 +85,8 @@ Gib das Ergebnis im geforderten JSON-Format zurück.
       return await GeminiService.callAIWithSchema<WorkloadAnalysis>(
         prompt,
         this.WORKLOAD_SCHEMA,
-        settings
+        settings,
+        'gemini-3-pro-preview'
       );
     } catch (error) {
       console.error('Workload estimation failed:', error);

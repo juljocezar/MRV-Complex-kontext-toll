@@ -1,3 +1,4 @@
+
 import { GeminiService } from './geminiService';
 import { KPI, AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
@@ -38,7 +39,7 @@ Gib das Ergebnis als JSON-Array zurück, das dem Schema entspricht.
         `;
 
         try {
-            const result = await GeminiService.callAIWithSchema<Omit<KPI, 'id'>[]>(prompt, this.SCHEMA, appState.settings.ai);
+            const result = await GeminiService.callAIWithSchema<Omit<KPI, 'id'>[]>(prompt, this.SCHEMA, appState.settings.ai, 'gemini-3-pro-preview');
             return result.map(kpi => ({...kpi, id: crypto.randomUUID()}));
         } catch (error) {
             console.error('KPI suggestion failed:', error);

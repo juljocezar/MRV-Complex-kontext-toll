@@ -1,3 +1,4 @@
+
 // This service simulates interactions with UN Special Procedures, providing logic for drafting and managing submissions.
 
 import { AppState } from '../types';
@@ -42,7 +43,8 @@ Provide only the filled-out submission content as a structured text or markdown 
       const response = await GeminiService.callAI(
         prompt, 
         null, 
-        appState.settings.ai
+        appState.settings.ai,
+        'gemini-3-pro-preview'
       );
       return response;
     } catch (error) {
@@ -78,7 +80,8 @@ Provide the final, polished version of the submission.
       const response = await GeminiService.callAI(
         prompt, 
         null, 
-        appState.settings.ai
+        appState.settings.ai,
+        'gemini-3-pro-preview'
       );
       return response;
     } catch (error) {

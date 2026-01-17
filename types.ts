@@ -1,17 +1,426 @@
-// This file contains all the core type definitions for the MRV Assistant application.
 
-// --- Base & Core Types ---
-export type ActiveTab = 
-    | 'dashboard' | 'documents' | 'entities' | 'chronology' | 'knowledge' 
-    | 'graph' | 'analysis' | 'reports' | 'generation' | 'library' 
-    | 'dispatch' | 'strategy' | 'argumentation' | 'kpis' | 'un-submissions' 
-    | 'hrd-support' | 'legal-basis' | 'ethics' | 'contradictions' | 'agents' 
-    | 'audit' | 'settings' | 'schnellerfassung' | 'architecture-analysis' | 'status';
+import { EsfEventRecord, EsfActLink, EsfPersonRecord, EsfInvolvementLink } from './types/esf';
 
-export interface CaseEntityLink {
-    source: string; // CaseEntity ID
-    target: string; // CaseEntity ID
+// A collection of all types used in the application.
+
+export type ActiveTab =
+  | 'dashboard'
+  | 'documents'
+  | 'entities'
+  | 'chronology'
+  | 'knowledge'
+  | 'graph'
+  | 'analysis'
+  | 'reports'
+  | 'generation'
+  | 'library'
+  | 'dispatch'
+  | 'strategy'
+  | 'argumentation'
+  | 'kpis'
+  | 'un-submissions'
+  | 'hrd-support'
+  | 'legal-basis'
+  | 'ethics'
+  | 'contradictions'
+  | 'agents'
+  | 'audit'
+  | 'settings'
+  | 'architecture-analysis'
+  | 'status'
+  | 'system-analysis'
+  | 'forensic-dossier'
+  | 'radbruch-check';
+
+// Re-export ESF types for convenience in other files
+export type { EsfEventRecord, EsfActLink, EsfPersonRecord, EsfInvolvementLink };
+
+// ----------------------------------------
+
+export interface Document {
+  id: string;
+  name: string;
+  content: string;
+  textContent: string | null;
+  base64Content: string | null;
+  mimeType: string;
+  summary?: string;
+  classificationStatus: 'unclassified' | 'classified' | 'error';
+  workCategory?: string;
+  tags: string[];
+  createdAt: string;
+  embedding?: number[];
+  
+  // ESF Data extracted from this document
+  esfExtraction?: {
+      events: EsfEventRecord[];
+      acts: EsfActLink[];
+      persons: EsfPersonRecord[];
+  };
+}
+
+export interface GeneratedDocument {
+  id: string;
+  title: string;
+  content: string;
+  htmlContent?: string;
+  createdAt: string;
+  templateUsed?: string;
+  sourceDocIds: string[];
+}
+
+export interface ForensicDossier {
+    id: string;
+    title: string;
+    status: 'draft' | 'final' | 'archived';
+    createdAt: string;
+    updatedAt: string;
+    selectedDocIds: string[];
+    analysis: {
+        rootCause: string;
+        incidentTimeline: string;
+        systemImpact: string;
+        causalChain: string[];
+    } | null;
+    remediation: {
+        shortTermFix: string;
+        longTermPrevention: string;
+        technicalSteps: string[];
+    } | null;
+    // New: Stores the result of the deterministic logic engine check
+    algorithmicVerification?: CausalityMap; 
+    finalContent?: string;
+}
+
+export interface CaseEntity {
+  id: string;
+  name: string;
+  type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt' | 'Event' | 'Act';
+  description: string;
+  relationships?: EntityRelationship[];
+  roles?: ('Opfer' | 'Täter' | 'Quelle' | 'Intervenierende Partei')[];
+  embedding?: number[];
+  
+  // Link to ESF Person Record ID if applicable
+  esf_person_id?: string;
+}
+
+export interface EntityRelationship {
+    targetEntityId: string;
+    targetEntityName: string;
     description: string;
+}
+
+export interface KnowledgeItem {
+  id: string;
+  title: string;
+  summary: string;
+  sourceDocId: string;
+  createdAt: string;
+  tags: string[];
+  embedding?: number[];
+}
+
+export interface TimelineEvent {
+  id: string;
+  date: string;
+  title: string;
+  description: string;
+  documentIds: string[];
+  
+  // Link to ESF Event Record ID
+  esf_event_id?: string;
+}
+
+export interface Tag {
+  id: string;
+  name:string;
+}
+
+export interface Contradiction {
+  id: string;
+  source1DocId: string;
+  statement1: string;
+  source2DocId: string;
+  statement2: string;
+  explanation: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  status: 'todo' | 'in_progress' | 'done';
+  dueDate?: string;
+}
+
+export interface KPI {
+  id: string;
+  name: string;
+  target: string;
+  progress: number;
+}
+
+export interface Insight {
+    id: string;
+    text: string;
+    type: 'recommendation' | 'risk' | 'observation';
+}
+
+export type AgentCapability =
+  | 'document_analysis'
+  | 'entity_extraction'
+  | 'summarization'
+  | 'document_classification'
+  | 'case_analysis'
+  | 'risk_assessment'
+  | 'strategy_development'
+  | 'insight_generation'
+  | 'un_submission_assistance'
+  | 'un_submission_finalization'
+  | 'legal_analysis'
+  | 'report_generation'
+  | 'content_creation'
+  | 'temporal_analysis'
+  | 'event_sequencing'
+  | 'kpi_suggestion'
+  | 'workload_analysis'
+  | 'cost_estimation'
+  | 'ethics_analysis'
+  | 'contradiction_detection'
+  | 'template_based_extraction'
+  | 'argumentation_support'
+  | 'systemic_analysis'
+  | 'future_dynamics'
+  | 'forensic_analysis';
+
+export interface AgentProfile {
+    name: string;
+    role: string;
+    icon: string;
+    description: string;
+    systemPrompt: string;
+    capabilities: AgentCapability[];
+}
+
+export interface AgentActivity {
+    id: string;
+    timestamp: string;
+    agentName: string;
+    action: string;
+    result: 'running' | 'erfolg' | 'fehler';
+    details?: string;
+}
+
+export interface AuditLogEntry {
+    id: string;
+    timestamp: string;
+    action: string;
+    details: string;
+}
+
+export interface DocumentAnalysisResult {
+    docId: string;
+    summary?: string;
+    entities?: SuggestedEntity[];
+    timelineEvents?: Omit<TimelineEvent, 'id'>[];
+    workloadEstimate?: WorkloadAnalysis;
+    costEstimate?: CostAnalysis;
+    classification?: string;
+    suggestedTags?: string[];
+    structuredEvents?: StructuredEvent[];
+    structuredActs?: StructuredAct[];
+    structuredParticipants?: StructuredParticipant[];
+    causalityMap?: CausalityMap; // New field for forensic analysis
+    
+    // ESF Data extracted during analysis (Raw form before saving to store)
+    rawESFData?: any; // Kept loose for legacy compatibility
+}
+
+export interface DocumentAnalysisResults {
+    [docId: string]: DocumentAnalysisResult | undefined;
+}
+
+export interface WorkloadAnalysis {
+    totalHours: number;
+    complexity: 'niedrig' | 'mittel' | 'hoch';
+    breakdown: { task: string; hours: number }[];
+}
+
+export interface CostAnalysis {
+    recommended: number;
+    min: number;
+    max: number;
+    details: { item: string; cost: number }[];
+}
+
+export interface EthicsAnalysis {
+    ethicalViolationsAssessment: string;
+    privacyConcerns: string[];
+    recommendations: string[];
+}
+
+export interface SystemAnalysisResult {
+    systemicMechanisms: string;
+    hiddenAspects: string;
+    societalImpact: {
+        dailyLife: string;
+        impactOnGroups: string;
+    };
+    solutions: {
+        proposal: string;
+        challenges: string;
+    }[];
+}
+
+export interface CaseSummary {
+    summary: string;
+    identifiedRisks: { risk: string; description: string }[];
+    suggestedNextSteps: { step: string; justification: string }[];
+    generatedAt: string;
+}
+
+export interface SuggestedEntity {
+    id: string;
+    name: string;
+    type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt';
+    description: string;
+    sourceDocumentId: string;
+    sourceDocumentName: string;
+}
+
+export interface ArgumentationAnalysis {
+  supportingArguments: ArgumentationPoint[];
+  opponentArguments: ArgumentationPoint[];
+}
+
+export interface ArgumentationPoint {
+  point: string;
+  evidence: string[];
+}
+
+export interface Notification {
+    id: string;
+    message: string;
+    type: 'success' | 'error' | 'info';
+    details?: string;
+}
+
+export interface AppSettings {
+    ai: AISettings;
+    complexity: {
+        low: number;
+        medium: number;
+    };
+}
+
+export interface AISettings {
+    temperature: number;
+    topP: number;
+}
+
+export interface CaseContext {
+    caseDescription: string;
+}
+
+export interface Risks {
+    physical: boolean;
+    legal: boolean;
+    digital: boolean;
+    intimidation: boolean;
+    evidenceManipulation: boolean;
+    secondaryTrauma: boolean;
+    burnout: boolean;
+    psychologicalBurden: boolean;
+}
+
+export interface TemporalAnalysisResult {
+    zeitlicher_rahmen: {
+        start: string;
+        ende: string;
+        dauer: string;
+        ereignis_dichte: string;
+    };
+    chronologie: {
+        zeitpunkt: string;
+        ereignis_id: string;
+        titel: string;
+        typ: string;
+        wichtigkeit: number;
+        auswirkungen: string[];
+        vorgänger: string[];
+        nachfolger: string[];
+    }[];
+    zeitliche_cluster: {
+        zeitraum: { start: string; ende: string };
+        ereignisse: string[];
+        thema: string;
+        intensität: number;
+        auslöser: string;
+        bedeutung: string;
+    }[];
+    muster: {
+        typ: string;
+        beschreibung: string;
+        intervall: string;
+        beispiele: string[];
+        vorhersagekraft: number;
+        nächste_erwartung: string;
+    }[];
+    kausale_ketten: {
+        auslöser: string;
+        folgen: {
+            ereignis_id: string;
+            verzögerung: string;
+            wahrscheinlichkeit: number;
+            verstärkende_faktoren: string[];
+        }[];
+        ketten_länge: number;
+        gesamtauswirkung: string;
+    }[];
+    zeitliche_anomalien: {
+        typ: string;
+        beschreibung: string;
+        ereignisse: string[];
+        mögliche_erklärungen: string[];
+        empfohlene_untersuchung: string;
+    }[];
+}
+
+export interface ContentCreationParams {
+    instructions: string;
+    template?: string;
+    templateName?: string;
+    caseContext: string;
+    sourceDocuments?: Document[];
+}
+
+export interface GeneratedContent {
+    content: string;
+    htmlContent: string;
+    metadata: {
+        template_used?: string;
+        word_count: number;
+        estimated_reading_time: number;
+        creation_timestamp: string;
+        source_documents: string[];
+    };
+}
+
+// Orchestration Result Interface
+export interface OrchestrationResult {
+    updatedDoc: Document;
+    analysisResult: DocumentAnalysisResult;
+    newSuggestedEntities: SuggestedEntity[];
+    newGlobalTags: string[];
+    newContradictions: Contradiction[];
+    newInsights: Insight[];
+    newKnowledgeItems: KnowledgeItem[];
+    newTimelineEvents: TimelineEvent[];
+    // New ESF Data to sync state
+    newEsfEvents: EsfEventRecord[];
+    newEsfPersons: EsfPersonRecord[];
+    newEsfActLinks: EsfActLink[];
+    newEsfInvolvementLinks: EsfInvolvementLink[];
 }
 
 export interface AppState {
@@ -19,7 +428,6 @@ export interface AppState {
     documents: Document[];
     generatedDocuments: GeneratedDocument[];
     caseEntities: CaseEntity[];
-    caseEntityLinks: CaseEntityLink[];
     knowledgeItems: KnowledgeItem[];
     timelineEvents: TimelineEvent[];
     tags: Tag[];
@@ -36,7 +444,6 @@ export interface AppState {
     ethicsAnalysis: EthicsAnalysis | null;
     documentAnalysisResults: DocumentAnalysisResults;
     mitigationStrategies: string;
-    argumentationAnalysis: ArgumentationAnalysis | null;
     isFocusMode: boolean;
     isLoading: boolean;
     loadingSection: string;
@@ -45,174 +452,43 @@ export interface AppState {
     dispatchDocument: GeneratedDocument | null;
     checklist: ChecklistItem[];
     coverLetter: string;
+    argumentationAnalysis: ArgumentationAnalysis | null;
     proactiveSuggestions: ProactiveSuggestion[];
     notifications: Notification[];
-    analysisQueue: string[];
+    systemAnalysisResult?: SystemAnalysisResult | null;
+    dossiers: ForensicDossier[];
+    
+    // Loaded ESF Data
+    esfEvents: EsfEventRecord[];
+    esfPersons: EsfPersonRecord[];
+    esfActLinks: EsfActLink[];
+    esfInvolvementLinks: EsfInvolvementLink[];
 }
 
-export interface Notification {
-    id: string;
-    message: string;
-    type: 'info' | 'success' | 'error';
-    details?: string;
-}
-
-// --- Document & Content Types ---
-export interface Document {
-    id: string;
-    name: string;
-    content: string; // Raw content or base64
-    textContent: string | null; // Extracted text
-    base64Content: string | null;
-    mimeType: string;
-    classificationStatus: 'unclassified' | 'queued' | 'analyzing' | 'classified' | 'error';
-    workCategory?: string; // e.g., 'Opferbericht', 'Zeugenaussage'
-    contentType?: 'case-specific' | 'contextual-report';
-    summary?: string;
-    tags: string[];
-    createdAt: string;
-}
-
-export interface GeneratedDocument {
-    id: string;
-    title: string;
-    content: string; // Markdown
-    htmlContent: string; // Parsed HTML
-    createdAt: string;
-    templateUsed?: string;
-    sourceDocIds: string[];
-    language?: 'de' | 'en';
-    version: number;
-    versionChainId: string;
-}
-
-// --- Entity & Relationship Types ---
-export interface Entity {
-    id: string;
-    name: string;
-    type: 'Person' | 'Organisation' | 'Standort' | 'Unbekannt';
-    description: string;
-}
-
-export interface CaseEntity extends Entity {
-    roles?: string[];
-    relationships?: EntityRelationship[];
-}
-
-export interface SuggestedEntity extends Entity {
-    sourceDocumentId: string;
-    sourceDocumentName?: string;
-}
-
-export interface EntityRelationship {
-    targetEntityId: string;
-    targetEntityName: string;
-    description: string;
-}
-
-// --- Knowledge & Analysis Types ---
-export interface KnowledgeItem {
-    id: string;
-    title: string;
-    summary: string;
-    sourceDocId: string;
-    createdAt: string;
-    tags: string[];
-}
-
-export interface SuggestedKnowledgeChunk {
-    title: string;
-    summary: string;
-    selected: boolean;
-}
-
-export interface DocumentAnalysisResult {
-    docId: string;
-    summary: string;
-    entities: SuggestedEntity[];
-    classification: string;
-    contentType: 'case-specific' | 'contextual-report';
-    suggestedTags: string[];
-    structuredEvents?: StructuredEvent[];
-    structuredActs?: StructuredAct[];
-    structuredParticipants?: StructuredParticipant[];
-    workloadEstimate?: WorkloadAnalysis;
-    costEstimate?: CostAnalysis;
-}
-
-export interface DocumentAnalysisResults {
-    [docId: string]: DocumentAnalysisResult | undefined;
-}
-
-export interface SnippetAnalysisResult {
-    suggestedTitle: string;
-    suggestedTags: string[];
-    suggestedEntities: SuggestedEntity[];
-}
-
-export interface CaseSummary {
-    summary: string;
-    identifiedRisks: { risk: string; description: string }[];
-    suggestedNextSteps: { step: string; justification: string }[];
-    generatedAt: string;
-}
-
-export interface Contradiction {
-    id: string;
-    source1DocId: string;
-    statement1: string;
-    source2DocId: string;
-    statement2: string;
-    explanation: string;
-}
-
-export interface Insight {
+export interface ChecklistItem {
     id: string;
     text: string;
-    type: 'recommendation' | 'risk' | 'observation';
+    checked: boolean;
 }
 
-export interface ArgumentationAnalysis {
-    supportingArguments: ArgumentationPoint[];
-    opponentArguments: ArgumentationPoint[];
-    adversarialAnalysis?: AdversarialAnalysis;
+export interface ProactiveSuggestion {
+    id: string;
+    text: string;
+    action: { 
+        type: 'navigate'; 
+        payload: ActiveTab 
+    } | { 
+        type: 'execute'; 
+        payload: () => void 
+    };
 }
 
-export interface ArgumentationPoint {
-    point: string;
-    evidence: string[];
-}
-
-export interface AdversarialAnalysis {
-    mainWeaknesses: {
-        weakness: string;
-        attackStrategy: string;
-    }[];
-    alternativeNarrative: string;
-}
-
-export interface EthicsAnalysis {
-    ethicalViolationsAssessment: string;
-    privacyConcerns: string[];
-    recommendations: string[];
-}
-
-// --- Structured Data from Documents ---
 export interface StructuredEvent {
     title: string;
     startDate: string;
     endDate?: string;
     location: string;
     description: string;
-}
-
-// Fix: Add TimelineEvent interface definition to resolve missing type errors.
-export interface TimelineEvent {
-    id: string;
-    date: string;
-    title: string;
-    description: string;
-    documentIds: string[];
 }
 
 export interface StructuredAct {
@@ -229,102 +505,9 @@ export interface StructuredParticipant {
     description: string;
 }
 
-// --- Strategy & Planning Types ---
-export interface KPI {
-    id: string;
-    name: string;
-    target: string;
-    progress: number;
-}
-
-export interface Risks {
-    physical: boolean;
-    legal: boolean;
-    digital: boolean;
-    intimidation: boolean;
-    evidenceManipulation: boolean;
-    secondaryTrauma: boolean;
-    burnout: boolean;
-    psychologicalBurden: boolean;
-}
-
-export interface AISettings {
-    temperature: number;
-    topP: number;
-    apiKey?: string;
-}
-
-export interface ChecklistItem {
-    id: string;
-    text: string;
-    checked: boolean;
-}
-
-// --- Agent & System Types ---
-export type AgentCapability =
-  | 'document_analysis' | 'entity_extraction' | 'summarization' | 'document_classification'
-  | 'knowledge_chunking' | 'case_analysis' | 'risk_assessment' | 'strategy_development'
-  | 'insight_generation' | 'un_submission_assistance' | 'legal_analysis'
-  | 'un_submission_finalization' | 'report_generation' | 'content_creation'
-  | 'temporal_analysis' | 'event_sequencing' | 'kpi_suggestion' | 'workload_analysis'
-  | 'cost_estimation' | 'ethics_analysis' | 'contradiction_detection'
-  | 'template_based_extraction' | 'summarization' | 'risk_assessment' | 'strategy_development' | 'report_generation';
-  
-export interface AgentProfile {
-    name: string;
-    role: string;
-    icon: string;
-    description: string;
-    systemPrompt: string;
-    capabilities: AgentCapability[];
-}
-
-export interface AgentActivity {
-    id: string;
-    agentName: string;
-    action: string;
-    timestamp: string;
-    result: 'running' | 'erfolg' | 'fehler';
-    details?: string;
-}
-
-export interface AuditLogEntry {
-    id: string;
-    timestamp: string;
-    action: string;
-    details: string;
-}
-
-export interface AppSettings {
-    ai: AISettings;
-    complexity: {
-        low: number;
-        medium: number;
-    };
-}
-
-export interface AISettings {
-    temperature: number;
-    topP: number;
-}
-
-export interface ProactiveSuggestion {
-    id: string;
-    text: string;
-    action: {
-        type: 'navigate' | 'execute';
-        payload: any;
-    };
-}
-
-// --- Miscellaneous Types ---
-export interface CaseContext {
-    caseDescription: string;
-}
-
-export interface Tag {
-    id: string;
-    name: string;
+export interface AnalysisChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
 }
 
 export interface SearchResult {
@@ -332,48 +515,261 @@ export interface SearchResult {
     type: 'Document' | 'Entity' | 'Knowledge';
     title: string;
     preview: string;
+    score: number; // Added score for sorting results
+    isSemantic?: boolean; // To distinguish vector matches
 }
 
-export interface AnalysisChatMessage {
-    role: 'user' | 'assistant';
-    text: string;
+// --- Radbruch / Phantom Layer Types ---
+
+export type SystemicIssueCode =
+  | "ISSUE_UNCAC_108E_GAP"
+  | "ISSUE_UNCAC_PARTY_FINANCING"
+  | "ISSUE_GRECO_CODE_OF_CONDUCT"
+  | "ISSUE_GRECO_REVOLVING_DOORS"
+  | "ISSUE_NDS_SOG_EXPANSIVE_POWERS"
+  | "ISSUE_NDS_SOG_PREVENTIVE_SURVEILLANCE"
+  | "ISSUE_LOCAL_CULTURE_OF_SILENCE"
+  | "ISSUE_CHILLING_EFFECT_WHISTLEBLOWERS"
+  | "ISSUE_PROFILING_RISK"
+  | "ISSUE_ALGORITHMIC_OPACITY"
+  | "ISSUE_STRUCTURAL_BIAS"
+  | "ISSUE_LACK_OF_REMEDY"
+  | "ISSUE_MEDICAL_NEUTRALITY_VIOLATION"
+  | "ISSUE_LEGISLATIVE_GENEALOGY_SUSPECT";
+
+export interface Location {
+  country: string;      // "DE"
+  region?: string;      // "Niedersachsen"
+  city?: string;        // "Schaumburg"
 }
 
-// --- Service-specific Types ---
+export type DecisionOpacityLevel =
+  | "transparent"
+  | "partially_explained"
+  | "black_box"
+  | "paper_only_no_hearing";
 
-export interface WorkloadAnalysis {
-    totalHours: number;
-    complexity: 'niedrig' | 'mittel' | 'hoch';
-    breakdown: { task: string; hours: number }[];
+export interface RadbruchEvent {
+  eventId: string;
+  eventType: string;
+  dateStart?: string;   // ISO
+  dateEnd?: string;     // ISO
+  location: Location;
+  jurisdictionUnitId: string;
+
+  summary: string;
+  allegedRightsViolated: string[];
+
+  usesAlgorithmicDecision: boolean;
+  aiSystemNameOrType?: string | null;
+  decisionOpacityLevel: DecisionOpacityLevel;
+  legalProcedureStage:
+    | "administrative"
+    | "criminal_or_OWi_court"
+    | "civil_court"
+    | "other";
+    
+  involvedActors: string; // Helper for simple text input
+  
+  // -- Extended Fields for Advanced Validators --
+  referencedLaws: string[]; // List of laws cited in the event
+  signerName?: string;
+  isMachineGenerated: boolean;
+  officialSignal: string; // The official justification ("Wir tun dies zu Ihrem Schutz")
+  sphereRisks: {
+      lossOfHousing: boolean;
+      lossOfIncome: boolean;
+      healthRisk: boolean;
+  };
+  
+  // HURIDOCS ESF Link
+  huridocsEvent?: EsfEventRecord;
 }
 
-export interface CostAnalysis {
-    recommended: number;
-    min: number;
-    max: number;
-    details: { item: string; cost: number }[];
+export type RadbruchLabel = "ok" | "problematic" | "critical";
+
+export interface DimensionAssessment {
+  score: number;       // 0–10
+  label: RadbruchLabel;
+  notes: string;
 }
 
-export interface TemporalAnalysisResult {
-    // This is a complex type, defining a minimal structure
-    chronologie: { zeitpunkt: string; titel: string; }[];
-    muster: { typ: string; beschreibung: string; }[];
+// --- Validator Results ---
+
+export type NormCollisionSeverity = "none" | "ordre_public" | "ius_cogens";
+
+export interface NormHierarchyResult {
+  severity: NormCollisionSeverity;
+  violatedLevels: Array<1 | 2 | 3>;
+  notes: string;
+  voidSuggested: boolean;
 }
 
-export interface ContentCreationParams {
-    instructions: string;
-    caseContext: string;
-    language: 'de' | 'en';
-    isBilingual?: boolean;
-    template?: string;
-    templateName?: string;
-    sourceDocuments?: Document[];
-    selectedArguments?: ArgumentationPoint[];
-    versionChainId?: string;
+export interface ResponsibleActor {
+  name: string | null;
+  role: "signing_official" | "system_operator" | "unknown";
+  machineGenerated: boolean;
+  potentialPersonalLiability: string[];
 }
 
-export interface GeneratedContent {
-    content: string; // Markdown
-    htmlContent: string;
-    metadata: { [key: string]: any };
+export interface StigmaResult {
+  foundTerms: string[];
+  gaslightingIndicators: boolean;
+  burdenOfProofShift: boolean;
+  notes: string;
+}
+
+export interface GenealogyFinding {
+  lawId: string;
+  originPeriod: "NS_ERA" | "POST_1949" | "UNKNOWN";
+  cleanedUpConstitutionally: boolean | null;
+  notes: string;
+}
+
+export interface LegislativeGenealogyResult {
+  suspicious: boolean;
+  findings: GenealogyFinding[];
+}
+
+export interface MedicalNeutralityResult {
+  medicalContextDetected: boolean;
+  coerciveElements: string[];
+  neutralityViolation: boolean;
+  notes: string;
+}
+
+export interface SphereAuditResult {
+  humanitarianMinimumViolated: boolean;
+  affectedSectors: string[];
+  notes: string;
+}
+
+export interface SignalCodeResult {
+  officialSignal: string;
+  forensicSignal: string;
+  dissonanceScore: number; // 0-1
+  notes: string;
+}
+
+export interface UncacAuditFlag {
+  code: SystemicIssueCode;
+  severity: "low" | "medium" | "high";
+  rationale: string;
+}
+
+export interface UncacAuditResult {
+  applicable: boolean;
+  flags: UncacAuditFlag[];
+  overallRisk: "none" | "elevated" | "severe";
+}
+
+export interface ProfilingIssue {
+  dimension: "protected_characteristics" | "opaque_scoring" | "lack_of_consent" | "no_human_review";
+  severity: "low" | "medium" | "high";
+  rationale: string;
+}
+
+export interface ProfilingCheckResult {
+  profilingDetected: boolean;
+  issues: ProfilingIssue[];
+}
+
+export interface Radbruch4DAssessment {
+  eventId: string;
+  assessmentDate: string;
+  assessor: string;
+
+  d1Explainability: DimensionAssessment;
+  d2Responsibility: DimensionAssessment;
+  d3DataStatus: DimensionAssessment;
+  d4TruthRight: DimensionAssessment;
+
+  overallPhantomIndex: number;
+  suggestedLegalActions: string[];
+  
+  identifiedIssues: SystemicIssueCode[]; 
+  
+  // Detailed Validator Results
+  normHierarchy?: NormHierarchyResult;
+  responsibleActor?: ResponsibleActor;
+  stigmaAnalysis?: StigmaResult;
+  genealogyAudit?: LegislativeGenealogyResult;
+  medicalNeutrality?: MedicalNeutralityResult;
+  sphereAudit?: SphereAuditResult;
+  signalComparison?: SignalCodeResult;
+}
+
+// --- Forensische Causal Mapping Types ---
+
+export interface CausalNode {
+  id: string;
+  label: string;
+  type: 'event' | 'state' | 'action' | 'consequence';
+  description?: string;
+  timestamp?: string;
+}
+
+export type CausalRelationType = 
+  | 'causes' 
+  | 'enables' 
+  | 'inhibits' 
+  | 'destroys_autonomy' 
+  | 'violates_right'
+  | 'mitigates';
+
+export interface CausalEdge {
+  id: string;
+  source: string;
+  target: string;
+  relationType: CausalRelationType;
+  description?: string;
+  weight?: number;
+}
+
+export interface CausalityMap {
+  nodes: CausalNode[];
+  edges: CausalEdge[];
+  
+  // Forensic Analysis Results
+  zersetzungDetected: boolean; // Flag set if autonomy is destroyed
+  rootCauses: string[]; // IDs of root nodes
+  criticalChains: string[][]; // Paths leading to autonomy destruction
+  
+  generatedAt: string;
+}
+
+// --- Legal & HRD Resource Types ---
+
+export type LegalMechanism =
+  | 'UN_TREATY_BODY'
+  | 'UN_SPECIAL_PROCEDURE'
+  | 'UN_UPR'
+  | 'UN_POLICY_LIBRARY'
+  | 'UN_ORGANISED_CRIME'
+  | 'IHL_TREATY'
+  | 'IHL_CUSTOMARY'
+  | 'HUMANITARIAN_STANDARD'
+  | 'NGO_GUIDANCE'
+  | 'REGIONAL_MECHANISM';
+
+export interface LegalSourceCard {
+  id: string;
+  title: string;
+  description: string;
+  mechanism: LegalMechanism;
+  region: 'GLOBAL' | 'AFRICA' | 'EUROPE' | 'AMERICAS' | 'ASIA' | 'MENA' | 'OTHER';
+  topics: string[]; // e.g. ['torture', 'hrds', 'organized_crime']
+  baseUrl: string;
+}
+
+export type HrdResourceType = 'LEARNING_MODULE' | 'GUIDE' | 'SUBMISSION_PORTAL' | 'SECURITY' | 'ADVOCACY_TOOL';
+
+export interface HrdResourceCard {
+  id: string;
+  title: string;
+  description: string;
+  type: HrdResourceType;
+  targetGroup: ('HRD' | 'LAWYER' | 'NGO' | 'JOURNALIST')[];
+  topics: string[];
+  baseUrl: string;
 }

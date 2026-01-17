@@ -1,3 +1,4 @@
+
 import { GeminiService } from './geminiService';
 import { CaseEntity, AISettings, EntityRelationship } from '../types';
 
@@ -64,7 +65,8 @@ export class EntityRelationshipService {
             return await GeminiService.callAIWithSchema<RelationshipAnalysisResult[]>(
                 prompt,
                 this.SCHEMA,
-                settings
+                settings,
+                'gemini-3-pro-preview'
             );
         } catch (error) {
             console.error('Entity relationship analysis failed:', error);

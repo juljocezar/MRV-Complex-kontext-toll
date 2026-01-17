@@ -1,8 +1,6 @@
 
-
 import React, { useMemo, useRef, useState } from 'react';
-// Fix: Corrected import path for types.
-import { AppState, Document, GeneratedDocument, DocumentAnalysisResults, CaseSummary, ActiveTab, DocumentAnalysisResult, CaseEntity, Notification, StructuredEvent, StructuredAct, StructuredParticipant } from '../../types';
+import { AppState, DocumentAnalysisResult, ActiveTab, Notification, StructuredEvent, StructuredAct, StructuredParticipant } from '../../types';
 import SimpleDonutChart from '../ui/charts/SimpleDonutChart';
 import SimpleBarChart from '../ui/charts/SimpleBarChart';
 import Tooltip from '../ui/Tooltip';
@@ -19,12 +17,13 @@ interface DashboardTabProps {
     onPerformOverallAnalysis: () => void;
     addNotification: (message: string, type?: Notification['type'], duration?: number, details?: string) => void;
     onViewDocumentDetails: (docId: string) => void;
+    onAddTasks?: (tasks: string[]) => void;
 }
 
 const DashboardTab: React.FC<DashboardTabProps> = ({
     appState, setCaseDescription, setActiveTab,
     onResetCase, onExportCase, onImportCase, onPerformOverallAnalysis, addNotification,
-    onViewDocumentDetails
+    onViewDocumentDetails, onAddTasks
 }) => {
     const { 
         documents, generatedDocuments, documentAnalysisResults, caseContext, 
@@ -59,7 +58,8 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
     }, [documents]);
 
     const entityTypeData = useMemo(() => {
-        const counts = caseEntities.reduce((acc, entity) => {
+        // Fix: Explicitly type the accumulator as Record<string, number> to avoid untyped reduce call issue
+        const counts = caseEntities.reduce((acc: Record<string, number>, entity) => {
             acc[entity.type] = (acc[entity.type] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
@@ -74,7 +74,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
         Object.values(documentAnalysisResults).forEach(result => {
             if (!result) return;
             
-            // Fix: Explicitly cast 'result' to 'DocumentAnalysisResult' to resolve type inference issues where 'result' was being treated as 'unknown'.
             const analysisResult = result as DocumentAnalysisResult;
 
             const doc = documents.find(d => d.id === analysisResult.docId);
@@ -88,7 +87,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
             });
             (analysisResult.structuredParticipants || []).forEach(p => {
                 if (!participantCounts[p.name]) {
-                    participantCounts[p.name] = { count: 0, roles: new Set() };
+                    participantCounts[p.name] = { count: 0, roles: new Set<string>() };
                 }
                 participantCounts[p.name].count++;
                 participantCounts[p.name].roles.add(p.role);
@@ -238,8 +237,18 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
                                 </ul>
                             </div>
                             <div>
-                                <h4 className="font-bold text-gray-300">Vorgeschlagene nächste Schritte</h4>
-                                <ul className="list-disc list-inside text-gray-400 space-y-1">
+                                <div className="flex justify-between items-center">
+                                    <h4 className="font-bold text-gray-300">Vorgeschlagene nächste Schritte</h4>
+                                    {onAddTasks && (
+                                        <button 
+                                            onClick={() => onAddTasks(caseSummary.suggestedNextSteps.map(s => s.step))}
+                                            className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-blue-300"
+                                        >
+                                            + Als Aufgaben anlegen
+                                        </button>
+                                    )}
+                                </div>
+                                <ul className="list-disc list-inside text-gray-400 space-y-1 mt-1">
                                     {(caseSummary?.suggestedNextSteps || []).map((s, i) => <li key={i}><strong>{s.step}:</strong> {s.justification}</li>)}
                                 </ul>
                             </div>

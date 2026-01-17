@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
-// Fix: Corrected import path for types.
-import type { AppSettings, Tag } from '../../types';
+import type { AppState, AppSettings, Tag } from '../../types';
+import { IndexingService } from '../../services/indexingService';
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface SettingsTabProps {
     settings: AppSettings;
@@ -8,18 +10,21 @@ interface SettingsTabProps {
     tags: Tag[];
     onCreateTag: (name: string) => void;
     onDeleteTag: (tagId: string) => void;
+    appState: AppState;
+    onUpdateAppState: (updates: Partial<AppState>) => void;
 }
 
-const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, onCreateTag, onDeleteTag }) => {
+const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, onCreateTag, onDeleteTag, appState, onUpdateAppState }) => {
     const [newTagName, setNewTagName] = useState('');
+    const [isIndexing, setIsIndexing] = useState(false);
+    const [indexProgress, setIndexProgress] = useState(0);
+    const [indexStatus, setIndexStatus] = useState('');
     
-    const handleAIChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleAIChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        // Check if the value is a number before parsing
-        const isNumeric = name === 'temperature' || name === 'topP';
         setSettings({
             ...settings,
-            ai: { ...settings.ai, [name]: isNumeric ? parseFloat(value) : value }
+            ai: { ...settings.ai, [name]: parseFloat(value) }
         });
     };
 
@@ -39,28 +44,90 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, setSettings, tags, 
         }
     };
 
+    const handleStartIndexing = async () => {
+        setIsIndexing(true);
+        setIndexProgress(0);
+        setIndexStatus('Starte Indexierung...');
+        
+        try {
+            const { updatedDocs, updatedEntities, updatedKnowledge } = await IndexingService.indexContent(appState, (prog, status) => {
+                setIndexProgress(prog);
+                setIndexStatus(status);
+            });
+
+            // Update app state with new embeddings
+            // This is a bit heavy, strictly speaking we should merge, but for this demo:
+            const newDocuments = appState.documents.map(d => updatedDocs.find(u => u.id === d.id) || d);
+            const newEntities = appState.caseEntities.map(e => updatedEntities.find(u => u.id === e.id) || e);
+            const newKnowledge = appState.knowledgeItems.map(k => updatedKnowledge.find(u => u.id === k.id) || k);
+
+            onUpdateAppState({
+                documents: newDocuments,
+                caseEntities: newEntities,
+                knowledgeItems: newKnowledge
+            });
+
+        } catch (e) {
+            setIndexStatus('Fehler bei der Indexierung.');
+            console.error(e);
+        } finally {
+            setIsIndexing(false);
+        }
+    };
+
+    // Stats
+    const docsEmbedded = appState.documents.filter(d => !!d.embedding).length;
+    const entitiesEmbedded = appState.caseEntities.filter(e => !!e.embedding).length;
+    const totalDocs = appState.documents.length;
+    const totalEntities = appState.caseEntities.length;
+
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
             <h1 className="text-3xl font-bold text-white">Einstellungen</h1>
 
+            {/* Semantic Indexing Section */}
+            <div className="bg-indigo-900/30 border border-indigo-500/30 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+                    <span className="text-2xl">🧠</span> Semantischer Index (Embeddings)
+                </h2>
+                <p className="text-sm text-gray-300 mb-4">
+                    Erstellen Sie Vektor-Embeddings für Dokumente, Entitäten und Wissen, um Funktionen wie 
+                    <b> RAG (verbesserte Antworten)</b>, <b>semantische Suche</b> und <b>Cluster-Analyse</b> zu aktivieren.
+                    Nutzt die Gemini Batch API (bis zu 100 Elemente pro Anfrage).
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4 text-sm bg-gray-800/50 p-3 rounded">
+                    <div>
+                        <span className="text-gray-400">Dokumente indexiert:</span>
+                        <div className="font-bold text-white">{docsEmbedded} / {totalDocs}</div>
+                    </div>
+                    <div>
+                        <span className="text-gray-400">Entitäten indexiert:</span>
+                        <div className="font-bold text-white">{entitiesEmbedded} / {totalEntities}</div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    {isIndexing && (
+                        <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
+                            <div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${indexProgress}%` }}></div>
+                        </div>
+                    )}
+                    
+                    <button 
+                        onClick={handleStartIndexing}
+                        disabled={isIndexing}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                    >
+                        {isIndexing ? <LoadingSpinner /> : 'Indexierung starten'}
+                        {isIndexing ? indexStatus : 'Index aktualisieren'}
+                    </button>
+                </div>
+            </div>
+
             <div className="bg-gray-800 p-6 rounded-lg">
                 <h2 className="text-xl font-semibold text-white mb-4">KI-Einstellungen</h2>
                 <div className="space-y-4">
-                     <div>
-                        <label htmlFor="apiKey" className="block text-sm font-medium text-gray-300">
-                            Gemini API Schlüssel
-                        </label>
-                        <input
-                            type="password"
-                            id="apiKey"
-                            name="apiKey"
-                            value={settings.ai.apiKey || ''}
-                            onChange={handleAIChange}
-                            placeholder="Ihren API-Schlüssel hier einfügen"
-                            className="mt-1 w-full bg-gray-700 text-gray-200 p-2 rounded-md border border-gray-600"
-                        />
-                         <p className="text-xs text-gray-500 mt-1">Ihr Schlüssel wird nur lokal in Ihrem Browser gespeichert und niemals geteilt.</p>
-                    </div>
                     <div>
                         <label htmlFor="temperature" className="block text-sm font-medium text-gray-300">
                             Temperatur (Kreativität): {settings.ai.temperature}

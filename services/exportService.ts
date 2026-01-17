@@ -1,3 +1,4 @@
+
 import { CaseEntity, TimelineEvent, Document, DocumentAnalysisResults } from '../types';
 
 function downloadCSV(csvContent: string, filename: string) {
@@ -95,27 +96,5 @@ export class ExportService {
         });
 
         downloadCSV(csvContent, 'structured-data-export.csv');
-    }
-
-    static exportToDoc(htmlContent: string, filename: string): void {
-        const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' "+
-            "xmlns:w='urn:schemas-microsoft-com:office:word' "+
-            "xmlns='http://www.w3.org/TR/REC-html40'>"+
-            "<head><meta charset='utf-8'><title>Export HTML to Word Document</title></head><body>";
-        const footer = "</body></html>";
-        const sourceHTML = header + htmlContent + footer;
-
-        const blob = new Blob(['\ufeff', sourceHTML], {
-            type: 'application/msword'
-        });
-        
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${filename}.doc`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     }
 }

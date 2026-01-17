@@ -1,3 +1,4 @@
+
 import { GeminiService } from './geminiService';
 import { AppState } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
@@ -33,8 +34,7 @@ Deine Aufgaben:
         `;
 
         try {
-            // Returns a string of HTML, no schema needed
-            return await GeminiService.callAI(prompt, null, appState.settings.ai);
+            return await GeminiService.callAI(prompt, null, appState.settings.ai, 'gemini-3-pro-preview');
         } catch (error) {
             console.error('Mitigation strategy generation failed:', error);
             return "<p>Fehler bei der Generierung der Strategien.</p>";

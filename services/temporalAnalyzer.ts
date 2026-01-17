@@ -1,3 +1,4 @@
+
 // Fix: Corrected import path.
 import { GeminiService } from './geminiService';
 // Fix: Corrected import path.
@@ -126,7 +127,8 @@ Fokus: ${temporalFocus}
       return await GeminiService.callAIWithSchema<TemporalAnalysisResult>(
           prompt,
           this.TEMPORAL_ANALYSIS_SCHEMA,
-          settings
+          settings,
+          'gemini-3-pro-preview'
       );
     } catch (error) {
       console.error('Temporal analysis failed:', error);

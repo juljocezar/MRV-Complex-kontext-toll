@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import type { Document, DocumentAnalysisResult, KnowledgeItem, ActiveTab, StructuredEvent, StructuredAct, StructuredParticipant } from '../../types';
 
@@ -104,7 +105,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, ana
                 </header>
                 <div className="flex-grow p-6 overflow-hidden grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Left Column: Metadata & Analysis */}
-                    <div className="md:col-span-1 space-y-4 overflow-y-auto">
+                    <div className="md:col-span-1 space-y-4 overflow-y-auto custom-scrollbar">
                         <div className="bg-gray-700/50 p-3 rounded-md">
                             <h3 className="font-semibold text-gray-300 text-sm mb-2">Metadaten</h3>
                             <p className="text-xs text-gray-400"><strong>MIME-Typ:</strong> {document.mimeType}</p>
@@ -118,9 +119,21 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, ana
                         {analysisResult && (
                              <div className="bg-gray-700/50 p-3 rounded-md">
                                 <h3 className="font-semibold text-gray-300 text-sm mb-2">Analyse-Ergebnisse</h3>
+                                 
+                                {analysisResult.causalityMap && (
+                                    <div className={`mb-3 p-3 rounded border ${analysisResult.causalityMap.zersetzungDetected ? 'bg-red-900/30 border-red-500/50' : 'bg-green-900/30 border-green-500/50'}`}>
+                                        <h4 className={`font-bold text-xs uppercase ${analysisResult.causalityMap.zersetzungDetected ? 'text-red-400' : 'text-green-400'}`}>
+                                            {analysisResult.causalityMap.zersetzungDetected ? '⚠️ Zersetzung erkannt' : '✅ Kausalität unauffällig'}
+                                        </h4>
+                                        <p className="text-[10px] text-gray-400 mt-1">
+                                            Logic-Engine Check (Modul 2): {analysisResult.causalityMap.nodes.length} Knoten geprüft.
+                                        </p>
+                                    </div>
+                                )}
+
                                  <div>
                                     <h4 className="font-bold text-xs text-gray-400">Zusammenfassung</h4>
-                                    <p className="text-xs text-gray-300 mt-1">{analysisResult.summary}</p>
+                                    <p className="text-xs text-gray-300 mt-1 whitespace-pre-wrap">{analysisResult.summary}</p>
                                 </div>
                                 {analysisResult.workloadEstimate && (
                                     <div className="mt-3">
@@ -164,7 +177,7 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, ana
                         <div 
                             ref={contentRef}
                             onMouseUp={handleMouseUp}
-                            className="prose prose-invert max-w-none text-gray-300 text-sm whitespace-pre-wrap overflow-y-auto flex-grow"
+                            className="prose prose-invert max-w-none text-gray-300 text-sm whitespace-pre-wrap overflow-y-auto flex-grow custom-scrollbar"
                          >
                            {document.textContent || "Vorschau für diesen Dateityp nicht verfügbar."}
                         </div>
