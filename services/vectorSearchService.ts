@@ -1,5 +1,5 @@
 
-import { Document, KnowledgeItem, CaseEntity, SearchResult } from '../types';
+import { Document, KnowledgeItem, CaseEntity, SearchResult, DocumentChunk } from '../types';
 
 export class VectorSearchService {
     
@@ -23,7 +23,7 @@ export class VectorSearchService {
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    static search<T extends { id: string, name?: string, title?: string, summary?: string, description?: string, textContent?: string, embedding?: number[] }>(
+    static search<T extends { id: string, name?: string, title?: string, summary?: string, description?: string, textContent?: string, text?: string, embedding?: number[] }>(
         queryEmbedding: number[],
         items: T[],
         type: SearchResult['type'],
@@ -35,11 +35,21 @@ export class VectorSearchService {
             if (item.embedding) {
                 const score = this.cosineSimilarity(queryEmbedding, item.embedding);
                 if (score >= threshold) {
+                    // Generic mapping based on type
+                    let title = 'Unbenannt';
+                    if (type === 'Document') title = item.name || item.title || 'Unbenannt'; // Regular Document
+                    if (type === 'Entity') title = item.name || 'Unbenannt';
+                    if (type === 'Knowledge') title = item.title || 'Unbenannt';
+                    
+                    // Special handling for Chunks (which are technically parts of Documents)
+                    // We return them as 'Document' matches but with specific text preview
+                    let preview = (item.summary || item.description || item.textContent || item.text || '').substring(0, 150) + '...';
+
                     results.push({
                         id: item.id,
                         type: type,
-                        title: item.name || item.title || 'Unbenannt',
-                        preview: (item.summary || item.description || item.textContent || '').substring(0, 150) + '...',
+                        title: title,
+                        preview: preview,
                         score: score,
                         isSemantic: true
                     });

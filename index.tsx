@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { AppProvider } from './store/AppContext';
 
 // Globaler Error Handler für nicht abgefangene Fehler (z.B. während Module-Loading)
 window.addEventListener('error', (event) => {
@@ -82,7 +83,9 @@ try {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
-        <App />
+        <AppProvider>
+            <App />
+        </AppProvider>
       </React.StrictMode>
     );
 } catch (e: any) {
