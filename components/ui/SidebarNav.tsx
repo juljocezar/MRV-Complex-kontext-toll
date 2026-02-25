@@ -15,13 +15,15 @@ const navGroups = [
             { id: 'dashboard', label: 'Zentrale', icon: 'dashboard' },
             { id: 'documents', label: 'Archiv', icon: 'documents' },
             { id: 'entities', label: 'Entitäten', icon: 'entities' },
+            { id: 'knowledge', label: 'Wissen', icon: 'knowledge' },
             { id: 'chronology', label: 'Zeitachse', icon: 'chronology' },
+            { id: 'graph', label: 'Netzwerk-Graph', icon: 'graph' },
         ]
     },
     {
         title: 'Forensik & Analyse',
         items: [
-            { id: 'radbruch-check', label: 'Radbruch 4D Check', icon: 'audit' },
+            { id: 'radbruch-check', label: 'Radbruch 4D', icon: 'audit' },
             { id: 'forensic-dossier', label: 'Beweis-Dossier', icon: 'audit' },
             { id: 'system-analysis', label: 'Systemdynamik', icon: 'graph' },
             { id: 'analysis', label: 'KI-Labor', icon: 'analysis' },
@@ -29,20 +31,31 @@ const navGroups = [
         ]
     },
     {
-        title: 'Strategie',
+        title: 'Strategie & Schutz',
         items: [
             { id: 'strategy', label: 'Risiko-Matrix', icon: 'strategy' },
+            { id: 'hrd-support', label: 'HRD Sicherheit', icon: 'hrd' },
             { id: 'argumentation', label: 'Beweisführung', icon: 'argumentation' },
             { id: 'ethics', label: 'Ethik-Audit', icon: 'ethics' },
+            { id: 'kpis', label: 'Erfolgs-KPIs', icon: 'kpis' },
         ]
     },
     {
-        title: 'Output',
+        title: 'Output & Ressourcen',
         items: [
+            { id: 'un-submissions', label: 'UN-Beschwerden', icon: 'un' },
             { id: 'generation', label: 'Generator', icon: 'generation' },
             { id: 'reports', label: 'Berichte', icon: 'reports' },
-            { id: 'library', label: 'Bibliothek', icon: 'library' },
             { id: 'dispatch', label: 'Transfer', icon: 'dispatch' },
+            { id: 'library', label: 'Bibliothek', icon: 'library' },
+            { id: 'legal-basis', label: 'Rechtsquellen', icon: 'legal' },
+        ]
+    },
+    {
+        title: 'System & Meta',
+        items: [
+            { id: 'agents', label: 'KI-Agenten', icon: 'agents' },
+            { id: 'audit', label: 'Audit Log', icon: 'audit' },
         ]
     }
 ] as const;
@@ -57,7 +70,7 @@ const SidebarNav: React.FC<SidebarNavProps> = ({ activeTab, setActiveTab }) => {
                     </div>
                     <div>
                         <h2 className="text-sm font-bold text-white tracking-tight">MRV ASSISTANT</h2>
-                        <span className="text-[10px] text-slate-500 font-mono">v2.5.0 PRO</span>
+                        <span className="text-[10px] text-slate-500 font-mono">v2.6.0 PRO</span>
                     </div>
                 </div>
             </div>
@@ -100,7 +113,11 @@ const SidebarNav: React.FC<SidebarNavProps> = ({ activeTab, setActiveTab }) => {
             <div className="p-4 mt-auto border-t border-slate-800 bg-slate-900/50">
                 <button 
                     onClick={() => setActiveTab('settings')}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white transition-colors text-sm"
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+                        activeTab === 'settings' 
+                        ? 'bg-indigo-600/10 text-indigo-400 ring-1 ring-indigo-500/20' 
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
                 >
                     <Icon name="settings" className="h-4 w-4" />
                     Einstellungen

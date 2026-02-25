@@ -6,30 +6,47 @@
 ### Zweck der Anwendung
 Der **MRV-Assistent Professional** ist ein spezialisiertes "Thick Client"-Dashboard für Menschenrechtsverteidiger (Human Rights Defenders, HRDs), Anwälte und forensische Analysten. Die Anwendung dient der Verwaltung, Analyse und strategischen Aufarbeitung komplexer Menschenrechtsfälle.
 
-Das System folgt einem **"Privacy-by-Design" & "Offline-First"** Ansatz: Sensible Falldaten werden lokal im Browser (IndexedDB) gespeichert und verlassen das Gerät nur temporär und punktuell zur KI-Analyse. Es gibt kein zentrales Backend zur Datenspeicherung.
-
-### Hauptfeatures
-*   **Dokumenten-Ingestion & Analyse:** Upload, OCR-Vorstufe (textbasiert), KI-Zusammenfassung, Klassifizierung (HURIDOCS) und Entitäten-Extraktion.
-*   **Forensische Validierung:** Deterministische Logic-Engines (`radbruchLogic.ts`) prüfen auf Rechtsverstöße (z.B. Art. 25 GG, Ius Cogens) und Systemfehler.
-*   **Widerspruchs-Detektor:** Cross-Check von Aussagen über mehrere Dokumente hinweg.
-*   **Wissensgraph & Chronologie:** Automatische Erstellung von Zeitachsen und Beziehungsgeflechten.
-*   **Semantische Suche (RAG):** Hybride Suche (Vektor-Embeddings + Volltext) über die gesamte Fallakte.
-*   **Strategie & Output:** Generierung von Berichten, UN-Einreichungen und Risiko-Analysen.
+Das System folgt einem **"Privacy-by-Design" & "Offline-First"** Ansatz, wird aber um Backend-Fähigkeiten für Kollaboration erweitert.
 
 ### Technologie-Stack
 *   **Frontend:** React 18 (via ES Modules / Vite-Umgebung).
 *   **Sprache:** TypeScript (TSX).
 *   **Styling:** Tailwind CSS (via CDN geladen).
-*   **KI & LLM:** Google Gemini API (`@google/genai`) via `gemini-3-flash` & `gemini-3-pro`.
-*   **Datenbank:** IndexedDB (via `idb` Wrapper).
-*   **Such-Engine:** `lunr.js` (Inverted Index) + Custom Vector Search (Cosine Similarity).
-*   **Visualisierung:** `reactflow` (Graphen), `marked` (Markdown Rendering).
-*   **NLP:** `wink-nlp` (Regelbasiertes Entity Extraction im Browser).
+*   **KI & LLM:** Google Gemini API (`@google/genai`).
+*   **Backend ORM:** Prisma.
+*   **Datenbank:** SQLite (Dev), PostgreSQL (Prod).
+*   **Lokale DB:** IndexedDB (Offline-Cache).
+*   **Such-Engine:** `lunr.js` + Vektor-Suche.
 *   **Testing:** Cypress (E2E Tests).
 
 ---
 
-## 2. HURIDOCS Events Standard Formats (ESF) Compliance
+## 2. Backend & Prisma-Setup (NEU)
+
+Die Anwendung nutzt Prisma als ORM zur Verwaltung der Datenbank.
+
+### 2.1. Schema-Definition
+Das Herzstück ist die `prisma/schema.prisma`-Datei. Sie ist die **Single Source of Truth** für alle Datenmodelle. Wenn Sie ein neues Datenfeld oder eine neue Entität hinzufügen, muss dies hier geschehen.
+
+### 2.2. Migrationen
+Nach jeder Änderung an der `schema.prisma` müssen Sie eine neue Migration erstellen und anwenden. Dies stellt sicher, dass die Datenbankstruktur mit dem Schema übereinstimmt.
+
+```bash
+# Erstellt eine neue Migration basierend auf Ihren Schema-Änderungen
+npx prisma migrate dev --name [migration-name]
+```
+
+### 2.3. Prisma Client
+Der Prisma Client wird automatisch aus Ihrem Schema generiert. Er bietet typsicheren Zugriff auf die Datenbank. Nachdem Sie eine Migration ausgeführt haben oder `npm install` laufen lassen, wird der Client aktualisiert.
+
+Um den Client manuell neu zu generieren (z.B. nach Schema-Änderungen ohne Migration):
+```bash
+npx prisma generate
+```
+
+---
+
+## 3. HURIDOCS Events Standard Formats (ESF) Compliance
 
 Der MRV-Assistent integriert die HURIDOCS ESF-Standards, um Interoperabilität und professionelle Dokumentation zu gewährleisten.
 
@@ -124,17 +141,19 @@ Detaillierte Implementierungsstrategie für die Kernkomponenten unter Verwendung
 
 ---
 
-## 3. Vollständige Ordnerstruktur & Dateiliste
+## 4. Vollständige Ordnerstruktur & Dateiliste
 
 Dies ist die exakte Struktur des Projekts basierend auf dem aktuellen Stand.
 
 ```text
 /
+├── prisma/
+│   └── schema.prisma             # NEU: Prisma-Datenbankschema
 ├── cypress/                        # End-to-End Testing
 ... (rest of structure)
 ```
 
 ---
 
-## 4. Getting Started
+## 5. Getting Started
 ...

@@ -1,12 +1,13 @@
 
-import { AppState, Document, AgentActivity, DocumentAnalysisResult, SuggestedEntity, Contradiction, Insight, KnowledgeItem, Tag, Notification, TimelineEvent, OrchestrationResult } from '../types';
+import { AppState, Document, AgentActivity, DocumentAnalysisResult, SuggestedEntity, Contradiction, Insight, KnowledgeItem, Tag, Notification, TimelineEvent, OrchestrationResult, RadbruchEvent, AnalysisMode } from '../types';
 import { DocumentAnalystService } from './documentAnalyst';
 import { ContradictionDetectorService } from './contradictionDetectorService';
 import { InsightService } from './insightService';
 import { selectAgentForTask } from '../utils/agentSelection';
 import { MRV_AGENTS } from '../constants';
 import { GeminiService } from './geminiService';
-import { addMultipleEsfEvents, addMultipleEsfActLinks, addMultipleEsfPersons, addMultipleEsfInvolvementLinks } from './storageService';
+import { addMultipleEsfEvents, addMultipleEsfActLinks, addMultipleEsfPersons, addMultipleEsfInvolvementLinks, addMultipleEsfInformationLinks, addMultipleEsfInterventionLinks } from './storageService';
+import { validateNormHierarchy } from '../logic_engine/norm_hierarchy_validator';
 
 export class OrchestrationService {
     
@@ -15,17 +16,18 @@ export class OrchestrationService {
         currentState: AppState,
         addAgentActivity: (activity: Omit<AgentActivity, 'id' | 'timestamp'>) => string,
         updateAgentActivity: (id: string, updates: Partial<Omit<AgentActivity, 'id'>>) => void,
-        addNotification: (message: string, type?: Notification['type']) => void
+        addNotification: (message: string, type?: Notification['type']) => void,
+        analysisMode: AnalysisMode = 'scan'
     ): Promise<OrchestrationResult | null> {
         
         const knowledgeItemsToCreate: Omit<KnowledgeItem, 'id' | 'createdAt' | 'embedding'>[] = [];
         const newTimelineEvents: TimelineEvent[] = [];
         
-        // --- 1. Document Analysis ---
+        // --- 1. Document Analysis (Base Layer - Always runs) ---
         const docAnalysisAgent = MRV_AGENTS.documentAnalyst;
         const analysisActivityId = addAgentActivity({
             agentName: docAnalysisAgent.name,
-            action: `Analysiere: ${doc.name}`,
+            action: `Analysiere (${analysisMode}): ${doc.name}`,
             result: 'running',
         });
 
@@ -39,57 +41,114 @@ export class OrchestrationService {
         let newEsfPersons: any[] = [];
         let newEsfActLinks: any[] = [];
         let newEsfInvolvementLinks: any[] = [];
+        let newEsfInformationLinks: any[] = [];
+        let newEsfInterventionLinks: any[] = [];
 
         try {
-            analysisResult = await DocumentAnalystService.analyzeDocument(doc, currentState.tags, currentState.settings.ai);
-            updateAgentActivity(analysisActivityId, { result: 'erfolg', details: `Zusammenfassung, ${analysisResult.structuredEvents?.length || 0} Ereignisse & Normen-Check abgeschlossen.` });
+            // Use lighter model for 'scan' mode
+            const modelOverride = analysisMode === 'scan' ? { temperature: 0.3, topP: 0.8 } : currentState.settings.ai;
+            analysisResult = await DocumentAnalystService.analyzeDocument(doc, currentState.tags, modelOverride);
+            
+            updateAgentActivity(analysisActivityId, { result: 'erfolg', details: `Basis-Analyse abgeschlossen.` });
             
             if (analysisResult.summary) {
                 knowledgeItemsToCreate.push({
-                    title: `KI-Zusammenfassung: ${doc.name}`,
+                    title: `Zusammenfassung (${analysisMode}): ${doc.name}`,
                     summary: analysisResult.summary,
                     sourceDocId: doc.id,
-                    tags: ['KI-generiert', 'Zusammenfassung', 'Astraea-Zero']
+                    tags: ['KI-generiert', 'Zusammenfassung']
                 });
             }
 
-            // --- PROCESS HURIDOCS ESF DATA (Parallel ESF Analysis) ---
-            try {
-                const esfResult = await DocumentAnalystService.analyzeToESF(doc, currentState.settings.ai);
-                
-                if (esfResult.events.length > 0 || esfResult.persons.length > 0) {
-                     // 3. Persist ESF Data to IndexedDB
-                    await addMultipleEsfEvents(esfResult.events);
-                    await addMultipleEsfActLinks(esfResult.actLinks);
-                    await addMultipleEsfPersons(esfResult.persons);
-                    await addMultipleEsfInvolvementLinks(esfResult.involvementLinks);
-                    
-                    // Capture for return
-                    newEsfEvents = esfResult.events;
-                    newEsfPersons = esfResult.persons;
-                    newEsfActLinks = esfResult.actLinks;
-                    newEsfInvolvementLinks = esfResult.involvementLinks;
-
-                    // 4. Create Knowledge Items from Violations Table
-                    if (esfResult.violationsTable && esfResult.violationsTable.length > 0) {
-                        esfResult.violationsTable.forEach(v => {
-                            knowledgeItemsToCreate.push({
-                                title: `Verstoß: ${v.violation_type}`,
-                                summary: `Datum: ${v.date || 'Unbekannt'}\nOrt: ${v.location || 'Unbekannt'}\nDetails: ${v.details}\nBetroffen: ${v.persons_or_groups || 'Unbekannt'}`,
-                                sourceDocId: doc.id,
-                                tags: ['ESF-Violation', v.violation_type, 'HURIDOCS']
-                            });
-                        });
-                    }
-
-                    addNotification(`${esfResult.events.length} ESF-Events, ${esfResult.actLinks.length} Acts und ${esfResult.violationsTable?.length || 0} Verstöße gespeichert.`, 'success');
-                }
-            } catch (esfError) {
-                console.error("ESF Extraction error (non-fatal):", esfError);
+            // Extract Timeline Events from Analysis Result
+            if (analysisResult.timelineEvents && analysisResult.timelineEvents.length > 0) {
+                analysisResult.timelineEvents.forEach(evt => {
+                    newTimelineEvents.push({
+                        ...evt,
+                        id: crypto.randomUUID(),
+                        documentIds: [doc.id]
+                    });
+                });
             }
 
+            // --- TIER 2: DEEP FORENSIC LOGIC (Only if Forensic Mode) ---
+            if (analysisMode === 'forensic') {
+                addNotification("Starte forensische Tiefenanalyse (ESF & Logic Engine)...", "info");
+                
+                // 1. Logic Engine Validation on Events
+                analysisResult.timelineEvents?.forEach(evt => {
+                     const tempRadbruchEvent: RadbruchEvent = {
+                        eventId: 'temp', 
+                        eventType: 'extracted',
+                        location: { country: 'DE' },
+                        jurisdictionUnitId: '',
+                        summary: `${evt.title}. ${evt.description}`,
+                        allegedRightsViolated: [], 
+                        decisionOpacityLevel: 'transparent',
+                        legalProcedureStage: 'other',
+                        involvedActors: '',
+                        referencedLaws: [],
+                        isMachineGenerated: false,
+                        officialSignal: '',
+                        usesAlgorithmicDecision: false,
+                        sphereRisks: { lossOfHousing: false, lossOfIncome: false, healthRisk: false }
+                    };
 
-            // --- Generate Embedding for Document (RAG Support) ---
+                    const validationResult = validateNormHierarchy(tempRadbruchEvent);
+
+                    if (validationResult.severity === 'ius_cogens' || validationResult.voidSuggested) {
+                        knowledgeItemsToCreate.push({
+                            title: `⚠️ RECHTSBRUCH ERKANNT: ${evt.title}`,
+                            summary: `Automatische Validierung (Art. 1/25 GG Engine) schlug Alarm.\n\nGrund: ${validationResult.notes}`,
+                            sourceDocId: doc.id,
+                            tags: ['WARNUNG', 'Ius Cogens', 'Verfassungsbruch']
+                        });
+                    }
+                });
+
+                // 2. Full ESF Extraction (Expensive)
+                try {
+                    const esfResult = await DocumentAnalystService.analyzeToESF(doc, currentState.settings.ai);
+                    
+                    if (esfResult.events.length > 0 || esfResult.persons.length > 0) {
+                        const cleanEvents = esfResult.events.filter(e => !!e.recordNumber);
+                        const cleanPersons = esfResult.persons.filter(p => !!p.recordNumber);
+                        const cleanActs = esfResult.actLinks.filter(a => !!a.recordNumber);
+                        const cleanInvolvements = esfResult.involvementLinks.filter(i => !!i.recordNumber);
+                        const cleanInfo = esfResult.informationLinks.filter(i => !!i.recordNumber);
+                        const cleanInterventions = esfResult.interventionLinks.filter(i => !!i.recordNumber);
+
+                        await addMultipleEsfEvents(cleanEvents);
+                        await addMultipleEsfActLinks(cleanActs);
+                        await addMultipleEsfPersons(cleanPersons);
+                        await addMultipleEsfInvolvementLinks(cleanInvolvements);
+                        await addMultipleEsfInformationLinks(cleanInfo);
+                        await addMultipleEsfInterventionLinks(cleanInterventions);
+                        
+                        newEsfEvents = cleanEvents;
+                        newEsfPersons = cleanPersons;
+                        newEsfActLinks = cleanActs;
+                        newEsfInvolvementLinks = cleanInvolvements;
+                        newEsfInformationLinks = cleanInfo;
+                        newEsfInterventionLinks = cleanInterventions;
+
+                        if (esfResult.violationsTable && esfResult.violationsTable.length > 0) {
+                            esfResult.violationsTable.forEach(v => {
+                                knowledgeItemsToCreate.push({
+                                    title: `Verstoß: ${v.violation_type}`,
+                                    summary: `Datum: ${v.date || 'Unbekannt'}\nDetails: ${v.details}`,
+                                    sourceDocId: doc.id,
+                                    tags: ['ESF-Violation', v.violation_type]
+                                });
+                            });
+                        }
+                    }
+                } catch (esfError) {
+                    console.error("ESF Extraction error:", esfError);
+                }
+            } // End Forensic Mode
+
+            // --- Generate Embedding (Always useful for RAG) ---
             const docEmbedding = await GeminiService.getEmbedding(
                 (doc.textContent || doc.content).substring(0, 8000) + "\nSummary: " + analysisResult.summary,
                 'RETRIEVAL_DOCUMENT'
@@ -103,108 +162,66 @@ export class OrchestrationService {
                 classificationStatus: 'classified',
                 workCategory: analysisResult.classification,
                 tags: combinedTags,
-                embedding: docEmbedding // Store embedding
+                embedding: docEmbedding,
+                analysisMode: analysisMode 
             };
             newSuggestedEntities = analysisResult.entities || [];
 
         } catch (e) {
              updateAgentActivity(analysisActivityId, { result: 'fehler', details: e instanceof Error ? e.message : 'Unbekannter Fehler' });
              addNotification(`Analyse für "${doc.name}" fehlgeschlagen.`, 'error');
-             // The caller should handle the UI update for the error status
             return null;
         }
         
-        // --- 2. Contradiction Detection ---
-        const contradictionAgent = MRV_AGENTS.contradictionDetector;
-        const contradictionActivityId = addAgentActivity({
-            agentName: contradictionAgent.name,
-            action: `Prüfe auf Widersprüche...`,
-            result: 'running',
-        });
-
         let newContradictions: Contradiction[] = [];
-        try {
-            const newDocContext = `Dokument: ${doc.name}\nZusammenfassung: ${analysisResult.summary}`;
-            const allDocsForCheck = [...currentState.documents.filter(d => d.id !== doc.id), updatedDoc];
-            const stateForContradictionCheck = {
-                ...currentState,
-                documents: allDocsForCheck
-            };
-            newContradictions = await ContradictionDetectorService.findContradictions(stateForContradictionCheck, newDocContext);
-            if (newContradictions.length > 0) {
-                 updateAgentActivity(contradictionActivityId, { result: 'erfolg', details: `${newContradictions.length} neue Widersprüche gefunden.` });
-                 addNotification(`${newContradictions.length} neue Widersprüche gefunden.`, 'info');
-                 const contradictionKnowledgeItems = newContradictions.map(c => {
-                    const doc1Name = currentState.documents.find(d => d.id === c.source1DocId)?.name || 'Unbekannt';
-                    const doc2Name = currentState.documents.find(d => d.id === c.source2DocId)?.name || 'Unbekannt';
-                    return {
-                        title: `Widerspruch: ${doc1Name} vs. ${doc2Name}`,
-                        summary: `Aussage A: "${c.statement1}"\nAussage B: "${c.statement2}"\n\nKI-Erklärung: ${c.explanation}`,
-                        sourceDocId: c.source1DocId,
-                        tags: ['KI-generiert', 'Widerspruch']
-                    };
-                });
-                knowledgeItemsToCreate.push(...contradictionKnowledgeItems);
-            } else {
-                 updateAgentActivity(contradictionActivityId, { result: 'erfolg', details: `Keine neuen Widersprüche.` });
-            }
-        } catch (e) {
-             updateAgentActivity(contradictionActivityId, { result: 'fehler', details: e instanceof Error ? e.message : 'Unbekannter Fehler' });
-        }
-
-
-        // --- 3. Insight Generation ---
-        const insightAgent = MRV_AGENTS.caseStrategist;
-         const insightActivityId = addAgentActivity({
-            agentName: insightAgent.name,
-            action: `Generiere neue Einblicke...`,
-            result: 'running',
-        });
-        
         let newInsights: Insight[] = [];
-        try {
-            const newDocContext = `Neues Dokument hinzugefügt: ${doc.name}\nZusammenfassung: ${analysisResult.summary}`;
-            const allDocsForCheck = [...currentState.documents.filter(d => d.id !== doc.id), updatedDoc];
-            const stateForInsightCheck = {
-                ...currentState,
-                documents: allDocsForCheck,
-                contradictions: [...currentState.contradictions, ...newContradictions]
-            };
-            newInsights = await InsightService.generateInsights(stateForInsightCheck, newDocContext);
-             if (newInsights.length > 0) {
-                updateAgentActivity(insightActivityId, { result: 'erfolg', details: `${newInsights.length} neue Einblicke generiert.` });
-                addNotification(`${newInsights.length} neue strategische Einblicke generiert.`, 'info');
-                newInsights.forEach(i => {
-                    knowledgeItemsToCreate.push({
-                        title: `Einblick (${i.type}): ${i.text.substring(0, 40)}...`,
-                        summary: i.text,
-                        sourceDocId: doc.id,
-                        tags: ['KI-generiert', 'Einblick', i.type]
-                    });
-                });
-            } else {
-                updateAgentActivity(insightActivityId, { result: 'erfolg', details: `Keine neuen Einblicke.` });
+
+        // --- Post-Processing only in Forensic Mode ---
+        if (analysisMode === 'forensic') {
+            // Contradictions
+            const contradictionAgent = MRV_AGENTS.contradictionDetector;
+            const contradictionActivityId = addAgentActivity({
+                agentName: contradictionAgent.name,
+                action: `Prüfe auf Widersprüche...`,
+                result: 'running',
+            });
+
+            try {
+                const newDocContext = `Dokument: ${doc.name}\nZusammenfassung: ${analysisResult.summary}`;
+                const allDocsForCheck = [...currentState.documents.filter(d => d.id !== doc.id), updatedDoc];
+                const stateForContradictionCheck = { ...currentState, documents: allDocsForCheck };
+                
+                newContradictions = await ContradictionDetectorService.findContradictions(stateForContradictionCheck, newDocContext);
+                updateAgentActivity(contradictionActivityId, { result: 'erfolg', details: `${newContradictions.length} Widersprüche.` });
+            } catch (e) {
+                updateAgentActivity(contradictionActivityId, { result: 'fehler', details: 'Fehler bei Widerspruchsprüfung' });
             }
-        } catch (e) {
-             updateAgentActivity(insightActivityId, { result: 'fehler', details: e instanceof Error ? e.message : 'Unbekannter Fehler' });
+
+            // Insights
+            const insightAgent = MRV_AGENTS.caseStrategist;
+            const insightActivityId = addAgentActivity({
+                agentName: insightAgent.name,
+                action: 'Strategie-Update...',
+                result: 'running',
+            });
+            
+            try {
+                let triggerContext = `Neues Dokument (Forensik): ${doc.name}`;
+                if (newContradictions.length > 0) triggerContext += `\n${newContradictions.length} Widersprüche erkannt.`;
+                
+                const stateForInsightCheck = {
+                    ...currentState,
+                    documents: [...currentState.documents.filter(d => d.id !== doc.id), updatedDoc],
+                    contradictions: [...currentState.contradictions, ...newContradictions]
+                };
+                
+                newInsights = await InsightService.generateInsights(stateForInsightCheck, triggerContext);
+                updateAgentActivity(insightActivityId, { result: 'erfolg', details: `${newInsights.length} Einblicke.` });
+            } catch (e) {
+                updateAgentActivity(insightActivityId, { result: 'fehler', details: 'Fehler bei Insights' });
+            }
         }
 
-        const summaryParts = [];
-        if (newTimelineEvents.length > 0) summaryParts.push(`${newTimelineEvents.length} Ereignis(se)`);
-        if (newSuggestedEntities.length > 0) summaryParts.push(`${newSuggestedEntities.length} Entität(en)`);
-        if (newContradictions.length > 0) summaryParts.push(`${newContradictions.length} Widerspruch/Widersprüche`);
-        if (newInsights.length > 0) summaryParts.push(`${newInsights.length} Einblick(e)`);
-
-        let summaryText = `Analyse von "${doc.name}" abgeschlossen.`;
-        if (summaryParts.length > 0) {
-            summaryText += ` ${summaryParts.join(', ')} gefunden.`;
-        } else {
-            summaryText += ` Keine neuen strukturierten Daten extrahiert.`
-        }
-        addNotification(summaryText, 'success');
-
-
-        // Prepare Knowledge Items with Embeddings (Parallel)
         const newKnowledgeItems: KnowledgeItem[] = await Promise.all(knowledgeItemsToCreate.map(async item => {
             const embedding = await GeminiService.getEmbedding(`${item.title}: ${item.summary}`, 'RETRIEVAL_DOCUMENT');
             return {
@@ -215,18 +232,8 @@ export class OrchestrationService {
             };
         }));
         
-        // AUTONOMOUS EMBEDDING: Generate embeddings for extracted entities immediately
-        // This ensures they are searchable in Vector Search even before manual acceptance
-        /* 
-           Note: SuggestedEntities structure is slightly different from CaseEntity, 
-           but we can map them for search indexing conceptually here or just embed them locally
-           if we decide to promote them. For now, we don't store embedding on SuggestedEntity type,
-           but ideally we should if we want RAG to find them. 
-           
-           Refinement: We won't embed SuggestedEntities into the vector store yet to avoid noise,
-           but we ensure the *Document* and *KnowledgeItems* (which contain the entity info) are embedded.
-        */
-        
+        addNotification(`Analyse "${doc.name}" (${analysisMode}) fertig.`, 'success');
+
         return {
             updatedDoc,
             analysisResult,
@@ -236,11 +243,12 @@ export class OrchestrationService {
             newInsights,
             newKnowledgeItems,
             newTimelineEvents,
-            // Return ESF Data for state update
             newEsfEvents,
             newEsfPersons,
             newEsfActLinks,
-            newEsfInvolvementLinks
+            newEsfInvolvementLinks,
+            newEsfInformationLinks,
+            newEsfInterventionLinks
         };
     }
 }
