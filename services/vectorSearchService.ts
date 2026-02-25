@@ -2,25 +2,43 @@
 import { Document, KnowledgeItem, CaseEntity, SearchResult } from '../types';
 
 export class VectorSearchService {
+    private static sqrtNormCache = new WeakMap<number[], number>();
+
+    /**
+     * Gets or calculates the square root of the norm (magnitude) of a vector.
+     * Caches the result to avoid redundant calculations.
+     */
+    static getOrCalculateSqrtNorm(vec: number[]): number {
+        let sqrtNorm = this.sqrtNormCache.get(vec);
+        if (sqrtNorm === undefined) {
+            let norm = 0;
+            const len = vec.length;
+            for (let i = 0; i < len; i++) {
+                norm += vec[i] * vec[i];
+            }
+            sqrtNorm = Math.sqrt(norm);
+            this.sqrtNormCache.set(vec, sqrtNorm);
+        }
+        return sqrtNorm;
+    }
     
     // Calculates Cosine Similarity between two vectors
     // Returns a value between -1 and 1. 1 means identical direction.
-    static cosineSimilarity(vecA: number[], vecB: number[]): number {
-        if (vecA.length !== vecB.length) return 0;
+    static cosineSimilarity(vecA: number[], vecB: number[], sqrtNormA?: number, sqrtNormB?: number): number {
+        const len = vecA.length;
+        if (len !== vecB.length) return 0;
         
         let dotProduct = 0;
-        let normA = 0;
-        let normB = 0;
-        
-        for (let i = 0; i < vecA.length; i++) {
+        for (let i = 0; i < len; i++) {
             dotProduct += vecA[i] * vecB[i];
-            normA += vecA[i] * vecA[i];
-            normB += vecB[i] * vecB[i];
         }
         
-        if (normA === 0 || normB === 0) return 0;
+        const finalSqrtNormA = sqrtNormA ?? this.getOrCalculateSqrtNorm(vecA);
+        const finalSqrtNormB = sqrtNormB ?? this.getOrCalculateSqrtNorm(vecB);
+
+        if (finalSqrtNormA === 0 || finalSqrtNormB === 0) return 0;
         
-        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+        return dotProduct / (finalSqrtNormA * finalSqrtNormB);
     }
 
     static search<T extends { id: string, name?: string, title?: string, summary?: string, description?: string, textContent?: string, embedding?: number[] }>(
@@ -30,10 +48,15 @@ export class VectorSearchService {
         threshold: number = 0.65 // Minimum similarity to return
     ): SearchResult[] {
         const results: SearchResult[] = [];
+        const querySqrtNorm = this.getOrCalculateSqrtNorm(queryEmbedding);
 
-        items.forEach(item => {
-            if (item.embedding) {
-                const score = this.cosineSimilarity(queryEmbedding, item.embedding);
+        // Optimization: Use a regular for loop for performance
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const embedding = item.embedding;
+            if (embedding) {
+                const itemSqrtNorm = this.getOrCalculateSqrtNorm(embedding);
+                const score = this.cosineSimilarity(queryEmbedding, embedding, querySqrtNorm, itemSqrtNorm);
                 if (score >= threshold) {
                     results.push({
                         id: item.id,
@@ -45,7 +68,7 @@ export class VectorSearchService {
                     });
                 }
             }
-        });
+        }
 
         return results.sort((a, b) => b.score - a.score);
     }
