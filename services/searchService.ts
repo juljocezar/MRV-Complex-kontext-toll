@@ -1,19 +1,33 @@
 
 import lunr from 'lunr';
-import { AppState, Document, CaseEntity, KnowledgeItem, SearchResult } from '../types';
+import { AppState, Document, CaseEntity, KnowledgeItem, SearchResult, DocumentChunk } from '../types';
 import { GeminiService } from './geminiService';
 import { VectorSearchService } from './vectorSearchService';
+import { getAllChunks } from './storageService';
 
 export class SearchService {
     private idx: lunr.Index | null = null;
     private documents: Document[] = [];
+    private chunks: DocumentChunk[] = [];
     private entities: CaseEntity[] = [];
     private knowledgeItems: KnowledgeItem[] = [];
 
+    // Maps for O(1) lookups during search
+    private documentMap: Map<string, Document> = new Map();
+    private entityMap: Map<string, CaseEntity> = new Map();
+    private knowledgeMap: Map<string, KnowledgeItem> = new Map();
+
     public buildIndex(appState: AppState): void {
         this.documents = appState.documents;
+        // PERFORMANCE FIX: Load chunks on demand from DB instead of holding them in global UI State
+        this.chunks = await getAllChunks();
         this.entities = appState.caseEntities;
         this.knowledgeItems = appState.knowledgeItems;
+
+        // Initialize maps for faster lookup
+        this.documentMap = new Map(appState.documents.map(d => [d.id, d]));
+        this.entityMap = new Map(appState.caseEntities.map(e => [e.id, e]));
+        this.knowledgeMap = new Map(appState.knowledgeItems.map(k => [k.id, k]));
         
         this.idx = lunr(function () {
             this.ref('id');
@@ -62,11 +76,26 @@ export class SearchService {
             const queryEmbedding = await GeminiService.getEmbedding(query, 'RETRIEVAL_QUERY');
             
             if (queryEmbedding) {
-                const docMatches = VectorSearchService.search(queryEmbedding, this.documents, 'Document', 0.60);
+                // Search Chunks first (Most granular)
+                // We map chunk results to a special "Document" SearchResult structure
+                const chunkMatches = VectorSearchService.search(queryEmbedding, this.chunks, 'Document', 0.62);
+                
+                // Enhance Chunk Results with Document Names
+                chunkMatches.forEach(match => {
+                    const chunk = this.chunks.find(c => c.id === match.id);
+                    if (chunk) {
+                        const parentDoc = this.documents.find(d => d.id === chunk.docId);
+                        if (parentDoc) {
+                            match.title = `${parentDoc.name} (Auszug)`;
+                            match.id = parentDoc.id; // Link to parent doc for navigation
+                        }
+                    }
+                });
+
                 const entityMatches = VectorSearchService.search(queryEmbedding, this.entities, 'Entity', 0.65);
                 const knowledgeMatches = VectorSearchService.search(queryEmbedding, this.knowledgeItems, 'Knowledge', 0.65);
                 
-                vectorResults = [...docMatches, ...entityMatches, ...knowledgeMatches];
+                vectorResults = [...chunkMatches, ...entityMatches, ...knowledgeMatches];
             }
         } catch (e) {
             console.warn("Semantic search failed, falling back to keywords only", e);
@@ -86,9 +115,9 @@ export class SearchService {
                 const score = result.score; // Lunr score (arbitrary positive number)
 
                 let item: any;
-                if (type === 'doc') item = this.documents.find(d => d.id === id);
-                else if (type === 'entity') item = this.entities.find(e => e.id === id);
-                else if (type === 'knowledge') item = this.knowledgeItems.find(k => k.id === id);
+                if (type === 'doc') item = this.documentMap.get(id);
+                else if (type === 'entity') item = this.entityMap.get(id);
+                else if (type === 'knowledge') item = this.knowledgeMap.get(id);
 
                 if (!item) return null;
 
@@ -115,12 +144,22 @@ export class SearchService {
 
         // 1. Process Semantic Results
         vectorResults.forEach(res => {
-            const key = `${res.type}_${res.id}`;
-            merged.set(key, { 
-                ...res, 
-                score: res.score * SEMANTIC_WEIGHT, // Boost score for standalone semantic match
-                title: res.title 
-            });
+            // Deduplicate: if multiple chunks from same doc appear, take the best one
+            const key = `${res.type}_${res.id}`; 
+            
+            if (merged.has(key)) {
+                const existing = merged.get(key)!;
+                if (res.score * SEMANTIC_WEIGHT > existing.score) {
+                    existing.score = res.score * SEMANTIC_WEIGHT;
+                    existing.preview = res.preview; // Show better snippet
+                }
+            } else {
+                merged.set(key, { 
+                    ...res, 
+                    score: res.score * SEMANTIC_WEIGHT, // Boost score for standalone semantic match
+                    title: res.title 
+                });
+            }
         });
 
         // 2. Process/Merge Keyword Results

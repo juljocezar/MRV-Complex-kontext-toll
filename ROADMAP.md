@@ -1,3 +1,4 @@
+
 # Roadmap für den MRV-Assistenten
 
 Dieses Dokument skizziert die geplante Weiterentwicklung der Anwendung in logischen Phasen.
@@ -17,29 +18,28 @@ Dieses Dokument skizziert die geplante Weiterentwicklung der Anwendung in logisc
 -   **[Feature] Erweiterte Tag-Verwaltung:**
     -   Möglichkeit, Tags umzubenennen und mit Farben zu versehen.
 
-## Phase 2: Feature-Erweiterung & Interaktivität (Mittelfristig)
+## Phase 2: Feature-Erweiterung & Backend-Grundlagen (Mittelfristig)
 
-*Ziel: Ausbau der Kernfunktionalität und Verbesserung der Benutzerinteraktion.*
+*Ziel: Ausbau der Kernfunktionalität, Verbesserung der Benutzerinteraktion und Aufbau der Backend-Infrastruktur.*
 
+-   **[Architektur] Einführung eines Backends (IN ARBEIT):**
+    -   Die Grundlagen wurden durch die Integration von **Prisma** und einem SQLite-Datenbankschema gelegt.
+    -   **Nächste Schritte:** Entwicklung eines API-Servers (z.B. mit Express oder Fastify), der die Prisma-Client-Anfragen kapselt und Endpunkte für den Client bereitstellt.
 -   **[Feature] Streaming für KI-Antworten:**
-    -   Implementierung von `generateContentStream` im Analyse-Chat und bei der Dokumentengenerierung, um Antworten Wort für Wort anzuzeigen und die wahrgenommene Geschwindigkeit drastisch zu erhöhen.
--   **[Feature] Verbesserte Graphen-Visualisierung:**
-    -   Integration einer dedizierten Graphen-Bibliothek (z.B. `react-flow`) für interaktivere Visualisierungen, inklusive Filterung nach Entitätstyp und Beziehungsart.
--   **[Feature] Globale Suche:**
-    -   Implementierung einer clientseitigen Volltextsuche (z.B. mit `lunr.js`), die alle Dokumente, Wissenseinträge und Entitäten durchsucht.
+    -   Implementierung von `generateContentStream` im Analyse-Chat und bei der Dokumentengenerierung, um die wahrgenommene Geschwindigkeit drastisch zu erhöhen.
+-   **[Feature] Globale Suche (Hybrid):**
+    -   Erweiterung der clientseitigen Suche um die Möglichkeit, auch das Backend abzufragen, sobald dieses live ist.
 -   **[Technik] Progressive Web App (PWA):**
-    -   Erweiterung der Anwendung zu einer PWA mit Service Worker, um die Offline-Fähigkeit weiter zu verbessern und eine Installation auf dem Desktop zu ermöglichen.
--   **[Feature] Versionierung von generierten Dokumenten:**
-    -   Möglichkeit, Entwürfe von generierten Dokumenten zu speichern und verschiedene Versionen zu verwalten.
+    -   Erweiterung der Anwendung zu einer PWA mit Service Worker, um die Offline-Fähigkeit weiter zu verbessern.
 
 ## Phase 3: Kollaboration & strategische Expansion (Langfristig)
 
 *Ziel: Transformation von einem Einzelplatz-Tool zu einer kollaborativen Plattform.*
 
--   **[Architektur] Einführung eines Backends:**
-    -   Entwicklung eines sicheren Backends (z.B. mit Firebase oder Supabase) für Benutzerauthentifizierung, zentrale Fall-Datenbank und Echtzeit-Synchronisation.
 -   **[Feature] Kollaborations-Modus:**
-    -   Mehrere Benutzer können gleichzeitig an einem Fall arbeiten, Änderungen werden in Echtzeit synchronisiert.
+    -   Mehrere Benutzer können gleichzeitig an einem Fall arbeiten, Änderungen werden in Echtzeit (z.B. via WebSockets) synchronisiert.
+-   **[Feature] Benutzerauthentifizierung & Rollen:**
+    -   Implementierung eines sicheren Login-Systems mit verschiedenen Berechtigungsstufen.
 -   **[Feature] Automatisierte Agenten-Workflows:**
     -   Erstellung von komplexeren Abläufen, bei denen KI-Agenten sich gegenseitig auslösen können (z.B. "Wenn ein Widerspruch gefunden wird, starte automatisch eine neue Strategie-Analyse").
 -   **[Feature] Mehrsprachigkeit:**

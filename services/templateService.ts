@@ -1,3 +1,4 @@
+
 // This service provides predefined templates for document generation.
 
 export interface DocumentTemplate {
@@ -9,6 +10,63 @@ export interface DocumentTemplate {
 
 export class TemplateService {
     private static templates: DocumentTemplate[] = [
+        {
+            id: 'chronological_pattern_report_v1',
+            name: 'Chronologische Musteranalyse & Bericht',
+            description: 'Analysiert Zeitdaten auf Eskalationsstufen, Frequenzmuster und Kausalitäten und erstellt einen narrativen Sachstandsbericht.',
+            content: `
+# FORENSISCHER SACHSTANDSBERICHT: CHRONOLOGIE UND MUSTER
+
+**FALL-ID:** {{case_id}}
+**DATUM DER ANALYSE:** {{current_date}}
+
+## AUFGABENSTELLUNG
+Du bist ein forensischer Datenanalyst und Ermittler für Menschenrechtsverletzungen. Deine Aufgabe ist es, die vorliegenden chronologischen Daten, Dokumente und Wissenseinträge nicht nur aufzulisten, sondern zu synthetisieren.
+
+**Ziele:**
+1. Identifiziere **Muster** (z.B. Eskalation der Gewalt, systematische Wiederholung, zeitliche Korrelation mit politischen Ereignissen).
+2. Erkenne **Lücken** in der Dokumentation.
+3. Erstelle eine **narrative Sachverhaltsschilderung**, die auf Beweisen (Quellen) fußt.
+
+---
+
+## 1. ANALYSE DER ZEITLICHEN DYNAMIK
+
+### A. Frequenz und Intensität
+*   **Beobachtete Phasen:** [Identifiziere Phasen, z.B. "Vorbereitung", "Eskalation", "Latenz". Gib Zeiträume an.]
+*   **Häufigkeitsverteilung:** [Gibt es Spitzen (Spikes) in den Vorfällen? Wann und warum?]
+*   **Eskalationsmuster:** [Nimmt die Schwere der Handlungen über die Zeit zu? Beschreibe den Verlauf.]
+
+### B. Kausalitätsketten (Ursache-Wirkung)
+*   [Identifiziere Trigger-Ereignisse und darauf folgende Reaktionen. Z.B.: Protest (Datum X) -> Verhaftungswelle (Datum Y).]
+*   [Verbinde isolierte Ereignisse zu logischen Ketten.]
+
+---
+
+## 2. NARRATIVE SACHVERHALTSSCHILDERUNG (Statement of Facts)
+
+*Schreibe hier einen fließenden, chronologischen Text, der die Geschichte des Falls erzählt. Jeder Absatz muss sich auf spezifische Dokumente oder Beweise aus dem Kontext stützen.*
+
+**Phase 1: Der Ausgangspunkt**
+[Text...]
+
+**Phase 2: [Titel der Phase]**
+[Text...]
+
+**Phase 3: Der aktuelle Stand**
+[Text...]
+
+---
+
+## 3. IDENTIFIZIERTE LÜCKEN UND WIDERSPRÜCHE
+
+*   **Zeitliche Lücken:** [Gibt es Zeiträume ohne Daten, die verdächtig sind?]
+*   **Widersprüchliche Zeitangaben:** [Gibt es Diskrepanzen zwischen verschiedenen Quellen bezüglich des Zeitpunkts eines Ereignisses?]
+
+## 4. QUELLENVERZEICHNIS
+[Liste die wichtigsten Dokumente auf, die für diese Chronologie verwendet wurden.]
+`
+        },
         {
             id: 'un_allegation_letter_v1',
             name: 'UN Allegation Letter (Vorlage)',

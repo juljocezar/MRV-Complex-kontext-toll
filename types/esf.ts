@@ -1,107 +1,171 @@
 
 /**
- * HURIDOCS Events Standard Formats (ESF) Implementation.
- * Basierend auf den HURIDOCS Micro-thesauri & ESF Guidelines.
+ * HURIDOCS Events Standard Formats (ESF) Definitions
+ * Based on Chapter 8: Scope Notes & Micro-thesauri
  */
 
-/** Basis für alle ESF-Datensätze (verwaltende Felder etc.) */
 export interface EsfBaseRecord {
-  id?: string;                // Added: Generic ID for internal DB compatibility
-  sourceDocId?: string;       // Interne Referenz auf das Quelldokument
+  id: string;                // Internal UUID
+  recordNumber: string;      // HURIDOCS ID (e.g. 101, 2101)
+  sourceDocId?: string;      // Reference to source document
   
-  // Verwaltungsdaten / Management (z.B. 160–172)
-  receivedDate?: string;      // 160
-  entryDate?: string;         // 161
-  enteredBy?: string;         // 162
-  projectTitle?: string;      // 163
-  comments?: string;          // 165
-  supportingDocuments?: string[]; // 166 (z.B. Dateinamen/IDs)
-  files?: string[];           // 167
-  recordGrouping?: string;    // 168
-  updatedDate?: string;       // 170
-  updatedBy?: string;         // 171
+  // Management Fields (Common across formats)
+  confidentiality?: string;   // x08 (108, 908, 2108...)
+  receivedDate?: string;      // x60
+  entryDate?: string;         // x61
+  enteredBy?: string;         // x62
+  projectTitle?: string;      // x63
+  comments?: string;          // x65
+  supportingDocuments?: string; // x66
+  files?: string;             // x67
+  recordGrouping?: string;    // x68
+  updatedDate?: string;       // x70
+  updatedBy?: string;         // x71
+}
+
+/** 
+ * EVENT FORMAT (100 Series) 
+ * Describes the overall situation/event.
+ */
+export interface EsfEventRecord extends EsfBaseRecord {
+  eventTitle: string;         // 102
+  geoTerm?: string;           // 111 (Country/Region code)
+  localGeoArea?: string;      // 112
+  startDate?: string;         // 113
+  endDate?: string;           // 114
+  description?: string;       // 115
+  consequences?: string;      // 116 (Number/Impact)
+  notes?: string;             // 150
+  violationStatus?: string;   // 151
+  violationIndex?: string[];  // 152
+  affectedRights?: string[];  // 153
+  huridocsIndex?: string[];   // 154
   monitoringStatus?: string;  // 172
 }
 
 /**
- * EVENT FORMAT (HURIDOCS ESF)
- * Feld-Tags 101–172
+ * ACT FORMAT (2100 Series)
+ * Specific act (violation) against a specific victim.
+ * Links Person (Victim) <-> Event
  */
-export interface EsfEventRecord extends EsfBaseRecord {
-  // Identifikatoren
-  eventRecordNumber: string;  // 101 (Primärschlüssel)
-  eventTitle?: string;        // 102
-  confidentiality?: string;   // 108
-
-  // Faktische / beschreibende Daten
-  geoTerm?: string;           // 111 Geografischer Begriff
-  localGeoArea?: string;      // 112 Lokales geografisches Gebiet
-  startDate?: string;         // 113 Erstes Datum (ISO)
-  endDate?: string;           // 114 Endgültiges Datum (ISO)
-  description?: string;       // 115 Ereignisbeschreibung
-  consequences?: string;      // 116 Auswirkungen des Ereignisses
-
-  // Analytische Felder
-  notes?: string;             // 150 Bemerkungen
-  violationStatus?: string;   // 151 Status des Verstoßes
-  violationIndex?: string;    // 152 Index der Verstöße
-  affectedRights?: string[];  // 153 Betroffene Rechte
-  huridocsIndex?: string;     // 154 HURIDOCS-Index
-  localIndex?: string;        // 155 Lokaler Index
-  otherThesaurus?: string;    // 156 Anderer Thesaurus
-}
-
-/**
- * PERSON FORMAT (HURIDOCS ESF)
- */
-export type EsfPersonRole =
-  | 'victim'
-  | 'perpetrator'
-  | 'information_source'
-  | 'intervening_party'
-  | 'other';
-
-export interface EsfPersonRecord extends EsfBaseRecord {
-  personRecordNumber: string; // 901 (Primärschlüssel)
-
-  // Identifikationsdaten
-  fullNameOrGroupName: string; // 902 Name
+export interface EsfActRecord extends EsfBaseRecord {
+  eventId: string;            // Link to Event (2103)
+  victimId: string;           // Link to Person (2102)
   
-  // Erweiterte ESF Felder
-  sex?: string;                // 907
-  dateOfBirth?: string;        // 908
-  occupation?: string;         // 913
+  actType?: string;           // 2109
+  startDate?: string;         // 2111
+  location?: string;          // 2112
+  reason?: string;            // 2113
+  method?: string;            // 2114
+  attribution?: string;       // 2115
+  physicalConsequences?: string; // 2116
+  psychologicalConsequences?: string; // 2117
+  ageAtIncident?: number;     // 2118
+  endDate?: string;           // 2121
+  locationEnd?: string;       // 2122
+  statusEnd?: string;         // 2123
+  notes?: string;             // 2150
+  victimCharacteristics?: string[]; // 2152
+  locationType?: string;      // 2153
+  domesticLaw?: string;       // 2154
+  internationalLaw?: string;  // 2155
 
-  roles?: EsfPersonRole[];     // Rolle im Kontext
+  // Additional Details (Appendices)
+  detentionDetails?: {
+      custodyType?: string;   // 3112
+      conditions?: string;    // 3113
+      access?: string;        // 3114
+      legalCounsel?: string;  // 3115
+  };
+  tortureDetails?: {
+      signedStatement?: string; // 3311
+      medicalCare?: string;     // 3312
+      intent?: string;          // 3351
+  };
 }
 
 /**
- * GENERISCHE LINK-BASIS (für Act, Involvement, Chain of Events)
+ * PERSON FORMAT (900 Series)
+ * Can be Victim, Perpetrator, Source, or Intervenor.
  */
-export interface EsfLinkBase extends EsfBaseRecord {
-  id: string;             // Interner Schlüssel (Required for Links)
-  fromRecordId: string;   // Referenz 1 (z.B. Event / Person)
-  toRecordId: string;     // Referenz 2 (z.B. Person / Act)
-  linkType?: string;      // 09 – Art der Verbindung
+export interface EsfPersonRecord extends EsfBaseRecord {
+  fullNameOrGroupName: string; // 903
+  countingUnit?: string;       // 902 (Individual, Family, Group...)
+  otherNames?: string;         // 904
+  addressType?: string;        // 910
+  dateOfBirth?: string;        // 911
+  placeOfBirth?: string;       // 912
+  sex?: string;                // 915
+  sexualOrientation?: string;  // 916
+  idDocuments?: string;        // 917
+  civilStatus?: string;        // 918
+  dependents?: string;         // 919
+  education?: string;          // 920
+  occupation?: string;         // 922 (ILO)
+  health?: string;             // 924
+  religion?: string;           // 940
+  citizenship?: string;        // 941
+  ethnicity?: string;          // 942
+  language?: string;           // 945
+  sourceReliability?: string;  // 953
 }
 
-/** Beispiel: Act-Link (Tat gegen Opfer) */
-export interface EsfActLink extends EsfLinkBase {
-  eventId?: string;           // Optional link to specific Event (if not via direct link logic)
-  actDescription?: string;    // faktische/beschreibende Daten 10–49
-  actClassification?: string; // analytisches Feld (z.B. Art der Tat - Tag 2101)
-  actMethod?: string;         // Tag 2102: Methode
+/**
+ * INVOLVEMENT FORMAT (2400 Series)
+ * Links Person (Perpetrator) <-> Act
+ */
+export interface EsfInvolvementRecord extends EsfBaseRecord {
+  perpetratorId: string;      // Link to Person (2402)
+  actId: string;              // Link to Act (2404)
+  eventId?: string;           // Indirect Link to Event (2403)
+  
+  involvementRole?: string;   // 2409 (Commanded, Executed, etc.)
+  perpetratorType?: string;   // 2412 (Police, Military, etc.)
+  lastStatus?: string;        // 2422 (Punished, Promoted...)
+  notes?: string;             // 2450
 }
 
-/** Beispiel: Involvement-Link (Beteiligung eines Täters an Tat) */
-export interface EsfInvolvementLink extends EsfLinkBase {
-  involvementRole?: string;   // Rolle des Täters in der konkreten Tat
+/**
+ * INFORMATION FORMAT (2500 Series)
+ * Links Person (Source) <-> Event or Person
+ */
+export interface EsfInformationRecord extends EsfBaseRecord {
+  sourceId: string;           // Link to Person (Source) (2502)
+  eventId?: string;           // Link to Event (2503)
+  relatedPersonId?: string;   // Link to Person (Subject) (2504)
+  
+  relationshipToInfo?: string; // 2509 (Eyewitness, Hearsay...)
+  language?: string;          // 2510
+  dateOfSource?: string;      // 2511
+  sourceType?: string;        // 2512 (Affidavit, Interview...)
+  reliability?: string;       // 2553
+  notes?: string;             // 2550
 }
 
-// Container für Analyse-Ergebnisse
+/**
+ * INTERVENTION FORMAT (2600 Series)
+ * Links Person (Intervenor) <-> Event or Victim
+ */
+export interface EsfInterventionRecord extends EsfBaseRecord {
+  intervenorId: string;       // Link to Person (Intervenor) (2602)
+  eventId?: string;           // Link to Event (2603)
+  victimId?: string;          // Link to Person (Victim) (2604)
+  
+  interventionType?: string;  // 2609 (Legal aid, Medical aid...)
+  date?: string;              // 2611
+  requestedParty?: string;    // 2612
+  response?: string;          // 2613
+  effect?: string;            // 2614
+  status?: string;            // 2651
+  priority?: string;          // 2652
+  notes?: string;             // 2650
+}
+
 export interface EsfAnalysisResult {
     events: EsfEventRecord[];
     persons: EsfPersonRecord[];
-    actLinks: EsfActLink[];
-    involvementLinks: EsfInvolvementLink[];
+    actLinks: EsfActRecord[];
+    involvementLinks: EsfInvolvementRecord[];
+    informationLinks: EsfInformationRecord[];
+    interventionLinks: EsfInterventionRecord[];
 }

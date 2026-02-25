@@ -7,11 +7,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MRV Assistant | Professional Forensic Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://aistudiocdn.com/reactflow@^11.11.4/dist/style.css" />
     
+    <!-- POLYFILL: crypto.randomUUID für ältere Browser/Umgebungen -->
+    <script>
+      if (!crypto.randomUUID) {
+        crypto.randomUUID = function() {
+          return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+          );
+        };
+      }
+    </script>
+
     <!-- GLOBAL SAFETY NET: Fängt Fehler ab, bevor die App lädt -->
     <script>
       window.onerror = function(msg, url, line, col, error) {
@@ -36,6 +48,292 @@
         }
         return false; // Fehler auch in Konsole ausgeben
       };
+    </script>
+
+    <!-- MRV-ASSISTENT FRONTEND CONNECTOR -->
+    <script>
+    /**
+     * ============================================================================
+     * MRV-ASSISTENT FRONTEND CONNECTOR
+     * ============================================================================
+     *
+     * JavaScript-Connector für die Verbindung zwischen Canvas App und
+     * Google Sheets Backend über Google Apps Script Web App
+     */
+
+    const MRV = {
+      // ========================================================================
+      // KONFIGURATION
+      // ========================================================================
+
+      config: {
+        // Google Apps Script Web App URL
+        WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbyCQ7Ug68R-qMmT8_-0AZhNMC2GAUa4AupGsPGWM8DmyxOqHe3PGtdxO5CBiWiPT2jX/exec',
+
+        // Alternative: Apps Script Execution API
+        EXECUTION_API_URL: 'https://script.googleapis.com/v1/scripts/AKfycbyCQ7Ug68R-qMmT8_-0AZhNMC2GAUa4AupGsPGWM8DmyxOqHe3PGtdxO5CBiWiPT2jX:run',
+
+        // Timeout für Anfragen (ms)
+        TIMEOUT: 30000,
+
+        // Retry-Einstellungen
+        MAX_RETRIES: 3,
+        RETRY_DELAY: 1000,
+
+        // Debug-Modus
+        DEBUG: true
+      },
+
+      // ========================================================================
+      // INITIALISIERUNG
+      // ========================================================================
+
+      /**
+       * Initialisiert den Connector und testet die Verbindung
+       */
+      async init(customUrl = null) {
+        if (customUrl) {
+          this.config.WEB_APP_URL = customUrl;
+        }
+
+        this.log('Initialisiere MRV Connector...');
+
+        try {
+          const status = await this.getStatus();
+          this.log('Verbindung erfolgreich!', status);
+          return { success: true, status };
+        } catch (error) {
+          this.log('Verbindungsfehler:', error);
+          return { success: false, error: error.message };
+        }
+      },
+
+      // ========================================================================
+      // HTTP METHODEN
+      // ========================================================================
+
+      /**
+       * GET-Anfrage an das Backend
+       */
+      async get(action, params = {}) {
+        const url = new URL(this.config.WEB_APP_URL);
+        url.searchParams.set('action', action);
+
+        Object.keys(params).forEach(key => {
+          if (params[key] !== undefined && params[key] !== null) {
+            url.searchParams.set(key, params[key]);
+          }
+        });
+
+        this.log(`GET ${action}`, params);
+
+        return this.fetchWithRetry(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+      },
+
+      /**
+       * POST-Anfrage an das Backend
+       */
+      async post(action, data = {}) {
+        const payload = { action, ...data };
+
+        this.log(`POST ${action}`, data);
+
+        return this.fetchWithRetry(this.config.WEB_APP_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8', // Google Apps Script hack for CORS
+          },
+          body: JSON.stringify(payload)
+        });
+      },
+
+      /**
+       * Fetch mit automatischen Retries
+       */
+      async fetchWithRetry(url, options, retries = 0) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), this.config.TIMEOUT);
+
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          return data;
+        } catch (error) {
+          if (retries < this.config.MAX_RETRIES && !error.message.includes('abort')) {
+            this.log(`Retry ${retries + 1}/${this.config.MAX_RETRIES}...`);
+            await this.sleep(this.config.RETRY_DELAY * (retries + 1));
+            return this.fetchWithRetry(url, options, retries + 1);
+          }
+          throw error;
+        }
+      },
+
+      // ========================================================================
+      // SYSTEM
+      // ========================================================================
+
+      async getStatus() { return this.get('status'); },
+      async getSchema() { return this.get('schema'); },
+      async getThesauri() { return this.get('thesauri'); },
+
+      // ========================================================================
+      // DOKUMENT-OPERATIONEN
+      // ========================================================================
+
+      async addDocument(document) { return this.post('addDocument', { data: document }); },
+      async processDocument(documentId) { return this.post('processDocument', { documentId }); },
+      async getDocuments() { return this.get('documents'); },
+      async deleteDocument(documentId) { return this.post('deleteDocument', { documentId }); },
+      async addAndProcessDocument(document) {
+        const addResult = await this.addDocument(document);
+        if (addResult.success) {
+          const processResult = await this.processDocument(addResult.documentId);
+          return { ...addResult, processing: processResult };
+        }
+        return addResult;
+      },
+
+      // ========================================================================
+      // SEMANTISCHE SUCHE & RAG
+      // ========================================================================
+
+      async search(query, limit = 5) { return this.get('search', { query, limit }); },
+      async ask(question, context = '') { return this.post('askKnowledge', { question, context }); },
+      async embed(text) { return this.post('embed', { text }); },
+
+      // ========================================================================
+      // AI-ANALYSE
+      // ========================================================================
+
+      async analyze(text, options = {}) { return this.post('analyze', { text, options }); },
+      async extractEntities(text) { return this.post('extractEntities', { text }); },
+      async classify(text, thesaurusId) { return this.post('classify', { text, thesaurusId }); },
+
+      // ========================================================================
+      // ESF DATEN-OPERATIONEN
+      // ========================================================================
+
+      async addEvent(eventData) { return this.post('addEvent', { data: eventData }); },
+      async addPerson(personData) { return this.post('addPerson', { data: personData }); },
+      async addAct(actData) { return this.post('addAct', { data: actData }); },
+      async getEvents(filter = null) { return this.get('events', { filter: filter ? JSON.stringify(filter) : null }); },
+      async getPersons(filter = null) { return this.get('persons', { filter: filter ? JSON.stringify(filter) : null }); },
+      async updateRecord(table, id, data) { return this.post('updateRecord', { table, id, data }); },
+      async deleteRecord(table, id) { return this.post('deleteRecord', { table, id }); },
+
+      // ========================================================================
+      // BATCH & EXPORT
+      // ========================================================================
+
+      async batchImport(table, records) { return this.post('batchImport', { table, records }); },
+      async batchProcess(documentIds) { return this.post('batchProcess', { documentIds }); },
+      async export(format = 'json', tables = null) { return this.post('export', { format, tables }); },
+
+      // ========================================================================
+      // HILFSFUNKTIONEN
+      // ========================================================================
+
+      log(...args) {
+        if (this.config.DEBUG) {
+          console.log('[MRV]', ...args);
+        }
+      },
+
+      sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      },
+
+      // ========================================================================
+      // CONVENIENCE FUNKTIONEN
+      // ========================================================================
+
+      async fullDocumentAnalysis(document) {
+        this.log('Starte vollständige Dokumentenanalyse...');
+        const addResult = await this.addDocument(document);
+        if (!addResult.success) return { success: false, step: 'add', error: addResult.error };
+
+        const processResult = await this.processDocument(addResult.documentId);
+        if (!processResult.success) return { success: false, step: 'process', error: processResult.error, documentId: addResult.documentId };
+
+        const entities = await this.extractEntities(document.inhalt);
+        const classification = await this.classify(document.inhalt, 'MT02');
+
+        return {
+          success: true,
+          documentId: addResult.documentId,
+          chunksCreated: processResult.chunksCreated,
+          embeddingsCreated: processResult.embeddingsCreated,
+          entities: entities.entities || {},
+          classification: classification
+        };
+      },
+
+      createQASession() {
+        return {
+          history: [],
+          connector: this,
+          async ask(question) {
+            const context = this.history.slice(-5).map(h => `Q: ${h.q}\nA: ${h.a}`).join('\n\n');
+            const result = await this.connector.ask(question, context);
+            if (result.success) this.history.push({ q: question, a: result.answer });
+            return result;
+          },
+          clear() { this.history = []; }
+        };
+      }
+    };
+
+    // UI Utilities
+    const MRVUI = {
+      createStatusBadge(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = `<div class="mrv-status" id="mrv-status-badge"><span class="mrv-status-dot"></span><span class="mrv-status-text">Verbinde...</span></div>`;
+        MRV.getStatus().then(status => {
+          const badge = document.getElementById('mrv-status-badge');
+          if(badge) badge.innerHTML = `<span class="mrv-status-dot online"></span><span class="mrv-status-text">Online (${status.tablesCount || '?'} Tabellen)</span>`;
+        }).catch(err => {
+          const badge = document.getElementById('mrv-status-badge');
+          if(badge) badge.innerHTML = `<span class="mrv-status-dot offline"></span><span class="mrv-status-text">Offline</span>`;
+        });
+      }
+    };
+    
+    // Inject styles
+    (function() {
+        const style = document.createElement('style');
+        style.textContent = `
+          .mrv-status { display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 20px; background: rgba(255,255,255,0.1); font-size: 12px; color: #cbd5e1; }
+          .mrv-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ffc107; animation: pulse 1s infinite; }
+          .mrv-status-dot.online { background: #4caf50; animation: none; }
+          .mrv-status-dot.offline { background: #f44336; animation: none; }
+        `;
+        document.head.appendChild(style);
+    })();
+    
+    // Global Access
+    window.MRV = MRV;
+    window.MRVUI = MRVUI;
     </script>
 
     <script>
@@ -90,7 +388,13 @@
     "wink-eng-lite-web-model": "https://cdn.jsdelivr.net/npm/wink-eng-lite-web-model@1.7.1/+esm",
     "tesseract.js": "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/+esm",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "dotenv": "https://esm.sh/dotenv@^17.2.4",
+    "cors": "https://esm.sh/cors@^2.8.6",
+    "express": "https://esm.sh/express@^5.2.1",
+    "@prisma/client": "https://esm.sh/@prisma/client@^7.3.0",
+    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0",
+    "zod": "https://esm.sh/zod@^4.3.6"
   }
 }
 </script>
@@ -110,5 +414,17 @@
       </style>
     </div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      // Starte MRV Connector Check nach Load
+      window.addEventListener('load', () => {
+        console.log('Testing MRV Connector...');
+        if(window.MRV) {
+          window.MRV.init().then(res => {
+            if(res.success) console.log('MRV Backend connected:', res.status);
+            else console.warn('MRV Backend unavailable:', res.error);
+          });
+        }
+      });
+    </script>
 </body>
 </html>

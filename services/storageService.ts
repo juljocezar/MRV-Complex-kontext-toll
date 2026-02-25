@@ -1,20 +1,43 @@
-
 import { 
     Document, GeneratedDocument, CaseEntity, KnowledgeItem, TimelineEvent, Tag, 
     Contradiction, CaseContext, Task, Risks, KPI, AppState, Insight, 
     AgentActivity, AuditLogEntry, AppSettings, EthicsAnalysis, CaseSummary, DocumentAnalysisResult,
     ArgumentationAnalysis,
     SuggestedEntity,
-    ForensicDossier
+    ForensicDossier,
+    DocumentChunk
 } from '../types';
-import { EsfEventRecord, EsfPersonRecord, EsfActLink, EsfInvolvementLink } from '../types/esf';
+import { 
+    EsfEventRecord, 
+    EsfPersonRecord, 
+    EsfActRecord, 
+    EsfInvolvementRecord, 
+    EsfInformationRecord, 
+    EsfInterventionRecord 
+} from '../types/esf';
+import { ApiService } from './apiService';
+import { z } from 'zod'; // Ensure zod is installed
+
+// FEATURE FLAG: Control Hybrid Mode via Environment Variable
+const getUseBackendFlag = (): boolean => {
+    try {
+        if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+            return (import.meta as any).env.VITE_USE_BACKEND === 'true';
+        }
+    } catch (e) {}
+    return false;
+};
+
+const USE_BACKEND = getUseBackendFlag();
 
 const DB_NAME = 'MRVAssistantDB';
-const DB_VERSION = 5; // Bump to version 5 for Clean ESF Stores
+const DB_VERSION = 12;
 let db: IDBDatabase;
 
+// --- STORE DEFINITIONS ---
 export const STORES = {
     documents: 'documents',
+    chunks: 'chunks',
     generatedDocuments: 'generatedDocuments',
     entities: 'entities',
     knowledgeItems: 'knowledgeItems',
@@ -36,11 +59,12 @@ export const STORES = {
     argumentationAnalysis: 'argumentationAnalysis',
     suggestedEntities: 'suggestedEntities',
     dossiers: 'dossiers',
-    // HURIDOCS ESF Clean Stores
-    esfEvents: 'events',
-    esfPersons: 'persons',
-    esfActLinks: 'actLinks',
-    esfInvolvementLinks: 'involvementLinks'
+    esfEvents: 'esfEvents',
+    esfPersons: 'esfPersons',
+    esfActLinks: 'esfActLinks',
+    esfInvolvementLinks: 'esfInvolvementLinks',
+    esfInformationLinks: 'esfInformationLinks',
+    esfInterventionLinks: 'esfInterventionLinks'
 };
 
 const SINGLE_RECORD_STORES = new Set([
@@ -49,425 +73,292 @@ const SINGLE_RECORD_STORES = new Set([
     STORES.argumentationAnalysis
 ]);
 
+// --- SCHEMA VALIDATION (ZOD) ---
+// Basic schema to validate import structure. Can be expanded for strict type checking.
+const ImportSchema = z.record(z.string(), z.union([z.array(z.any()), z.record(z.any()), z.null(), z.undefined()]));
+
+// --- IDB INIT ---
 export const initDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
-        if (db) {
-            return resolve(db);
-        }
-
+        if (db) return resolve(db);
         const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = (event) => {
-            console.error('Database error:', (event.target as IDBOpenDBRequest).error);
-            reject('Database error: ' + (event.target as IDBOpenDBRequest).error);
-        };
-
-        request.onsuccess = (event) => {
-            db = (event.target as IDBOpenDBRequest).result;
-            resolve(db);
-        };
-
-        request.onupgradeneeded = (event) => {
-            const tempDb = (event.target as IDBOpenDBRequest).result;
+        request.onerror = (e) => reject((e.target as IDBOpenDBRequest).error);
+        request.onsuccess = (e) => { db = (e.target as IDBOpenDBRequest).result; resolve(db); };
+        request.onupgradeneeded = (e) => {
+            const tempDb = (e.target as IDBOpenDBRequest).result;
+            // Create all stores
             Object.values(STORES).forEach(storeName => {
                 if (!tempDb.objectStoreNames.contains(storeName)) {
                     let keyPath = 'id';
-                    // Special key paths for ESF
-                    if (storeName === STORES.esfEvents) keyPath = 'eventRecordNumber';
-                    if (storeName === STORES.esfPersons) keyPath = 'personRecordNumber';
-                    if (storeName === STORES.documentAnalysisResults) keyPath = 'docId';
+                    // Using indexOf instead of includes to avoid potential argument mismatch errors in some environments
+                    const esfStores = ['esfEvents', 'esfPersons', 'esfActLinks', 'esfInvolvementLinks', 'esfInformationLinks', 'esfInterventionLinks'];
+                    if (esfStores.indexOf(storeName) !== -1) {
+                        keyPath = 'recordNumber';
+                    }
+                    if (storeName === STORES.documentAnalysisResults) {
+                        keyPath = 'docId';
+                    }
                     
                     const store = tempDb.createObjectStore(storeName, { keyPath });
-                    
-                    // Standard Indexes
                     if (storeName === STORES.tags) store.createIndex('name', 'name', { unique: true });
                     if (storeName === STORES.timelineEvents) store.createIndex('date', 'date', { unique: false });
-                    
-                    // ESF Indexes
-                    if (storeName === STORES.esfEvents) {
-                        store.createIndex('by-violationStatus', 'violationStatus', { unique: false });
-                        store.createIndex('by-geoTerm', 'geoTerm', { unique: false });
-                        store.createIndex('by-startDate', 'startDate', { unique: false });
-                    }
-                    if (storeName === STORES.esfPersons) {
-                        store.createIndex('by-name', 'fullNameOrGroupName', { unique: false });
-                        store.createIndex('by-role', 'roles', { multiEntry: true });
-                    }
-                    if (storeName === STORES.esfActLinks) {
-                        store.createIndex('by-from', 'fromRecordId', { unique: false });
-                        store.createIndex('by-to', 'toRecordId', { unique: false });
-                    }
-                    if (storeName === STORES.esfInvolvementLinks) {
-                        store.createIndex('by-from', 'fromRecordId', { unique: false });
-                        store.createIndex('by-to', 'toRecordId', { unique: false });
-                    }
+                    if (storeName === STORES.chunks) store.createIndex('by-docId', 'docId', { unique: false });
                 }
             });
         };
     });
 };
 
+// --- BASE IDB HELPERS ---
 const getStore = (storeName: string, mode: IDBTransactionMode) => {
-    // Defensive check: If DB init failed, we might not have a DB instance
     if (!db) throw new Error("Database not initialized");
-    
-    // Defensive check: Ensure store exists before transaction
-    if (!db.objectStoreNames.contains(storeName)) {
-        throw new Error(`Store '${storeName}' not found in database version ${db.version}`);
-    }
-    
-    const transaction = db.transaction(storeName, mode);
-    return transaction.objectStore(storeName);
+    return db.transaction(storeName, mode).objectStore(storeName);
 };
 
-// Generic CRUD helpers
-const add = <T>(storeName: string, item: T): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        try {
-            const store = getStore(storeName, 'readwrite');
-            const request = store.add(item);
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject((e.target as IDBRequest).error);
-        } catch (e) {
-            reject(e);
-        }
-    });
+const idbAdd = <T>(storeName: string, item: T) => new Promise<void>((res, rej) => {
+    const req = getStore(storeName, 'readwrite').add(item);
+    req.onsuccess = () => res();
+    req.onerror = () => rej(req.error);
+});
+
+const idbGetAll = <T>(storeName: string) => new Promise<T[]>((res, rej) => {
+    const req = getStore(storeName, 'readonly').getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+});
+
+const idbGetOne = <T>(storeName: string, key: IDBValidKey) => new Promise<T | undefined>((res, rej) => {
+    const req = getStore(storeName, 'readonly').get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+});
+
+const idbUpdate = <T>(storeName: string, item: T) => new Promise<void>((res, rej) => {
+    const req = getStore(storeName, 'readwrite').put(item);
+    req.onsuccess = () => res();
+    req.onerror = () => rej(req.error);
+});
+
+const idbDelete = (storeName: string, id: string) => new Promise<void>((res, rej) => {
+    const req = getStore(storeName, 'readwrite').delete(id);
+    req.onsuccess = () => res();
+    req.onerror = () => rej(req.error);
+});
+
+const idbAddMultiple = <T>(storeName: string, items: T[]) => new Promise<void>((res, rej) => {
+    if (!items.length) return res();
+    const tx = db.transaction(storeName, 'readwrite');
+    items.forEach(i => tx.objectStore(storeName).put(i));
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+});
+
+const idbClearStore = (storeName: string) => new Promise<void>((res, rej) => {
+    const req = getStore(storeName, 'readwrite').clear();
+    req.onsuccess = () => res();
+    req.onerror = () => rej(req.error);
+});
+
+// --- HELPER: Hybrid Sync Error Handling ---
+// Logs error but doesn't block local execution, yet signals warning
+const handleBackendError = (operation: string, error: unknown) => {
+    console.error(`Backend Sync Failed [${operation}]:`, error);
+    // In a real app, dispatch to a global error queue for UI indication
 };
 
-const getAll = <T>(storeName: string): Promise<T[]> => {
-    return new Promise((resolve, reject) => {
-        try {
-            // Safety: if store doesn't exist, return empty array instead of crashing app
-            if (!db || !db.objectStoreNames.contains(storeName)) {
-                console.warn(`Safe getAll: Store '${storeName}' missing. Returning empty array.`);
-                return resolve([]);
-            }
-            const store = getStore(storeName, 'readonly');
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = (e) => reject((e.target as IDBRequest).error);
-        } catch (e) {
-            console.error(`Error in getAll for ${storeName}`, e);
-            resolve([]); // Fallback to empty array on critical error
-        }
-    });
+// --- HYBRID EXPORTS ---
+
+// DOCUMENTS
+export const addDocument = async (doc: Document) => {
+    if (USE_BACKEND) try { return await ApiService.createDocument(doc); } catch(e) { handleBackendError('createDocument', e); }
+    return idbAdd(STORES.documents, doc);
+};
+export const getAllDocuments = async () => {
+    if (USE_BACKEND) try { return await ApiService.getDocuments(); } catch(e) { handleBackendError('getDocuments', e); }
+    return idbGetAll<Document>(STORES.documents);
+};
+export const updateDocument = async (doc: Document) => {
+    if (USE_BACKEND) try { return await ApiService.updateDocument(doc); } catch(e) { handleBackendError('updateDocument', e); }
+    return idbUpdate(STORES.documents, doc);
 };
 
-const getOne = <T>(storeName: string, key: IDBValidKey): Promise<T | undefined> => {
-    return new Promise((resolve, reject) => {
-        try {
-            if (!db || !db.objectStoreNames.contains(storeName)) {
-                return resolve(undefined);
-            }
-            const store = getStore(storeName, 'readonly');
-            const request = store.get(key);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = (e) => reject((e.target as IDBRequest).error);
-        } catch (e) {
-            resolve(undefined);
-        }
-    });
+// ENTITIES
+export const getAllEntities = async () => {
+    if (USE_BACKEND) try { return await ApiService.getEntities(); } catch(e) { handleBackendError('getEntities', e); }
+    return idbGetAll<CaseEntity>(STORES.entities);
+};
+export const saveAllEntities = async (items: CaseEntity[]) => {
+    if (USE_BACKEND) try { return await ApiService.saveAllEntities(items); } catch(e) { handleBackendError('saveAllEntities', e); }
+    await idbClearStore(STORES.entities); return idbAddMultiple(STORES.entities, items);
+};
+export const addEntity = (e: CaseEntity) => idbAdd(STORES.entities, e);
+export const updateEntity = (e: CaseEntity) => idbUpdate(STORES.entities, e);
+
+// TIMELINE
+export const getAllTimelineEvents = async () => {
+    if (USE_BACKEND) try { return await ApiService.getTimeline(); } catch(e) { handleBackendError('getTimeline', e); }
+    return idbGetAll<TimelineEvent>(STORES.timelineEvents);
+};
+export const saveAllTimelineEvents = async (items: TimelineEvent[]) => {
+    if (USE_BACKEND) try { return await ApiService.saveAllTimelineEvents(items); } catch(e) { handleBackendError('saveAllTimelineEvents', e); }
+    await idbClearStore(STORES.timelineEvents); return idbAddMultiple(STORES.timelineEvents, items);
 };
 
-const update = <T>(storeName: string, item: T): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        try {
-            const store = getStore(storeName, 'readwrite');
-            const request = store.put(item);
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject((e.target as IDBRequest).error);
-        } catch(e) {
-            reject(e);
-        }
-    });
+// KNOWLEDGE
+export const getAllKnowledgeItems = async () => {
+    if (USE_BACKEND) try { return await ApiService.getKnowledgeItems(); } catch(e) { handleBackendError('getKnowledgeItems', e); }
+    return idbGetAll<KnowledgeItem>(STORES.knowledgeItems);
+};
+export const saveAllKnowledgeItems = async (items: KnowledgeItem[]) => {
+    if (USE_BACKEND) try { return await ApiService.saveAllKnowledgeItems(items); } catch(e) { handleBackendError('saveAllKnowledgeItems', e); }
+    await idbClearStore(STORES.knowledgeItems); return idbAddMultiple(STORES.knowledgeItems, items);
+};
+export const addKnowledgeItem = (item: KnowledgeItem) => idbAdd(STORES.knowledgeItems, item);
+export const addMultipleKnowledgeItems = (items: KnowledgeItem[]) => idbAddMultiple(STORES.knowledgeItems, items);
+export const updateKnowledgeItem = (item: KnowledgeItem) => idbUpdate(STORES.knowledgeItems, item);
+
+// SINGLETONS (Hybrid)
+export const getCaseContext = async () => {
+    if (USE_BACKEND) try { return await ApiService.getContext(); } catch(e) { handleBackendError('getContext', e); }
+    return idbGetOne<CaseContext>(STORES.caseContext, 1);
+};
+export const saveCaseContext = async (ctx: CaseContext) => {
+    if (USE_BACKEND) try { await ApiService.saveContext(ctx); } catch(e) { handleBackendError('saveContext', e); }
+    return idbUpdate(STORES.caseContext, { ...ctx, id: 1 });
 };
 
-export const deleteItem = (storeName: string, id: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        try {
-            const store = getStore(storeName, 'readwrite');
-            const request = store.delete(id);
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject((e.target as IDBRequest).error);
-        } catch(e) {
-            reject(e);
-        }
-    });
+export const getRisks = async () => {
+    if (USE_BACKEND) try { return await ApiService.getRisks(); } catch(e) { handleBackendError('getRisks', e); }
+    return idbGetOne<Risks>(STORES.risks, 1);
+};
+export const saveRisks = async (risks: Risks) => {
+    if (USE_BACKEND) try { await ApiService.saveRisks(risks); } catch(e) { handleBackendError('saveRisks', e); }
+    return idbUpdate(STORES.risks, { ...risks, id: 1 });
 };
 
-const clearStore = (storeName: string): Promise<void> => {
-     return new Promise((resolve, reject) => {
-        try {
-            const store = getStore(storeName, 'readwrite');
-            const request = store.clear();
-            request.onsuccess = () => resolve();
-            request.onerror = (e) => reject((e.target as IDBRequest).error);
-        } catch(e) {
-            reject(e);
-        }
-    });
+export const getSettings = async () => {
+    if (USE_BACKEND) try { return await ApiService.getSettings(); } catch(e) { handleBackendError('getSettings', e); }
+    return idbGetOne<AppSettings>(STORES.settings, 1);
+};
+export const saveSettings = async (set: AppSettings) => {
+    if (USE_BACKEND) try { await ApiService.saveSettings(set); } catch(e) { handleBackendError('saveSettings', e); }
+    return idbUpdate(STORES.settings, { ...set, id: 1 });
 };
 
-export const addMultiple = <T extends { id?: any }>(storeName: string, items: T[]): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        if (!items || items.length === 0) return resolve();
-        try {
-            const transaction = db.transaction(storeName, 'readwrite');
-            const store = transaction.objectStore(storeName);
-            items.forEach(item => store.put(item as any));
-            transaction.oncomplete = () => resolve();
-            transaction.onerror = () => reject(transaction.error);
-        } catch (e) {
-            reject(e);
-        }
-    });
-}
-
-// --- STANDARD ENTITIES ---
-export const addDocument = (doc: Document) => add(STORES.documents, doc);
-export const getAllDocuments = () => getAll<Document>(STORES.documents);
-export const updateDocument = (doc: Document) => update(STORES.documents, doc);
-
-export const addGeneratedDocument = (doc: GeneratedDocument) => add(STORES.generatedDocuments, doc);
-export const getAllGeneratedDocuments = () => getAll<GeneratedDocument>(STORES.generatedDocuments);
-
-export const addEntity = (entity: CaseEntity) => add(STORES.entities, entity);
-export const updateEntity = (entity: CaseEntity) => update(STORES.entities, entity);
-export const getAllEntities = () => getAll<CaseEntity>(STORES.entities);
-export const addMultipleEntities = (items: CaseEntity[]) => addMultiple(STORES.entities, items);
-
-export const addKnowledgeItem = (item: KnowledgeItem) => add(STORES.knowledgeItems, item);
-export const getAllKnowledgeItems = () => getAll<KnowledgeItem>(STORES.knowledgeItems);
-export const addMultipleKnowledgeItems = (items: KnowledgeItem[]) => addMultiple(STORES.knowledgeItems, items);
-export const updateKnowledgeItem = (item: KnowledgeItem) => update(STORES.knowledgeItems, item);
-
-export const getAllTimelineEvents = () => getAll<TimelineEvent>(STORES.timelineEvents);
-export const addMultipleTimelineEvents = (items: TimelineEvent[]) => addMultiple(STORES.timelineEvents, items);
-
-export const addMultipleContradictions = (items: Contradiction[]) => addMultiple(STORES.contradictions, items);
-export const saveAllContradictions = async (items: Contradiction[]) => { await clearStore(STORES.contradictions); await addMultiple(STORES.contradictions, items); };
-export const getAllContradictions = () => getAll<Contradiction>(STORES.contradictions);
-
-export const getCaseContext = () => getOne<CaseContext>(STORES.caseContext, 1);
-export const saveCaseContext = (context: CaseContext) => update(STORES.caseContext, { ...context, id: 1 });
-
-export const getAllKpis = () => getAll<KPI>(STORES.kpis);
-export const addMultipleKpis = (items: KPI[]) => addMultiple(STORES.kpis, items);
-
-export const addTag = (tag: Tag) => add(STORES.tags, tag);
-export const addMultipleTags = (tags: Tag[]) => addMultiple(STORES.tags, tags);
-export const getAllTags = () => getAll<Tag>(STORES.tags);
-export const deleteTag = (tagId: string) => deleteItem(STORES.tags, tagId);
-
-// --- ESF CRUD ---
-export const saveEsfEvent = (event: EsfEventRecord) => update(STORES.esfEvents, event);
-export const getAllEsfEvents = () => getAll<EsfEventRecord>(STORES.esfEvents);
-export const addMultipleEsfEvents = (items: EsfEventRecord[]) => addMultiple(STORES.esfEvents, items);
-
-export const saveEsfPerson = (person: EsfPersonRecord) => update(STORES.esfPersons, person);
-export const getAllEsfPersons = () => getAll<EsfPersonRecord>(STORES.esfPersons);
-export const addMultipleEsfPersons = (items: EsfPersonRecord[]) => addMultiple(STORES.esfPersons, items);
-
-export const saveEsfActLink = (link: EsfActLink) => update(STORES.esfActLinks, link);
-export const getAllEsfActLinks = () => getAll<EsfActLink>(STORES.esfActLinks);
-export const addMultipleEsfActLinks = (items: EsfActLink[]) => addMultiple(STORES.esfActLinks, items);
-
-export const saveEsfInvolvementLink = (link: EsfInvolvementLink) => update(STORES.esfInvolvementLinks, link);
-export const getAllEsfInvolvementLinks = () => getAll<EsfInvolvementLink>(STORES.esfInvolvementLinks);
-export const addMultipleEsfInvolvementLinks = (items: EsfInvolvementLink[]) => addMultiple(STORES.esfInvolvementLinks, items);
-
-
-// --- FULL SAVE/RESTORE ---
-export const saveAllDocuments = async (items: Document[]) => { await clearStore(STORES.documents); await addMultiple(STORES.documents, items); };
-export const saveAllGeneratedDocuments = async (items: GeneratedDocument[]) => { await clearStore(STORES.generatedDocuments); await addMultiple(STORES.generatedDocuments, items); };
-export const saveAllEntities = async (items: CaseEntity[]) => { await clearStore(STORES.entities); await addMultiple(STORES.entities, items); };
-export const saveAllKnowledgeItems = async (items: KnowledgeItem[]) => { await clearStore(STORES.knowledgeItems); await addMultiple(STORES.knowledgeItems, items); };
-export const saveAllTimelineEvents = async (items: TimelineEvent[]) => { await clearStore(STORES.timelineEvents); await addMultiple(STORES.timelineEvents, items); };
-export const saveAllTags = async (items: Tag[]) => { await clearStore(STORES.tags); await addMultiple(STORES.tags, items); };
-export const saveAllKpis = async (items: KPI[]) => { await clearStore(STORES.kpis); await addMultiple(STORES.kpis, items); };
-
-export const getRisks = () => getOne<Risks>(STORES.risks, 1);
-export const saveRisks = (risks: Risks) => update(STORES.risks, { ...risks, id: 1 });
-
-export const getCaseSummary = () => getOne<CaseSummary>(STORES.caseSummary, 1);
-export const saveCaseSummary = (summary: CaseSummary) => update(STORES.caseSummary, { ...summary, id: 1 });
-
-export const getAllTasks = () => getAll<Task>(STORES.tasks);
-export const addMultipleInsights = (items: Insight[]) => addMultiple(STORES.insights, items);
-export const getAllInsights = () => getAll<Insight>(STORES.insights);
-export const saveAllInsights = async (items: Insight[]) => { await clearStore(STORES.insights); await addMultiple(STORES.insights, items); };
-
-export const getAllAgentActivities = () => getAll<AgentActivity>(STORES.agentActivity);
-export const addAgentActivity = (activity: AgentActivity) => add(STORES.agentActivity, activity);
-export const updateAgentActivity = (activity: AgentActivity) => update(STORES.agentActivity, activity);
-
-export const getAllAuditLogEntries = () => getAll<AuditLogEntry>(STORES.auditLog);
-export const addAuditLogEntry = (entry: AuditLogEntry) => add(STORES.auditLog, entry);
-
-export const getSettings = () => getOne<AppSettings>(STORES.settings, 1);
-export const saveSettings = (settings: AppSettings) => update(STORES.settings, { ...settings, id: 1 });
-
-export const getEthicsAnalysis = () => getOne<EthicsAnalysis>(STORES.ethicsAnalysis, 1);
-export const saveEthicsAnalysis = (analysis: EthicsAnalysis) => update(STORES.ethicsAnalysis, { ...analysis, id: 1 });
-
-export const saveDocumentAnalysisResult = (docId: string, result: DocumentAnalysisResult) => update(STORES.documentAnalysisResults, { docId, result });
-export const updateDocumentAnalysisResult = async (docId: string, partialResult: Partial<DocumentAnalysisResult>) => {
-    const existing = await getOne<{docId: string, result: DocumentAnalysisResult}>(STORES.documentAnalysisResults, docId);
-    const newResult = { ...existing?.result, ...partialResult };
-    await update(STORES.documentAnalysisResults, { docId, result: newResult });
-}
-export const getAllDocumentAnalysisResults = () => getAll<{docId: string, result: DocumentAnalysisResult}>(STORES.documentAnalysisResults);
-
-export const getMitigationStrategies = () => getOne<{id: number, content: string}>(STORES.mitigationStrategies, 1);
-export const saveMitigationStrategies = (content: string) => update(STORES.mitigationStrategies, { id: 1, content });
-
-export const getArgumentationAnalysis = () => getOne<ArgumentationAnalysis>(STORES.argumentationAnalysis, 1);
-export const saveArgumentationAnalysis = (analysis: ArgumentationAnalysis) => {
-    if (!analysis || typeof analysis.supportingArguments === 'undefined' || typeof analysis.opponentArguments === 'undefined') {
-        return Promise.resolve();
-    }
-    return update(STORES.argumentationAnalysis, { 
-        id: 1, 
-        supportingArguments: analysis.supportingArguments, 
-        opponentArguments: analysis.opponentArguments 
-    });
+export const getAllTags = async () => {
+    if (USE_BACKEND) try { return await ApiService.getTags(); } catch(e) { handleBackendError('getTags', e); }
+    return idbGetAll<Tag>(STORES.tags);
+};
+export const saveAllTags = async (tags: Tag[]) => {
+    if (USE_BACKEND) try { await ApiService.saveAllTags(tags); } catch(e) { handleBackendError('saveAllTags', e); }
+    await idbClearStore(STORES.tags); return idbAddMultiple(STORES.tags, tags);
 };
 
-export const saveAllTasks = async (items: Task[]) => { await clearStore(STORES.tasks); await addMultiple(STORES.tasks, items); };
+// IDB ONLY (Heavy data or non-critical for sync)
+export const addChunk = (chunk: DocumentChunk) => idbAdd(STORES.chunks, chunk);
+export const getAllChunks = () => idbGetAll<DocumentChunk>(STORES.chunks);
+export const addMultipleChunks = (items: DocumentChunk[]) => idbAddMultiple(STORES.chunks, items);
 
-export const getAllSuggestedEntities = () => getAll<SuggestedEntity>(STORES.suggestedEntities);
-export const addMultipleSuggestedEntities = (items: SuggestedEntity[]) => addMultiple(STORES.suggestedEntities, items);
-export const deleteSuggestedEntity = (id: string) => deleteItem(STORES.suggestedEntities, id);
+export const addGeneratedDocument = (doc: GeneratedDocument) => idbAdd(STORES.generatedDocuments, doc);
+export const getAllGeneratedDocuments = () => idbGetAll<GeneratedDocument>(STORES.generatedDocuments);
 
-// Forensic Dossiers
-export const saveDossier = (dossier: ForensicDossier) => update(STORES.dossiers, dossier);
-export const getAllDossiers = () => getAll<ForensicDossier>(STORES.dossiers);
+export const getAllContradictions = () => idbGetAll<Contradiction>(STORES.contradictions);
+export const addMultipleContradictions = (items: Contradiction[]) => idbAddMultiple(STORES.contradictions, items);
 
-export const clearDB = async (): Promise<void> => {
+export const getAllKpis = () => idbGetAll<KPI>(STORES.kpis);
+export const saveAllKpis = (items: KPI[]) => idbAddMultiple(STORES.kpis, items);
+
+export const getCaseSummary = () => idbGetOne<CaseSummary>(STORES.caseSummary, 1);
+export const saveCaseSummary = (s: CaseSummary) => idbUpdate(STORES.caseSummary, { ...s, id: 1 });
+
+export const getAllInsights = () => idbGetAll<Insight>(STORES.insights);
+export const addMultipleInsights = (items: Insight[]) => idbAddMultiple(STORES.insights, items);
+
+export const getAllAgentActivities = () => idbGetAll<AgentActivity>(STORES.agentActivity);
+export const addAgentActivity = (a: AgentActivity) => idbAdd(STORES.agentActivity, a);
+export const updateAgentActivity = (a: AgentActivity) => idbUpdate(STORES.agentActivity, a);
+
+export const getAllAuditLogEntries = () => idbGetAll<AuditLogEntry>(STORES.auditLog);
+export const addAuditLogEntry = (e: AuditLogEntry) => idbAdd(STORES.auditLog, e);
+
+export const getEthicsAnalysis = () => idbGetOne<EthicsAnalysis>(STORES.ethicsAnalysis, 1);
+export const saveEthicsAnalysis = (a: EthicsAnalysis) => idbUpdate(STORES.ethicsAnalysis, { ...a, id: 1 });
+
+export const getAllDocumentAnalysisResults = () => idbGetAll<{docId: string, result: DocumentAnalysisResult}>(STORES.documentAnalysisResults);
+export const saveDocumentAnalysisResult = (docId: string, result: DocumentAnalysisResult) => idbUpdate(STORES.documentAnalysisResults, { id: docId, docId, result });
+
+export const getMitigationStrategies = () => idbGetOne<{id: number, content: string}>(STORES.mitigationStrategies, 1);
+export const saveMitigationStrategies = (c: string) => idbUpdate(STORES.mitigationStrategies, { id: 1, content: c });
+
+export const getArgumentationAnalysis = () => idbGetOne<ArgumentationAnalysis>(STORES.argumentationAnalysis, 1);
+export const saveArgumentationAnalysis = (a: ArgumentationAnalysis) => idbUpdate(STORES.argumentationAnalysis, { ...a, id: 1 });
+
+export const getAllSuggestedEntities = () => idbGetAll<SuggestedEntity>(STORES.suggestedEntities);
+export const addMultipleSuggestedEntities = (i: SuggestedEntity[]) => idbAddMultiple(STORES.suggestedEntities, i);
+export const deleteSuggestedEntity = (id: string) => idbDelete(STORES.suggestedEntities, id);
+
+export const getAllDossiers = () => idbGetAll<ForensicDossier>(STORES.dossiers);
+export const saveDossier = (d: ForensicDossier) => idbUpdate(STORES.dossiers, d);
+
+export const saveAllTasks = (t: Task[]) => idbAddMultiple(STORES.tasks, t);
+export const getAllTasks = () => idbGetAll<Task>(STORES.tasks);
+
+// ESF Local Storage
+export const addMultipleEsfEvents = (i: EsfEventRecord[]) => idbAddMultiple(STORES.esfEvents, i);
+export const getAllEsfEvents = () => idbGetAll<EsfEventRecord>(STORES.esfEvents);
+export const addMultipleEsfPersons = (i: EsfPersonRecord[]) => idbAddMultiple(STORES.esfPersons, i);
+export const getAllEsfPersons = () => idbGetAll<EsfPersonRecord>(STORES.esfPersons);
+export const addMultipleEsfActLinks = (i: EsfActRecord[]) => idbAddMultiple(STORES.esfActLinks, i);
+export const getAllEsfActLinks = () => idbGetAll<EsfActRecord>(STORES.esfActLinks);
+export const addMultipleEsfInvolvementLinks = (i: EsfInvolvementRecord[]) => idbAddMultiple(STORES.esfInvolvementLinks, i);
+export const getAllEsfInvolvementLinks = () => idbGetAll<EsfInvolvementRecord>(STORES.esfInvolvementLinks);
+export const addMultipleEsfInformationLinks = (i: EsfInformationRecord[]) => idbAddMultiple(STORES.esfInformationLinks, i);
+export const getAllEsfInformationLinks = () => idbGetAll<EsfInformationRecord>(STORES.esfInformationLinks);
+export const addMultipleEsfInterventionLinks = (i: EsfInterventionRecord[]) => idbAddMultiple(STORES.esfInterventionLinks, i);
+export const getAllEsfInterventionLinks = () => idbGetAll<EsfInterventionRecord>(STORES.esfInterventionLinks);
+
+// Global
+export const clearDB = async () => {
     await initDB();
-    const transaction = db.transaction(Object.values(STORES), 'readwrite');
-    const promises = Object.values(STORES).map(storeName => {
-        return new Promise<void>((resolve, reject) => {
-            const request = transaction.objectStore(storeName).clear();
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    });
-    await Promise.all(promises);
+    const tx = db.transaction(Object.values(STORES), 'readwrite');
+    Object.values(STORES).forEach(s => tx.objectStore(s).clear());
+    return new Promise<void>((res) => { tx.oncomplete = () => res(); });
 };
 
-export const exportStateToJSON = async (): Promise<string> => {
-    const state: any = {};
-    for (const storeName of Object.values(STORES)) {
-        const storeData = await getAll(storeName);
-        state[storeName] = storeData;
+export const exportStateToJSON = async () => {
+    const state: Record<string, any> = {};
+    for (const store of Object.values(STORES)) {
+        state[store] = await idbGetAll(store);
     }
     return JSON.stringify(state, null, 2);
 };
 
-export const importStateFromJSON = async (json: string): Promise<void> => {
-    await initDB(); // Ensure DB is open and up to date
-    await clearDB(); // Wipe existing data first
-
-    let state: Partial<AppState> & { [key: string]: any };
-
+export const importStateFromJSON = async (json: string) => {
+    await initDB(); 
+    await clearDB();
+    
     try {
-        state = JSON.parse(json);
-    } catch (error) {
-        throw new Error("Die Datei ist keine gültige JSON-Datei.");
-    }
-
-    // Helper to perform a safe PUT operation that doesn't abort the transaction on individual failure
-    const safePut = (store: IDBObjectStore, item: any) => {
-        return new Promise<void>((resolve) => {
-            try {
-                const request = store.put(item);
-                request.onsuccess = () => resolve();
-                request.onerror = (event) => {
-                    // Crucial: Prevent transaction abort on individual item error (e.g. key constraint)
-                    event.preventDefault();
-                    event.stopPropagation();
-                    console.warn(`Import skipped item in store "${store.name}" due to error:`, request.error, item);
-                    resolve(); // Resolve anyway to continue the Promise.all
-                };
-            } catch (e) {
-                console.error(`Exception during put in store "${store.name}":`, e);
-                resolve();
+        const rawState = JSON.parse(json);
+        // Validating structure before writing to DB
+        const state = ImportSchema.parse(rawState);
+        
+        const tx = db.transaction(Object.values(STORES), 'readwrite');
+        const stores = Object.values(STORES);
+        
+        for (const store of stores) {
+            const storeData = state[store];
+            if (storeData) {
+                const items = Array.isArray(storeData) ? storeData : [storeData];
+                items.forEach((i: any) => tx.objectStore(store).put(i));
             }
+        }
+        
+        return new Promise<void>((res, rej) => { 
+            tx.oncomplete = () => res();
+            tx.onerror = () => rej(tx.error);
         });
-    };
-
-    // We use isolated transactions per store to prevent a single failure (e.g. keyPath mismatch in new features)
-    // from rolling back the entire restore process.
-    for (const storeName of Object.values(STORES)) {
-        let dataToImport = state[storeName];
-
-        if (!dataToImport) {
-            continue;
-        }
-
-        try {
-            // Normalize documentAnalysisResults:
-            // 1. Handle Object format (Legacy export) -> Convert to Array
-            // 2. Handle Unwrapped Array items (Legacy storage) -> Wrap in { docId, result }
-            if (storeName === STORES.documentAnalysisResults) {
-                if (!Array.isArray(dataToImport) && typeof dataToImport === 'object') {
-                    dataToImport = Object.entries(dataToImport).map(([docId, result]) => ({
-                        docId: docId,
-                        result: result as DocumentAnalysisResult
-                    }));
-                } else if (Array.isArray(dataToImport)) {
-                    // Check if items are unwrapped DocumentAnalysisResult objects
-                    dataToImport = dataToImport.map((item: any) => {
-                        // Heuristic: If it has docId but NO result property, and has analysis fields, it's likely unwrapped.
-                        if (item.docId && !item.result && (item.summary || item.classification)) {
-                            return { docId: item.docId, result: item };
-                        }
-                        return item;
-                    });
-                }
-            }
-
-            // Safe store access: Only try to import if store exists in current schema
-            if (!db.objectStoreNames.contains(storeName)) {
-                console.warn(`Skipping import for store '${storeName}' as it does not exist in current DB version.`);
-                continue;
-            }
-
-            const transaction = db.transaction(storeName, 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const storePromises: Promise<void>[] = [];
-
-            if (SINGLE_RECORD_STORES.has(storeName)) {
-                const record = Array.isArray(dataToImport) ? dataToImport[0] : dataToImport;
-                if (record && typeof record === 'object' && !Array.isArray(record)) {
-                    const recordWithId = { ...record, id: 1 };
-                    storePromises.push(safePut(store, recordWithId));
-                }
-            } else {
-                if (Array.isArray(dataToImport)) {
-                    dataToImport.forEach(item => {
-                        // Safety check for critical ESF keys to avoid hard crashes before DB logic
-                        if (storeName === STORES.esfEvents && !item.eventRecordNumber) return;
-                        if (storeName === STORES.esfPersons && !item.personRecordNumber) return;
-                        
-                        storePromises.push(safePut(store, item));
-                    });
-                }
-            }
-
-            await Promise.all(storePromises);
-            
-            // Wait for transaction to complete
-            await new Promise<void>((resolve, reject) => {
-                transaction.oncomplete = () => resolve();
-                transaction.onerror = () => reject(transaction.error);
-                transaction.onabort = () => reject(new Error('Transaction aborted'));
-            });
-
-        } catch (err) {
-            console.warn(`Failed to import store "${storeName}". Skipping this section.`, err);
-            // We continue to the next store instead of throwing, so partially compatible backups still work.
-        }
+    } catch (error) {
+        console.error("Import failed due to validation or parsing error:", error);
+        throw new Error("Import failed: Invalid JSON structure or schema validation error.");
     }
 };

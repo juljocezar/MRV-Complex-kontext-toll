@@ -1,5 +1,12 @@
 
-import { EsfEventRecord, EsfActLink, EsfPersonRecord, EsfInvolvementLink } from './types/esf';
+import { 
+    EsfEventRecord, 
+    EsfActRecord, 
+    EsfPersonRecord, 
+    EsfInvolvementRecord, 
+    EsfInformationRecord, 
+    EsfInterventionRecord 
+} from './types/esf';
 
 // A collection of all types used in the application.
 
@@ -26,16 +33,23 @@ export type ActiveTab =
   | 'agents'
   | 'audit'
   | 'settings'
-  | 'architecture-analysis'
-  | 'status'
   | 'system-analysis'
   | 'forensic-dossier'
   | 'radbruch-check';
 
-// Re-export ESF types for convenience in other files
-export type { EsfEventRecord, EsfActLink, EsfPersonRecord, EsfInvolvementLink };
+// Re-export ESF types
+export type { 
+    EsfEventRecord, 
+    EsfActRecord, 
+    EsfPersonRecord, 
+    EsfInvolvementRecord, 
+    EsfInformationRecord, 
+    EsfInterventionRecord 
+};
 
 // ----------------------------------------
+
+export type AnalysisMode = 'scan' | 'forensic';
 
 export interface Document {
   id: string;
@@ -50,13 +64,18 @@ export interface Document {
   tags: string[];
   createdAt: string;
   embedding?: number[];
+  analysisMode?: AnalysisMode; // Track which mode was used
   
-  // ESF Data extracted from this document
-  esfExtraction?: {
-      events: EsfEventRecord[];
-      acts: EsfActLink[];
-      persons: EsfPersonRecord[];
-  };
+  // ESF Data extracted from this document (Legacy ref, now in AppState)
+  esfExtraction?: any;
+}
+
+export interface DocumentChunk {
+  id: string;
+  docId: string;
+  text: string;
+  index: number;
+  embedding?: number[];
 }
 
 export interface GeneratedDocument {
@@ -87,7 +106,6 @@ export interface ForensicDossier {
         longTermPrevention: string;
         technicalSteps: string[];
     } | null;
-    // New: Stores the result of the deterministic logic engine check
     algorithmicVerification?: CausalityMap; 
     finalContent?: string;
 }
@@ -100,8 +118,6 @@ export interface CaseEntity {
   relationships?: EntityRelationship[];
   roles?: ('Opfer' | 'Täter' | 'Quelle' | 'Intervenierende Partei')[];
   embedding?: number[];
-  
-  // Link to ESF Person Record ID if applicable
   esf_person_id?: string;
 }
 
@@ -127,8 +143,6 @@ export interface TimelineEvent {
   title: string;
   description: string;
   documentIds: string[];
-  
-  // Link to ESF Event Record ID
   esf_event_id?: string;
 }
 
@@ -230,10 +244,10 @@ export interface DocumentAnalysisResult {
     structuredEvents?: StructuredEvent[];
     structuredActs?: StructuredAct[];
     structuredParticipants?: StructuredParticipant[];
-    causalityMap?: CausalityMap; // New field for forensic analysis
+    causalityMap?: CausalityMap;
     
-    // ESF Data extracted during analysis (Raw form before saving to store)
-    rawESFData?: any; // Kept loose for legacy compatibility
+    // ESF Data extracted during analysis (Raw form)
+    rawESFData?: any; 
 }
 
 export interface DocumentAnalysisResults {
@@ -406,7 +420,6 @@ export interface GeneratedContent {
     };
 }
 
-// Orchestration Result Interface
 export interface OrchestrationResult {
     updatedDoc: Document;
     analysisResult: DocumentAnalysisResult;
@@ -416,16 +429,19 @@ export interface OrchestrationResult {
     newInsights: Insight[];
     newKnowledgeItems: KnowledgeItem[];
     newTimelineEvents: TimelineEvent[];
-    // New ESF Data to sync state
+    // New ESF Data
     newEsfEvents: EsfEventRecord[];
     newEsfPersons: EsfPersonRecord[];
-    newEsfActLinks: EsfActLink[];
-    newEsfInvolvementLinks: EsfInvolvementLink[];
+    newEsfActLinks: EsfActRecord[];
+    newEsfInvolvementLinks: EsfInvolvementRecord[];
+    newEsfInformationLinks: EsfInformationRecord[];
+    newEsfInterventionLinks: EsfInterventionRecord[];
 }
 
 export interface AppState {
     activeTab: ActiveTab;
     documents: Document[];
+    chunks: DocumentChunk[]; // New chunk storage
     generatedDocuments: GeneratedDocument[];
     caseEntities: CaseEntity[];
     knowledgeItems: KnowledgeItem[];
@@ -458,11 +474,13 @@ export interface AppState {
     systemAnalysisResult?: SystemAnalysisResult | null;
     dossiers: ForensicDossier[];
     
-    // Loaded ESF Data
+    // Loaded ESF Data Collections
     esfEvents: EsfEventRecord[];
     esfPersons: EsfPersonRecord[];
-    esfActLinks: EsfActLink[];
-    esfInvolvementLinks: EsfInvolvementLink[];
+    esfActLinks: EsfActRecord[];
+    esfInvolvementLinks: EsfInvolvementRecord[];
+    esfInformationLinks: EsfInformationRecord[];
+    esfInterventionLinks: EsfInterventionRecord[];
 }
 
 export interface ChecklistItem {
@@ -515,8 +533,8 @@ export interface SearchResult {
     type: 'Document' | 'Entity' | 'Knowledge';
     title: string;
     preview: string;
-    score: number; // Added score for sorting results
-    isSemantic?: boolean; // To distinguish vector matches
+    score: number;
+    isSemantic?: boolean;
 }
 
 // --- Radbruch / Phantom Layer Types ---
@@ -552,8 +570,8 @@ export type DecisionOpacityLevel =
 export interface RadbruchEvent {
   eventId: string;
   eventType: string;
-  dateStart?: string;   // ISO
-  dateEnd?: string;     // ISO
+  dateStart?: string;
+  dateEnd?: string;
   location: Location;
   jurisdictionUnitId: string;
 
@@ -569,20 +587,18 @@ export interface RadbruchEvent {
     | "civil_court"
     | "other";
     
-  involvedActors: string; // Helper for simple text input
+  involvedActors: string;
   
-  // -- Extended Fields for Advanced Validators --
-  referencedLaws: string[]; // List of laws cited in the event
+  referencedLaws: string[];
   signerName?: string;
   isMachineGenerated: boolean;
-  officialSignal: string; // The official justification ("Wir tun dies zu Ihrem Schutz")
+  officialSignal: string;
   sphereRisks: {
       lossOfHousing: boolean;
       lossOfIncome: boolean;
       healthRisk: boolean;
   };
   
-  // HURIDOCS ESF Link
   huridocsEvent?: EsfEventRecord;
 }
 
@@ -593,8 +609,6 @@ export interface DimensionAssessment {
   label: RadbruchLabel;
   notes: string;
 }
-
-// --- Validator Results ---
 
 export type NormCollisionSeverity = "none" | "ordre_public" | "ius_cogens";
 
@@ -699,8 +713,6 @@ export interface Radbruch4DAssessment {
   signalComparison?: SignalCodeResult;
 }
 
-// --- Forensische Causal Mapping Types ---
-
 export interface CausalNode {
   id: string;
   label: string;
@@ -729,16 +741,11 @@ export interface CausalEdge {
 export interface CausalityMap {
   nodes: CausalNode[];
   edges: CausalEdge[];
-  
-  // Forensic Analysis Results
-  zersetzungDetected: boolean; // Flag set if autonomy is destroyed
-  rootCauses: string[]; // IDs of root nodes
-  criticalChains: string[][]; // Paths leading to autonomy destruction
-  
+  zersetzungDetected: boolean;
+  rootCauses: string[];
+  criticalChains: string[][];
   generatedAt: string;
 }
-
-// --- Legal & HRD Resource Types ---
 
 export type LegalMechanism =
   | 'UN_TREATY_BODY'
@@ -758,7 +765,7 @@ export interface LegalSourceCard {
   description: string;
   mechanism: LegalMechanism;
   region: 'GLOBAL' | 'AFRICA' | 'EUROPE' | 'AMERICAS' | 'ASIA' | 'MENA' | 'OTHER';
-  topics: string[]; // e.g. ['torture', 'hrds', 'organized_crime']
+  topics: string[];
   baseUrl: string;
 }
 

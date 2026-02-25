@@ -1,8 +1,9 @@
 
 import { GeminiService } from './geminiService';
-import { SystemAnalysisResult, AppState } from '../types';
+import { SystemAnalysisResult, AppState, CausalNode, CausalEdge } from '../types';
 import { buildCaseContext } from '../utils/contextUtils';
 import { selectAgentForTask } from '../utils/agentSelection';
+import { buildCausalityMap } from '../logic_engine/causality_mapping_tool';
 
 export class SystemDynamicsService {
     private static readonly SCHEMA = {
@@ -44,6 +45,44 @@ export class SystemDynamicsService {
         const context = buildCaseContext(appState);
         const agent = selectAgentForTask('systemic_analysis');
 
+        // --- LOGIC ENGINE INTEGRATION: Causal Map Construction ---
+        // Construct a deterministic graph from ESF data to feed into the AI context
+        const nodes: CausalNode[] = appState.esfEvents.map(e => ({
+            id: e.recordNumber,
+            label: e.eventTitle,
+            type: 'event',
+            description: e.description
+        }));
+
+        const edges: CausalEdge[] = appState.esfActLinks.map(act => {
+            const isDestructive = 
+                (act.actType && ['Folter', 'Zersetzung', 'Isolierung', 'Psychischer Terror'].includes(act.actType)) ||
+                (act.method && act.method.toLowerCase().includes('zersetzung'));
+
+            return {
+                id: act.recordNumber,
+                source: act.eventId,
+                target: act.victimId, // Graph flows from Event -> Person via Act
+                relationType: isDestructive ? 'destroys_autonomy' : 'causes',
+                description: act.actType
+            };
+        });
+
+        const causalMap = buildCausalityMap(nodes, edges);
+        let causalContext = "";
+
+        if (causalMap.zersetzungDetected) {
+            causalContext = `
+⚠️ SYSTEM-WARNUNG (LOGIC ENGINE):
+Die algorithmische Prüfung der Kausalitätskette hat Muster der "Zersetzung" (Zerstörung der Autonomie) erkannt.
+Kritische Ketten:
+${causalMap.criticalChains.map(chain => chain.join(' -> ')).join('\n')}
+
+Berücksichtige diese bewiesene strukturelle Gewalt zwingend in der Analyse.
+`;
+        }
+        // ---------------------------------------------------------
+
         const prompt = `
 ${agent.systemPrompt}
 
@@ -52,6 +91,8 @@ Führen Sie eine tiefgehende Analyse der **Systemdynamik und der gesellschaftlic
 
 **ANALYSE-FOKUS:**
 ${focusArea ? `Untersuchen Sie spezifisch folgenden Aspekt im systemischen Kontext: "${focusArea}"` : "Identifizieren Sie die grundlegenden systemischen Treiber und deren Auswirkungen auf die Gesellschaft."}
+
+${causalContext}
 
 **FALLKONTEXT (Datenbasis):**
 ---
