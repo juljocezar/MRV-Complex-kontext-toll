@@ -10,10 +10,20 @@ export class SearchService {
     private entities: CaseEntity[] = [];
     private knowledgeItems: KnowledgeItem[] = [];
 
+    // Maps for O(1) lookups during search
+    private documentMap: Map<string, Document> = new Map();
+    private entityMap: Map<string, CaseEntity> = new Map();
+    private knowledgeMap: Map<string, KnowledgeItem> = new Map();
+
     public buildIndex(appState: AppState): void {
         this.documents = appState.documents;
         this.entities = appState.caseEntities;
         this.knowledgeItems = appState.knowledgeItems;
+
+        // Initialize maps for faster lookup
+        this.documentMap = new Map(appState.documents.map(d => [d.id, d]));
+        this.entityMap = new Map(appState.caseEntities.map(e => [e.id, e]));
+        this.knowledgeMap = new Map(appState.knowledgeItems.map(k => [k.id, k]));
         
         this.idx = lunr(function () {
             this.ref('id');
@@ -86,9 +96,9 @@ export class SearchService {
                 const score = result.score; // Lunr score (arbitrary positive number)
 
                 let item: any;
-                if (type === 'doc') item = this.documents.find(d => d.id === id);
-                else if (type === 'entity') item = this.entities.find(e => e.id === id);
-                else if (type === 'knowledge') item = this.knowledgeItems.find(k => k.id === id);
+                if (type === 'doc') item = this.documentMap.get(id);
+                else if (type === 'entity') item = this.entityMap.get(id);
+                else if (type === 'knowledge') item = this.knowledgeMap.get(id);
 
                 if (!item) return null;
 
